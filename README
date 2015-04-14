@@ -1,1 +1,6 @@
 # PYTHIA8 simulation for ILC HZ to strange quarks
+#
+# ilchz.cc, ilchz.h: C++ pythia code, including ROOT
+#                    analysis code
+#
+# ilchz.cmnd: configuration

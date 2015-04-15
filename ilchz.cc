@@ -35,6 +35,11 @@ struct ParticleKinRootAux
 {
     std::vector<int> * pdgId;
     std::vector<int> * motherId;
+    // FIXME:: remove grandmotherid, instead put in isLeading 
+    // this information, change the name isLeading to auxvar
+    // which now is a dynamic variable: isLeading when s-quarks,
+    // grandmotherId when is hadrons form s
+    std::vector<int> * grandmotherId;
     std::vector<int> * isLeading;
     std::vector<float> * p;
     std::vector<float> * pmother;
@@ -52,6 +57,7 @@ struct ParticleKinRootAux
     ParticleKinRootAux(): 
         pdgId(0),
         motherId(0),
+        grandmotherId(0),
         isLeading(0),
         p(0),
         pmother(0),
@@ -61,6 +67,7 @@ struct ParticleKinRootAux
     {
         _auxI.push_back(&pdgId);
         _auxI.push_back(&motherId);
+        _auxI.push_back(&grandmotherId);
         _auxI.push_back(&isLeading);
         _auxF.push_back(&p);
         _auxF.push_back(&pmother);
@@ -96,13 +103,14 @@ struct ParticleKinRootAux
     // preloop initialization
     void initloop()
     {
-        pdgId     = new std::vector<int>;
-        motherId  = new std::vector<int>;
-        isLeading = new std::vector<int>;
-        p         = new std::vector<float>;
-        pmother   = new std::vector<float>;
-        phi       = new std::vector<float>;
-        theta     = new std::vector<float>;
+        pdgId          = new std::vector<int>;
+        motherId       = new std::vector<int>;
+        grandmotherId  = new std::vector<int>;
+        isLeading      = new std::vector<int>;
+        p              = new std::vector<float>;
+        pmother        = new std::vector<float>;
+        phi            = new std::vector<float>;
+        theta          = new std::vector<float>;
 
         _listofusedpartindex = new std::vector<int>;
     }
@@ -127,11 +135,12 @@ struct ParticleKinRootAux
             }
         }
     }
-    void filltreevariables(const int & particleindex, const int & id, const int & motherid, const int & leading, 
+    void filltreevariables(const int & particleindex, const int & id, const int & motherid, const int & grmotherid, const int & leading, 
         const float & _p, const float & _pmother, const float & _phi, const float & _theta)
     {
         this->pdgId->push_back(id);
         this->motherId->push_back(motherid);
+        this->grandmotherId->push_back(grmotherid);
         this->isLeading->push_back(leading);
         this->p->push_back(_p);
         this->pmother->push_back(_pmother);
@@ -149,6 +158,7 @@ struct ParticleKinRootAux
 
         t->Branch("pdgId",&pdgId);
         t->Branch("motherId",&motherId);
+        t->Branch("grandmotherId",&grandmotherId);
         t->Branch("isLeading",&isLeading);
         t->Branch("p",&p);
         t->Branch("pmother",&pmother);
@@ -162,6 +172,12 @@ void fillstrangehadron(const Particle & quarkbeforerad, const Pythia & pythia, c
     // Get list of quark-daughters which are final and are strange hadrons
     // Note that the quark particle should be obtained throught the method iBotCopyId
     const Particle & quark = pythia.event[quarkbeforerad.iBotCopyId()];
+    // Getting the original resonance
+    int gmId = pythia.event[quarkbeforerad.mother1()].id();
+    if(gmId == 0)
+    {
+        gmId = pythia.event[quarkbeforerad.mother2()].id();
+    }
     // Getting the quark in its restframe:
     Particle  quarkatrest(quark);
     quarkatrest.rotbst(restframe);
@@ -178,8 +194,8 @@ void fillstrangehadron(const Particle & quarkbeforerad, const Pythia & pythia, c
         }
         Particle restframehadron(strhad);
         restframehadron.rotbst(restframe);
-        p.filltreevariables(currI,strhad.id(),quark.id(),-1,
-                restframehadron.pAbs(),quarkatrest.pAbs(),strhad.phi(),strhad.theta());
+        p.filltreevariables(currI,strhad.id(),quark.id(),gmId,-1,
+                restframehadron.pAbs(),quarkatrest.pAbs(),restframehadron.phi(),restframehadron.theta());
     }
 }
 
@@ -193,7 +209,7 @@ void fillresonancechain(const int & i, const Pythia & pythia, ParticleKinRootAux
     const int iHS = pythia.event[i].iTopCopy();
     const Particle & resonanceHS = pythia.event[iHS];
     const int resId = resonanceHS.id();
-    p.filltreevariables(i,resId,0,-2,
+    p.filltreevariables(i,resId,0,0,-2,
             resonanceHS.pAbs(),-1,resonanceHS.phi(),resonanceHS.theta());
 
     // Before dealing with the daughters, recover the lowest copy (already 
@@ -226,7 +242,7 @@ void fillresonancechain(const int & i, const Pythia & pythia, ParticleKinRootAux
     //srestframe.rotbst(restframe);
     //const float s_prf = srestframe.pAbs();
 
-    p.filltreevariables(pythia.event[iS].iBotCopyId(),s.id(),resId,(int)isLeading_s,
+    p.filltreevariables(pythia.event[iS].iBotCopyId(),s.id(),resId,0,(int)isLeading_s,
             s.pAbs(),resonance.pAbs(),s.phi(),s.theta());
     
     // Save info of the sbar-quark
@@ -235,7 +251,7 @@ void fillresonancechain(const int & i, const Pythia & pythia, ParticleKinRootAux
     //sbarrestframe.rotbst(restframe);
     //const float sbar_prf = sbarrestframe.pAbs();
     
-    p.filltreevariables(iSbar,sbar.id(),resId,(int)(not isLeading_s),
+    p.filltreevariables(iSbar,sbar.id(),resId,0,(int)(not isLeading_s),
             sbar.pAbs(),resonance.pAbs(),sbar.phi(),sbar.theta());
     
     // Track-down the kaons and lambdas from the strange quarks
@@ -376,7 +392,7 @@ int main(int argc, char* argv[])
             else if( pythia.event[currI].isFinal() )
             {
                 const Particle & had = pythia.event[currI]; 
-                particles.filltreevariables(currI,had.id(),0,-1,
+                particles.filltreevariables(currI,had.id(),0,0,-1,
                         had.pAbs(),-1,had.phi(),had.theta());
             }
         }

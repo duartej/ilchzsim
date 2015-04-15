@@ -37,7 +37,7 @@ struct ParticleKinRootAux
     std::vector<int> * motherId;
     std::vector<int> * isLeading;
     std::vector<float> * p;
-    std::vector<float> * motherp;
+    std::vector<float> * pmother;
     std::vector<float> * phi;
     std::vector<float> * theta;
 
@@ -54,7 +54,7 @@ struct ParticleKinRootAux
         motherId(0),
         isLeading(0),
         p(0),
-        motherp(0),
+        pmother(0),
         phi(0),
         theta(0),
        _listofusedpartindex(0) 
@@ -63,7 +63,7 @@ struct ParticleKinRootAux
         _auxI.push_back(&motherId);
         _auxI.push_back(&isLeading);
         _auxF.push_back(&p);
-        _auxF.push_back(&motherp);
+        _auxF.push_back(&pmother);
         _auxF.push_back(&phi);
         _auxF.push_back(&theta);
 
@@ -100,7 +100,7 @@ struct ParticleKinRootAux
         motherId  = new std::vector<int>;
         isLeading = new std::vector<int>;
         p         = new std::vector<float>;
-        motherp   = new std::vector<float>;
+        pmother   = new std::vector<float>;
         phi       = new std::vector<float>;
         theta     = new std::vector<float>;
 
@@ -128,13 +128,13 @@ struct ParticleKinRootAux
         }
     }
     void filltreevariables(const int & particleindex, const int & id, const int & motherid, const int & leading, 
-        const float & _p, const float & _motherp, const float & _phi, const float & _theta)
+        const float & _p, const float & _pmother, const float & _phi, const float & _theta)
     {
         this->pdgId->push_back(id);
         this->motherId->push_back(motherid);
         this->isLeading->push_back(leading);
         this->p->push_back(_p);
-        this->motherp->push_back(_motherp);
+        this->pmother->push_back(_pmother);
         this->phi->push_back(_phi);
         this->theta->push_back(_theta);
 
@@ -151,16 +151,21 @@ struct ParticleKinRootAux
         t->Branch("motherId",&motherId);
         t->Branch("isLeading",&isLeading);
         t->Branch("p",&p);
-        t->Branch("motherp",&motherp);
+        t->Branch("pmother",&pmother);
         t->Branch("phi",&phi);
         t->Branch("theta",&theta);
     }
 };
 
-void fillstrangehadron(const Particle & quark, const Pythia & pythia, ParticleKinRootAux & p)
+void fillstrangehadron(const Particle & quarkbeforerad, const Pythia & pythia, const RotBstMatrix & restframe, ParticleKinRootAux & p)
 {
     // Get list of quark-daughters which are final and are strange hadrons
     // Note that the quark particle should be obtained throught the method iBotCopyId
+    const Particle & quark = pythia.event[quarkbeforerad.iBotCopyId()];
+    // Getting the quark in its restframe:
+    Particle  quarkatrest(quark);
+    quarkatrest.rotbst(restframe);
+
     const int ndaughters = quark.daughterList().size(); 
     for(int k = 0; k < ndaughters; ++k)
     {
@@ -171,8 +176,10 @@ void fillstrangehadron(const Particle & quark, const Pythia & pythia, ParticleKi
         {
             continue;
         }
+        Particle restframehadron(strhad);
+        restframehadron.rotbst(restframe);
         p.filltreevariables(currI,strhad.id(),quark.id(),-1,
-                strhad.pAbs(),quark.pAbs(),strhad.phi(),strhad.theta());
+                restframehadron.pAbs(),quarkatrest.pAbs(),strhad.phi(),strhad.theta());
     }
 }
 
@@ -180,8 +187,7 @@ void fillstrangehadron(const Particle & quark, const Pythia & pythia, ParticleKi
 
 void fillresonancechain(const int & i, const Pythia & pythia, ParticleKinRootAux & p)
 {
-    // Fill the resonance relative info
-    // Lab frame
+    // Fill the resonance relative info: Lab frame
     // Note that we want to store info before showering,
     // directly from Hard-Scattering
     const int iHS = pythia.event[i].iTopCopy();
@@ -196,42 +202,55 @@ void fillresonancechain(const int & i, const Pythia & pythia, ParticleKinRootAux
     // Getting the s-quarks
     const int s1 = resonance.daughter1();
     const int s2 = resonance.daughter2();
-    // Should I get the botton carbon copy?
-    // Which means after all the radiations: iBotCopy() 
 
-    // Note that we want to get the info of the last "carbon copy" or
-    // same  quark (after the radiation steps and before hadronization)
-    int iS    = pythia.event[s1].iBotCopyId();
-    int iSbar = pythia.event[s2].iBotCopyId();
+    // Note that we want to get the info of the first "carbon copy" or
+    // same  quark (before the radiation steps)
+    int iS    = s1;
+    int iSbar = s2;
     if( pythia.event[s1].id() < 0)
     {
-        iS    = pythia.event[s2].iBotCopyId();
-        iSbar = pythia.event[s1].iBotCopyId();
+        iS    = s2;
+        iSbar = s1;
     }
     const Particle & s    = pythia.event[iS];
     const Particle & sbar = pythia.event[iSbar];
     
-    // Save info of the s-quark :: FIXME TO include rest-frame
-    const bool isLeading_s = (s.pAbs() > sbar.pAbs()) ; 
-    p.filltreevariables(iS,s.id(),resId,(int)isLeading_s,s.pAbs(),resonance.pAbs(),s.phi(),s.theta());
+    // Boost to rest-frame of the s-sbar system (pz is the only non-zero coordinate): 
+    RotBstMatrix restframe;
+    restframe.toCMframe(s.p(),sbar.p());
+
+    // Save info of the s-quark
+    const bool isLeading_s = (s.pAbs() > sbar.pAbs());
+    // Note p in the rest-frame of the mother:
+    //Particle srestframe(s);
+    //srestframe.rotbst(restframe);
+    //const float s_prf = srestframe.pAbs();
+
+    p.filltreevariables(pythia.event[iS].iBotCopyId(),s.id(),resId,(int)isLeading_s,
+            s.pAbs(),resonance.pAbs(),s.phi(),s.theta());
     
-    // Save info of the sbar-quark :;: FIXME to include rest-frame
+    // Save info of the sbar-quark
+    // Note p in the rest-frame of the mother:
+    //Particle sbarrestframe(s);
+    //sbarrestframe.rotbst(restframe);
+    //const float sbar_prf = sbarrestframe.pAbs();
+    
     p.filltreevariables(iSbar,sbar.id(),resId,(int)(not isLeading_s),
             sbar.pAbs(),resonance.pAbs(),sbar.phi(),sbar.theta());
     
     // Track-down the kaons and lambdas from the strange quarks
-    fillstrangehadron(s,pythia,p);
-    fillstrangehadron(sbar,pythia,p);
+    fillstrangehadron(s,pythia,restframe,p);
+    fillstrangehadron(sbar,pythia,restframe,p);
 }
 
 
 int main(int argc, char* argv[]) 
 {
     // Check that correct number of command-line arguments
-    if(argc != 3) 
+    if(argc != 2) 
     {
         std::cerr << " Unexpected number of command-line arguments. \n You are"
-            << " expected to provide one input and one output file name. \n"
+            << " expected to provide one input file name. \n"
             << " Program stopped! " << std::endl;
         return 1;
     }

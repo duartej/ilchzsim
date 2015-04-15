@@ -182,11 +182,17 @@ void fillresonancechain(const int & i, const Pythia & pythia, ParticleKinRootAux
 {
     // Fill the resonance relative info
     // Lab frame
-    const Particle & resonance = pythia.event[i];
-    const int resId = resonance.id();
+    // Note that we want to store info before showering,
+    // directly from Hard-Scattering
+    const int iHS = pythia.event[i].iTopCopy();
+    const Particle & resonanceHS = pythia.event[iHS];
+    const int resId = resonanceHS.id();
     p.filltreevariables(i,resId,0,-2,
-            resonance.pAbs(),-1,resonance.phi(),resonance.theta());
+            resonanceHS.pAbs(),-1,resonanceHS.phi(),resonanceHS.theta());
 
+    // Before dealing with the daughters, recover the lowest copy (already 
+    // radiated, therefore, the daughters are coming from a decay process)
+    const Particle & resonance = pythia.event[i];
     // Getting the s-quarks
     const int s1 = resonance.daughter1();
     const int s2 = resonance.daughter2();

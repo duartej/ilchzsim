@@ -4,3 +4,9 @@
 #                    analysis code
 #
 # ilchz.cmnd: configuration
+#
+# TODO:: 
+#      * Should be included a method to keep track of the
+#      direction of the parent quark (in the hadron cases)
+#      and use always the system of reference where the 
+#      hadron is always in the positive axis

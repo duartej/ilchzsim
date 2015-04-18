@@ -40,6 +40,9 @@ ROOT_BIN=/usr/bin/
 ROOT_INCLUDE=/usr/include/root
 ROOT_LIB=/usr/lib
 
+# INSTALL PATH
+PREFIX_INSTALL_PATH=/home/duarte/.local/bin
+
 # Check distribution (use local version first, then installed version).
 ifneq ("$(wildcard ../lib/libpythia8.a)","")
   PREFIX_LIB=../lib
@@ -71,6 +74,10 @@ ilchz: $$@.cc $$@.h
 	$(CXX) $^ -o $@ -w -I$(ROOT_INCLUDE) -I$(HEPMC2_INCLUDE) $(CXX_COMMON)\
 	 -Wl,-rpath $(ROOT_LIB) -L$(PREFIX_LIB) -L$(HEPMC2_LIB) `$(ROOT_BIN)root-config --glibs` \
 	 -lHepMC -lpythia8
+
+# Install
+install:
+	@cp ilchz $(PREFIX_INSTALL_PATH)/ilchz
 
 # Clean.
 clean:

@@ -3,10 +3,42 @@
 # ilchz.cc, ilchz.h: C++ pythia code, including ROOT
 #                    analysis code
 #
-# ilchz.cmnd: configuration
+# ilchz.cmnd: pythia configuration input file
 #
-# TODO:: 
-#      * Should be included a method to keep track of the
-#      direction of the parent quark (in the hadron cases)
-#      and use always the system of reference where the 
-#      hadron is always in the positive axis
+# COMPILATION:
+#  Change all the pythia and root related variables in order
+#  to point the installed paths, and 
+#
+#  $ make [-jX] ilchz
+#
+#  Requires Pythia8.2 and ROOT (>5.32)
+#
+# 
+# LAUNCH:
+#  $ ilchz [OPTIONS] ilchz.cmnd [> out.txt]
+# 
+# Simulate the generation of the e+ e- --> H0 Z0 --> s sbar s sbar 
+# process (defined in the 'ilchz.cmnd' input file, so in principal
+# can be changed but the persistency makes no sense no longer) using
+# the Pythia8.2 library. A n-tuple is created (called 'mctrue') 
+# containing the following info:
+#    'pdgId'      : std::vector<int> of the PDG ID code of the stored particle
+#    'motherindex': std::vector<int> of the n-tuple vector index of the mother
+#                   Note that -1 is used when the particle is the FS hadrons
+#    'catchall'   : std::vector<int> a multi-use variable, changing its meaning
+#                   depending the type of the particle:
+#             * 0                  for the resonance (H,Z)
+#             * is higher p quark? for the s-squark resonance daughters
+#             * grandmother PDG_ID for the 'final state' strange hadrons
+#    'p'          : std::vector<float> momentum of the particle
+#    'pmother'    : std::vector<float> momentum of its mother [to be deprecated]
+#    'phi'        : std::vector<float> phi of the particle
+#    'theta'      : std::vector<float> theta of the particle
+#Note that the p,phi,theta variables are respect the rest-frame of the q-qbar system
+#in the case of the final-state hadrons, as well as the pmother
+#
+#[OPTIONS]
+#    -o name of the ROOT output file [hzkin.root]
+#    -p flag to keep final state PIONS instead of KAONS (default)
+#    -h show this help
+#           

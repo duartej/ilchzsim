@@ -26,7 +26,75 @@
 //#include<set>
 
 
-// Helper class to persist data
+// Helper class to declare hadrons-id
+struct FinalStateHadrons
+{
+    const int K_LONG   =  130;
+    const int K_SHORT  =  310;
+    const int K_0      =  311;
+    const int K_PLUS   =  321;
+    const int K_MINUS  = -321;
+    const int PI_0     =  111;
+    const int PI_PLUS  =  211;
+    const int PI_MINUS = -211;
+
+    std::string _selectedtype;
+    std::vector<int> _selected;
+
+    // Constructor
+    FinalStateHadrons(const std::string & hadrontype)
+    {
+        if(hadrontype == "kaons")
+        {
+            _selectedtype = "kaons";
+            _selected = getkaons();
+        }
+        else if(hadrontype == "pions")
+        {
+            _selectedtype = "pions";
+            _selected = getpions();
+        }
+        else
+        {
+            _selectedtype = "NONE";
+            std::cerr << "FinalStateHadrons() Initialization ERROR:"
+                << " Hadron type '" << hadrontype << "' not valid" << std::endl;
+        }
+    }
+
+    std::vector<int> getpions() const
+    {
+        std::vector<int> _pions;
+        _pions.push_back(PI_0);
+        _pions.push_back(PI_PLUS);
+
+        return _pions;
+    }
+    
+    std::vector<int> getkaons() const
+    {
+        std::vector<int> _kaons;
+        _kaons.push_back(K_LONG);
+        _kaons.push_back(K_SHORT);
+        _kaons.push_back(K_PLUS);
+
+        return _kaons;
+    }
+
+    const std::vector<int> getIDs() const
+    {
+        return _selected;
+    }
+
+
+    const std::string gettype() const
+    {
+        return _selectedtype;
+    }
+};
+
+
+// Helper class to persist data 
 struct ParticleKinRootAux
 {
     std::vector<int> * pdgId;
@@ -50,7 +118,7 @@ struct ParticleKinRootAux
     std::vector<int> strangehadrons;
 
     // Constructor
-    ParticleKinRootAux(): 
+    ParticleKinRootAux(const std::vector<int> & finalstatehadrons): 
         pdgId(0),
         motherindex(0),
         catchall(0),
@@ -75,8 +143,9 @@ struct ParticleKinRootAux
         strangehadrons.push_back(310);  // K_short
         strangehadrons.push_back(321);  // K+-
         strangehadrons.push_back(3122); // Lambda*/
-        strangehadrons.push_back(111);  // PIONs
-        strangehadrons.push_back(211);  // 
+        //strangehadrons.push_back(111);  // PIONs
+        //strangehadrons.push_back(211);  // 
+        strangehadrons.insert(strangehadrons.end(),finalstatehadrons.begin(),finalstatehadrons.end());
     }
 
     ~ParticleKinRootAux()
@@ -163,6 +232,7 @@ struct ParticleKinRootAux
         t->Branch("theta",&theta);
     }
 };
+
 
 void fillstrangehadron(const Particle & quarkbeforerad, const int & quarkIndex, 
         const Pythia & pythia, const RotBstMatrix & pre_restframe, ParticleKinRootAux & p)
@@ -287,11 +357,38 @@ int getancestorindex(const int & currIndex, const Pythia & pythia,const std::vec
     return 0;
 }
 
+void display_usage()
+{
+    std::cout << "\033[37musage:\033[m ilchz [OPTIONS] ilchz.cmnd [> out.txt]"
+        << std::endl;
+	std::cout << std::endl;
+    std::cout << "Simulate the generation of the e+ e- --> H0 Z0 --> s sbar s sbar" 
+        << " process (defined\nin the 'ilchz.cmnd' input file) using the Pythia8.2 "
+        << "library. A n-tuple is created \n(called 'mctrue') containing the following info:\n"
+        << "\t'pdgId'      : std::vector<int> of the PDG ID code of the stored particle\n"
+        << "\t'motherindex': std::vector<int> of the n-tuple vector index of the mother\n"
+        << "\t               Note that -1 is used when the particle is the FS hadrons\n"
+        << "\t'catchall'   : std::vector<int> a multi-use variable, changing its meaning\n"
+        << "\t               depending the type of the particle:\n"
+            << "\t\t\t * 0                  for the resonance (H,Z)\n"
+            << "\t\t\t * is higher p quark? for the s-squark resonance daughters\n"
+            << "\t\t\t * grandmother PDG_ID for the 'final state' strange hadrons\n"
+        << "\t'p'          : std::vector<float> momentum of the particle\n"
+        << "\t'pmother'    : std::vector<float> momentum of its mother [to be deprecated]\n"
+        << "\t'phi'        : std::vector<float> phi of the particle\n"
+        << "\t'theta'      : std::vector<float> theta of the particle\n"
+        << "Note that the p,phi,theta variables are respect the rest-frame of the q-qbar system\n"
+        << "in the case of the final-state hadrons, as well as the pmother\n";
+    std::cout << std::endl;
+	std::cout << "[OPTIONS]\n\t-o name of the ROOT output file [hzkin.root]\n"
+        << "\t-p flag to keep final state PIONS instead of KAONS (default)\n"
+        << "\t-h show this help" << std::endl;
+}
 
 int main(int argc, char* argv[]) 
 {
     // Check that correct number of command-line arguments
-    if(argc != 2) 
+    if(argc < 2 && std::string(argv[1]) != "-h") 
     {
         std::cerr << " Unexpected number of command-line arguments. \n You are"
             << " expected to provide one input file name. \n"
@@ -299,17 +396,44 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // Check that the provided input name corresponds to an existing file.
-    std::ifstream is(argv[1]);
-    if(!is) 
-    {
-        std::cerr << " Command-line file " << argv[1] << " was not found. \n"
-            << " Program stopped! " << std::endl;
-        return 1;
-    }
+    // Declare option-related variables
+    std::string outputfilename("hzkin.root");
+    std::string strangehadrontype("kaons");
+	
+    std::string cmndfile;
+    // get options
+    for(int i = 1; i < argc; ++i)
+	{
+        if( strcmp(argv[i],"-h") == 0 )
+		{
+            display_usage();
+			return 0;
+		}
+        else if( strcmp(argv[i],"-o") == 0 )
+		{
+			outputfilename = argv[i+1];
+            ++i;
+		}
+        else if( strcmp(argv[i],"-p") == 0 )
+        {
+            strangehadrontype = "pions";
+        }
+        else
+        {
+            // Check that the provided input name corresponds to an existing file.
+            std::ifstream is(argv[i]);
+            if(!is && std::string(argv[i]) != "-h") 
+            {
+                std::cerr << " Command-line file " << argv[i] << " was not found. \n"
+                    << " Program stopped! " << std::endl;
+                return 2;
+            }
+            cmndfile = argv[i];
+        }
+	}
 
     // Confirm that external files will be used for input and output.
-    std::cout << "\n >>> PYTHIA settings will be read from file " << argv[1] << std::endl;
+    std::cout << "\n >>> PYTHIA settings will be read from file " << cmndfile << std::endl;
        // << " <<< \n >>> HepMC events will be written to file "
        // << argv[2] << " <<< \n" << std::endl;
     
@@ -323,7 +447,7 @@ int main(int argc, char* argv[])
     Pythia pythia;
 
     // Read in commands from external file.
-    pythia.readFile(argv[1]);
+    pythia.readFile(cmndfile);
 
     // Extract settings to be used in the main program.
     int    nEvent    = pythia.mode("Main:numberOfEvents");
@@ -332,8 +456,10 @@ int main(int argc, char* argv[])
     // Initialization.
     pythia.init();
 
+    // selected hadrons:
+    FinalStateHadrons fshadrons(strangehadrontype);
     // ROOT init tree
-    ParticleKinRootAux particles;
+    ParticleKinRootAux particles(fshadrons.getIDs());
 
     TTree * thz = new TTree("mctrue","ee -> H Z -> s sbar s sbar");
     particles.inittree(thz);

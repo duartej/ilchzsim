@@ -168,7 +168,7 @@ struct ParticleKinRootAux
 };
 
 void fillstrangehadron(const Particle & quarkbeforerad, const int & quarkIndex, 
-        const Pythia & pythia, const RotBstMatrix & restframe, ParticleKinRootAux & p)
+        const Pythia & pythia, const RotBstMatrix & pre_restframe, ParticleKinRootAux & p)
 {
     // Note that the quark particle should be obtained throught the method iBotCopyId,
     // The bottom of the chain, just before hadronization (and after radiation)
@@ -182,7 +182,14 @@ void fillstrangehadron(const Particle & quarkbeforerad, const int & quarkIndex,
     // Getting the quark in its restframe:
     //Particle  quarkatrest(quark); // quark after radiation (bottom of the chain)
     Particle  quarkatrest(quarkbeforerad);  // quark BEFORE radiation (
-    quarkatrest.rotbst(restframe);
+    quarkatrest.rotbst(pre_restframe);
+    
+    RotBstMatrix restframe(pre_restframe);
+    // Checking the quark is defined in the positive axis
+    if( quarkatrest.pz() < 0.0 )
+    {
+        restframe.rot(M_PI);
+    }
 
     // Get list of quark-daughters which are final and are strange hadrons
     const int ndaughters = quark.daughterList().size(); 

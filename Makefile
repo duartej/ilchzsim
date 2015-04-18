@@ -74,6 +74,7 @@ ilchz: $$@.cc $$@.h
 	$(CXX) $^ -o $@ -w -I$(ROOT_INCLUDE) -I$(HEPMC2_INCLUDE) $(CXX_COMMON)\
 	 -Wl,-rpath $(ROOT_LIB) -L$(PREFIX_LIB) -L$(HEPMC2_LIB) `$(ROOT_BIN)root-config --glibs` \
 	 -lHepMC -lpythia8
+	@cp ilchz $(PREFIX_INSTALL_PATH)/ilchz
 
 # Install
 install:

@@ -23,6 +23,7 @@
 #include<string>
 #include<vector>
 #include<algorithm>
+#include<utility>
 //#include<set>
 
 
@@ -277,8 +278,7 @@ void fillstrangehadron(const Particle & quarkbeforerad, const int & quarkIndex,
 }
 
 
-
-void fillresonancechain(const int & i, const Pythia & pythia, ParticleKinRootAux & p)
+std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pythia, ParticleKinRootAux & p)
 {
     // Fill the resonance relative info: Lab frame
     // Note that we want to store info before showering,
@@ -328,6 +328,10 @@ void fillresonancechain(const int & i, const Pythia & pythia, ParticleKinRootAux
     // Track-down the kaons and lambdas from the strange quarks
     fillstrangehadron(s,squarkIndex,pythia,restframe,p);
     fillstrangehadron(sbar,squarkbarIndex,pythia,restframe,p);
+
+    // Returning the PDG ID of the resonance and the rest-frame system of 
+    // its quarks daughters
+    return std::pair<int,RotBstMatrix>(resId,restframe);
 }
 
 int getancestorindex(const int & currIndex, const Pythia & pythia,const std::vector<int> & consideredmums)
@@ -517,6 +521,10 @@ int main(int argc, char* argv[])
         // Particles already checked
         //std::set<int> usedPart;
 
+        // Mapping the rest-frame matrix of the quark systems to 
+        // its PDG ID resonance number. Declaration
+        std::map<int,RotBstMatrix> restframesmap;
+
         for(int i= 0; i < pythia.event.size(); ++i)
         {
             const int pdgid = pythia.event[i].idAbs();
@@ -536,19 +544,32 @@ int main(int argc, char* argv[])
                 continue;
             }
 
-            std::vector<int> partusedbynexts;
             // Check if it's a resonance, then fill the full chain (up to the s-quarks)
             if( std::find(idResonance.begin(),idResonance.end(),pdgid) != idResonance.end() )
             {
-                fillresonancechain(currI,pythia,particles);
+                restframesmap.insert(fillresonancechain(currI,pythia,particles));
             }
             // If not, means that it is a strange hadron, but just want the final state
+            // fill the secondary hadrons. 
+            // FIXME: potential problem! protect against an empty or not completely 
+            // filled restframemap!! Should not happens, because the resonances are 
+            // hard-scattering products and the hadrons daughters of them and filled
+            // by Pythia long before
             else if( pythia.event[currI].isFinal() )
             {
-                const Particle & had = pythia.event[currI]; 
+                Particle & had = pythia.event[currI]; 
                 const int ancestorindex = getancestorindex(currI,pythia,idResonance);
                 const int ancestorID = pythia.event[ancestorindex].id();
- //            std::cout << " OUTPUT: " << ancestorID << std::endl;
+                // to compare with the primary hadrons needed to convert to the 
+                // rest-frame of the resonance (or better of the quark, then the
+                // topological variables are the same than the primary hadrons)
+                had.rotbst(restframesmap[ancestorID]);
+                // Should correct the frame definition (in order to define pz-defined
+                // positive for the quark). The problem is how to propagate this info
+                // for the current hadron, the information is lost, although possible
+                // to recover...
+
+                // storing info in the rest-frame of the quark-bquark ref. system
                 particles.filltreevariables(currI,had.id(),-1,ancestorID,
                         had.pAbs(),-1,had.phi(),had.theta());
             }

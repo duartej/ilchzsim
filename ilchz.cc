@@ -561,7 +561,7 @@ int main(int argc, char* argv[])
     pythia.stat();
 
     // ROOT File
-    TFile *froot = new TFile("hzkin.root","RECREATE");
+    TFile *froot = new TFile(outputfilename.c_str(),"RECREATE");
     thz->Write();
     froot->Close();
 

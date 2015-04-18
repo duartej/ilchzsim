@@ -1,21 +1,17 @@
-// main42.cc is a part of the PYTHIA event generator.
-// Copyright (C) 2015 Torbjorn Sjostrand.
-// PYTHIA is licenced under the GNU GPL version 2, see COPYING for details.
+// Simulation of ILC process: ee -> ZH -> q qbar s sbar
+// 
+// Author: Jordi Duarte-Campderros (TAU), jorge.duarte.campderros@cern.ch.
+// (based on the main42.cc which is a part of the PYTHIA 
+// event generator. // Copyright (C) 2015 Torbjorn Sjostrand.)
+// PYTHIA is licenced under the GNU GPL version 2.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
-// Author: Jordi Duarte-Campderros (TAU), jorge.duarte.campderros@cern.ch.
-// 
-// Simulation of ILC process: ee -> ZH -> q qbar s sbar
 //
 // Input and output files are specified on the command line, e.g. like
-// ./main42.exe main42.cmnd hepmcout42.dat > out
-// The main program contains no analysis; this is intended to happen later.
-// It therefore "never" has to be recompiled to handle different tasks.
+// ./ilchz ilchz.cmnd > out.txt
+// The main program contains the generation of a n-tuple (ROOT)
+// for further analysis. 
 
-//#include "Pythia8/Pythia.h"
-//#include "Pythia8Plugins/HepMC2.h"
-
-//using namespace Pythia8;
 #include "ilchz.h"
 
 // ROOT-related
@@ -36,6 +32,7 @@ struct ParticleKinRootAux
     std::vector<int> * pdgId;
     std::vector<int> * motherindex; //n-tuple index: -1 for the strange hadrons case
     // Change meaning depending of the type of the particle:
+    //    catchall = 0                  for the resonance (H,Z)
     //    catchall = isLeading (higher p) for the s-squark resonance daughters
     //    catchall = grandmother PDG_ID for the strange hadrons promptly decayed from the resonance
     //    catchall = grandmother PDG_ID for the strange hadrons not prompt

@@ -148,7 +148,7 @@ struct ParticleKinRootAux
 
         // The current index on the n-tuple for this 
         // particle
-        return this->pdgId->size();
+        return (this->pdgId->size()-1);
     }
 
 

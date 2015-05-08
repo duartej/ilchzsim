@@ -4,4 +4,7 @@ ilchz
 *.swap
 .*
 *.txt
+!"CMakeLists.txt
+__*
+build
 

@@ -24,6 +24,7 @@
 #include<vector>
 #include<algorithm>
 #include<utility>
+#include<iterator>
 //#include<set>
 
 
@@ -224,7 +225,7 @@ struct ParticleKinRootAux
             return -1;
         }
 
-        return *localindex;
+        return std::distance(_listofusedpartindex->begin(),localindex);
     }
 
     // Convert from ParticleRootAux-local index to pythia index

@@ -588,6 +588,12 @@ int main(int argc, char* argv[])
             // Get the resonance and the resonance-daughter quark pythia-index
             int quarkindex = currI;
             const int ancestorindex = getancestorindex(currI,pythia,idResonance,quarkindex);
+            // protecting the case of initial state radiation or decays not from the
+            // resonance
+            if( ancestorindex == 0 && quarkindex == -1)
+            {
+                continue;
+            }
             const int ancestorID = pythia.event[ancestorindex].id();
             // Store the info if isn't, the fillresonance function is also getting
             // the restframe system of the qqbar system 

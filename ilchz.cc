@@ -139,14 +139,9 @@ struct ParticleKinRootAux
 
         _auxI.push_back(&_listofusedpartindex);
 
-        // Strange hadrons
-        /*strangehadrons.push_back(130);  // K_Long (should I? too far away from the detector)
-        strangehadrons.push_back(310);  // K_short
-        strangehadrons.push_back(321);  // K+-
-        strangehadrons.push_back(3122); // Lambda*/
-        //strangehadrons.push_back(111);  // PIONs
-        //strangehadrons.push_back(211);  // 
-        strangehadrons.insert(strangehadrons.end(),finalstatehadrons.begin(),finalstatehadrons.end());
+        // User define the hadrons
+        strangehadrons.insert(strangehadrons.end(),finalstatehadrons.begin(),
+                finalstatehadrons.end());
     }
 
     ~ParticleKinRootAux()
@@ -200,24 +195,43 @@ struct ParticleKinRootAux
             }
         }
     }
-    int filltreevariables(const int & particleindex, const int & id, const int & motherindex, const int & leading, 
-        const float & _p, const float & _pmother, const float & _phi, const float & _theta)
+    int filltreevariables(const int & pythiaindex, const int & id, const int & _motherindex, 
+            const int & _catchall, const float & _p, const float & _pmother, const float & _phi, 
+            const float & _theta)
     {
         this->pdgId->push_back(id);
-        this->motherindex->push_back(motherindex);
-        this->catchall->push_back(leading);
+        this->motherindex->push_back(_motherindex);
+        this->catchall->push_back(_catchall);
         this->p->push_back(_p);
         this->pmother->push_back(_pmother);
         this->phi->push_back(_phi);
         this->theta->push_back(_theta);
 
-        this->usedparticle(particleindex);
+        this->usedparticle(pythiaindex);
 
         // The current index on the n-tuple for this 
         // particle
         return (this->pdgId->size()-1);
     }
 
+    // Convert from pythia-index to ParticleRootAux index
+    int getlocalindex(const int & pythiaindex)
+    {
+        auto localindex = std::find(_listofusedpartindex->begin(),_listofusedpartindex->end(),
+                pythiaindex);
+        if(localindex == _listofusedpartindex->end())
+        {
+            return -1;
+        }
+
+        return *localindex;
+    }
+
+    // Convert from ParticleRootAux-local index to pythia index
+    int getpythiaindex(const int & localindex)
+    {
+        return this->_listofusedpartindex->at(localindex);
+    }
 
     // Inititalization of the ttree
     void inittree(TTree * t)
@@ -235,7 +249,7 @@ struct ParticleKinRootAux
 };
 
 
-void fillstrangehadron(const Particle & quarkbeforerad, const int & quarkIndex, 
+/*void fillstrangehadron(const Particle & quarkbeforerad, const int & quarkIndex, 
         const Pythia & pythia, const RotBstMatrix & pre_restframe, ParticleKinRootAux & p)
 {
     // Note that the quark particle should be obtained throught the method iBotCopyId,
@@ -259,8 +273,27 @@ void fillstrangehadron(const Particle & quarkbeforerad, const int & quarkIndex,
         restframe.rot(M_PI);
     }
 
+    // List of pythia indices for all hadrons (in final state) of the types
+    // defined at p.strangehadrons
+    std::vector<int> finalhadrons; 
+std::cout << "[" << (pythia.info.getCounter(3)-1) << "] Chain for " << quark.name() << " quark (" << quark.index() << ") -only final: " ;
+    getfinaldaughters(quark.index(),pythia,p.strangehadrons,finalhadrons);
+    for(auto & ipythia: finalhadrons)
+    {
+        // Not duplicate
+        if( (std::find(p.getusedid()->begin(),p.getusedid()->end(),ipythia) != p.getusedid()->end() ) )
+        {
+            continue;
+        }
+        const Particle & strhad = pythia.event[ipythia];
+ std::cout << strhad.name() << " (" << strhad.index() << ") ";
+        Particle restframehadron(strhad);
+        restframehadron.rotbst(restframe);
+        p.filltreevariables(ipythia,strhad.id(),quarkIndex,gmId,
+                restframehadron.pAbs(),quarkatrest.pAbs(),restframehadron.phi(),restframehadron.theta());
+    }
     // Get list of quark-daughters which are final and are strange hadrons
-    const int ndaughters = quark.daughterList().size(); 
+    *const int ndaughters = quark.daughterList().size();  
     for(int k = 0; k < ndaughters; ++k)
     {
         const int currI = quark.daughterList()[k];
@@ -274,9 +307,8 @@ void fillstrangehadron(const Particle & quarkbeforerad, const int & quarkIndex,
         restframehadron.rotbst(restframe);
         p.filltreevariables(currI,strhad.id(),quarkIndex,gmId,
                 restframehadron.pAbs(),quarkatrest.pAbs(),restframehadron.phi(),restframehadron.theta());
-    }
-}
-
+    }*
+}*/
 
 std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pythia, ParticleKinRootAux & p)
 {
@@ -285,9 +317,9 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     // directly from Hard-Scattering
     const int iHS = pythia.event[i].iTopCopy();
     const Particle & resonanceHS = pythia.event[iHS];
-    const int resId = resonanceHS.id();
+    const int respdgId = resonanceHS.id();
     // Filling n-tuple and getting the n-tuple index of the Resonance
-    const int resIndex = p.filltreevariables(i,resId,0,0,
+    const int reslocalIndex = p.filltreevariables(i,respdgId,-1,0,
             resonanceHS.pAbs(),-1,resonanceHS.phi(),resonanceHS.theta());
 
     // Before dealing with the daughters, recover the lowest copy (already 
@@ -316,36 +348,40 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     // Save info of the s-quark
     const bool isLeading_s = (s.pAbs() > sbar.pAbs());
 
-    const int squarkIndex = p.filltreevariables(pythia.event[iS].iBotCopyId(),
-            s.id(),resIndex,(int)isLeading_s,
+    //const int squarkIndex = 
+    p.filltreevariables(pythia.event[iS].iBotCopyId(),
+            s.id(),reslocalIndex,(int)isLeading_s,
             s.pAbs(),resonance.pAbs(),s.phi(),s.theta());
     
     // Save info of the sbar-quark
-    const int squarkbarIndex = p.filltreevariables(pythia.event[iSbar].iBotCopy(),
-            sbar.id(),resIndex,(int)(not isLeading_s),
+    //const int squarkbarIndex = 
+    p.filltreevariables(pythia.event[iSbar].iBotCopy(),
+            sbar.id(),reslocalIndex,(int)(not isLeading_s),
             sbar.pAbs(),resonance.pAbs(),sbar.phi(),sbar.theta());
     
-    // Track-down the kaons and lambdas from the strange quarks
-    fillstrangehadron(s,squarkIndex,pythia,restframe,p);
-    fillstrangehadron(sbar,squarkbarIndex,pythia,restframe,p);
-
     // Returning the PDG ID of the resonance and the rest-frame system of 
     // its quarks daughters
-    return std::pair<int,RotBstMatrix>(resId,restframe);
+    return std::pair<int,RotBstMatrix>(respdgId,restframe);
 }
 
-int getancestorindex(const int & currIndex, const Pythia & pythia,const std::vector<int> & consideredmums)
+// Get the pythia index of the ancestor particle (which is defined by its PDG ID in consideredmums)
+// and the pythia index of the daughter of the ancestor (the daughter quark, before radiation)
+int getancestorindex(const int & currIndex, const Pythia & pythia,const std::vector<int> & consideredmums, int & quarkindex)
 {
     // Find the top copy, before calling the mother list
     const int & index = pythia.event[currIndex].iTopCopyId();
     const Particle & hadronbeforerad = pythia.event[index];
 
     // Check the mother list and found the resonance Id:
-//   std::cout << "--> " << hadronbeforerad.name(); 
+//#ifdef DEBUG
+    std::cout << "--> " << hadronbeforerad.name() << "(" << index << ")"; 
+//#endif
     const std::vector<int> & mums = hadronbeforerad.motherList();
-    for(int k = 0; k < mums.size(); ++k)
+    for(unsigned int k = 0; k < mums.size(); ++k)
     {
-//   std::cout << "--> " << pythia.event[mums[k]].name(); 
+//#ifdef DEBUG
+    std::cout << "--> " << pythia.event[mums[k]].name() << "(" << mums[k] << ")"; 
+//#endif
         if( std::find(consideredmums.begin(),consideredmums.end(),pythia.event[mums[k]].id()) != consideredmums.end() )
         {
             return mums[k];
@@ -354,10 +390,13 @@ int getancestorindex(const int & currIndex, const Pythia & pythia,const std::vec
         {
             return 0;
         }
-
-        return getancestorindex(mums[k],pythia,consideredmums);
+        
+        // updating the daugther index before the recursive call
+        quarkindex = mums[k];
+        return getancestorindex(mums[k],pythia,consideredmums,quarkindex);
     }
-
+    
+    quarkindex = -1;
     return 0;
 }
 
@@ -473,15 +512,7 @@ int main(int argc, char* argv[])
     std::vector<int> idResonance;
     idResonance.push_back(23);  // Z0
     idResonance.push_back(25);  // Higgs (h0)
-      
-    std::vector<int> idPAbs;
-    // resonances (note that the s-quarks are captured by the resonance
-    // see "fillresonancechain" method)
-    idPAbs.insert(idPAbs.end(),idResonance.begin(),idResonance.end());
-    // Strange hadrons 
-    idPAbs.insert(idPAbs.end(),particles.strangehadrons.begin(),particles.strangehadrons.end());
-      
-
+     
     // Begin event loop.
     int iAbort = 0;
     for(int iEvent = 0; iEvent < nEvent; ++iEvent) 
@@ -525,54 +556,68 @@ int main(int argc, char* argv[])
         // its PDG ID resonance number. Declaration
         std::map<int,RotBstMatrix> restframesmap;
 
+        // Note: the extraction algorithm goes backwards: from a
+        // final hadron, finding their parents and keeping the info
+        // of the original quark and resonance
         for(int i= 0; i < pythia.event.size(); ++i)
         {
-            const int pdgid = pythia.event[i].idAbs();
+            const int abspdgid = pythia.event[i].idAbs();
+            
+            if( ! pythia.event[i].isFinal() )
+            {
+                continue;
+            }
             // "Interesting" particles only!
-            //usedPart.insert(currI);
-            //if( (std::find(particles.getusedid()->begin(),particles.getusedid()->end(),i) == particles.getusedid()->end())
-            if( std::find(idPAbs.begin(),idPAbs.end(),pdgid) == idPAbs.end() ) // is an "interesting" particle ?
+            if( std::find(particles.strangehadrons.begin(),particles.strangehadrons.end(),
+                        abspdgid) == particles.strangehadrons.end() )
             {
                 continue;
             }
 
             // Obtain the last "carbon" copy of the particle to work with it
             const int currI = pythia.event[i].iBotCopy();
-            // If was already used, don't duplicate
-            if( (std::find(particles.getusedid()->begin(),particles.getusedid()->end(),currI) != particles.getusedid()->end() ) )
+            // If was already used, don't duplicate (note thet currI is the pythia code)
+            if( (std::find(particles.getusedid()->begin(),particles.getusedid()->end(),currI) != 
+                        particles.getusedid()->end() ) )
             {
                 continue;
             }
 
-            // Check if it's a resonance, then fill the full chain (up to the s-quarks)
-            if( std::find(idResonance.begin(),idResonance.end(),pdgid) != idResonance.end() )
-            {
-                restframesmap.insert(fillresonancechain(currI,pythia,particles));
-            }
-            // If not, means that it is a strange hadron, but just want the final state
-            // fill the secondary hadrons. 
-            // FIXME: potential problem! protect against an empty or not completely 
-            // filled restframemap!! Should not happens, because the resonances are 
-            // hard-scattering products and the hadrons daughters of them and filled
-            // by Pythia long before
-            else if( pythia.event[currI].isFinal() )
-            {
-                Particle & had = pythia.event[currI]; 
-                const int ancestorindex = getancestorindex(currI,pythia,idResonance);
-                const int ancestorID = pythia.event[ancestorindex].id();
-                // to compare with the primary hadrons needed to convert to the 
-                // rest-frame of the resonance (or better of the quark, then the
-                // topological variables are the same than the primary hadrons)
-                had.rotbst(restframesmap[ancestorID]);
-                // Should correct the frame definition (in order to define pz-defined
-                // positive for the quark). The problem is how to propagate this info
-                // for the current hadron, the information is lost, although possible
-                // to recover...
+            Particle & had = pythia.event[currI];
 
-                // storing info in the rest-frame of the quark-bquark ref. system
-                particles.filltreevariables(currI,had.id(),-1,ancestorID,
-                        had.pAbs(),-1,had.phi(),had.theta());
+            // Get the resonance and the resonance-daughter quark pythia-index
+            int quarkindex = currI;
+            const int ancestorindex = getancestorindex(currI,pythia,idResonance,quarkindex);
+            const int ancestorID = pythia.event[ancestorindex].id();
+            // Store the info if isn't, the fillresonance function is also getting
+            // the restframe system of the qqbar system 
+            if( std::find(particles.getusedid()->begin(),particles.getusedid()->end(),
+                        ancestorindex) == particles.getusedid()->end() )
+            { 
+                // Fill the resonance relative info: plus quarks involved
+                restframesmap.insert(fillresonancechain(ancestorindex,pythia,particles));
             }
+
+            // Correct the frame definition (in order to define pz-defined
+            // positive for the quark). 
+            RotBstMatrix restframe(restframesmap[ancestorID]);
+            // Checking the quark is defined in the positive axis
+            Particle & quarkatrest = pythia.event[quarkindex];
+  std::cout << "[ " << iEvent << " ::: " << quarkindex << " -- " << quarkatrest.name() << "] " << std::endl;
+            if( quarkatrest.pz() < 0.0 )
+            {
+                restframe.rot(M_PI);
+            }
+            // And convert to qqbar system reference frame
+            had.rotbst(restframe);
+            
+            // storing info in the rest-frame of the quark-bquark ref. system
+            particles.filltreevariables(currI,had.id(),particles.getlocalindex(quarkindex),
+                    ancestorID,had.pAbs(),quarkatrest.pAbs(),had.phi(),had.theta());
+//#ifdef DEBUG
+            std::cout << std::endl;
+//#endif
+            //}
         }
         thz->Fill();
         // deallocate variables after the filling

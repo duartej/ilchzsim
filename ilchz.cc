@@ -350,14 +350,12 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     const bool isLeading_s = (s.pAbs() > sbar.pAbs());
 
     //const int squarkIndex = 
-    p.filltreevariables(pythia.event[iS].iBotCopyId(),
-            s.id(),reslocalIndex,(int)isLeading_s,
+    p.filltreevariables(iS,s.id(),reslocalIndex,(int)isLeading_s,
             s.pAbs(),resonance.pAbs(),s.phi(),s.theta());
     
     // Save info of the sbar-quark
     //const int squarkbarIndex = 
-    p.filltreevariables(pythia.event[iSbar].iBotCopy(),
-            sbar.id(),reslocalIndex,(int)(not isLeading_s),
+    p.filltreevariables(iSbar,sbar.id(),reslocalIndex,(int)(not isLeading_s),
             sbar.pAbs(),resonance.pAbs(),sbar.phi(),sbar.theta());
     
     // Returning the PDG ID of the resonance and the rest-frame system of 
@@ -374,15 +372,15 @@ int getancestorindex(const int & currIndex, const Pythia & pythia,const std::vec
     const Particle & hadronbeforerad = pythia.event[index];
 
     // Check the mother list and found the resonance Id:
-//#ifdef DEBUG
+#ifdef DEBUG
     std::cout << "--> " << hadronbeforerad.name() << "(" << index << ")"; 
-//#endif
+#endif
     const std::vector<int> & mums = hadronbeforerad.motherList();
     for(unsigned int k = 0; k < mums.size(); ++k)
     {
-//#ifdef DEBUG
+#ifdef DEBUG
     std::cout << "--> " << pythia.event[mums[k]].name() << "(" << mums[k] << ")"; 
-//#endif
+#endif
         if( std::find(consideredmums.begin(),consideredmums.end(),pythia.event[mums[k]].id()) != consideredmums.end() )
         {
             return mums[k];
@@ -584,14 +582,14 @@ int main(int argc, char* argv[])
                 continue;
             }
 
-            Particle & had = pythia.event[currI];
+            Particle had = pythia.event[currI];
 
             // Get the resonance and the resonance-daughter quark pythia-index
-            int quarkindex = currI;
-            const int ancestorindex = getancestorindex(currI,pythia,idResonance,quarkindex);
+            int pre_quarkindex = currI;
+            const int ancestorindex = getancestorindex(currI,pythia,idResonance,pre_quarkindex);
             // protecting the case of initial state radiation or decays not from the
             // resonance
-            if( ancestorindex == 0 && quarkindex == -1)
+            if( ancestorindex == 0 && pre_quarkindex == -1)
             {
                 continue;
             }
@@ -605,12 +603,14 @@ int main(int argc, char* argv[])
                 restframesmap.insert(fillresonancechain(ancestorindex,pythia,particles));
             }
 
+            // Get the quark before radiation, so be sure by calling iTopCopyId method
+            const int quarkindex = pythia.event[pre_quarkindex].iTopCopyId();
             // Correct the frame definition (in order to define pz-defined
-            // positive for the quark). 
+            // positive for the quark).
             RotBstMatrix restframe(restframesmap[ancestorID]);
-            // Checking the quark is defined in the positive axis
-            Particle & quarkatrest = pythia.event[quarkindex];
-  std::cout << "[ " << iEvent << " ::: " << quarkindex << " -- " << quarkatrest.name() << "] " << std::endl;
+            Particle quarkatrest = pythia.event[quarkindex];
+            quarkatrest.rotbst(restframe);
+            //Checking the quark is defined in the positive axis
             if( quarkatrest.pz() < 0.0 )
             {
                 restframe.rot(M_PI);
@@ -621,9 +621,9 @@ int main(int argc, char* argv[])
             // storing info in the rest-frame of the quark-bquark ref. system
             particles.filltreevariables(currI,had.id(),particles.getlocalindex(quarkindex),
                     ancestorID,had.pAbs(),quarkatrest.pAbs(),had.phi(),had.theta());
-//#ifdef DEBUG
+#ifdef DEBUG
             std::cout << std::endl;
-//#endif
+#endif
             //}
         }
         thz->Fill();

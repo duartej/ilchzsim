@@ -6,11 +6,14 @@
 // PYTHIA is licenced under the GNU GPL version 2.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
+// e+e --> HZ --> qqbar qqbar (q-is defined in the ilchz.cmnd file)
+// simulation process. 
 //
 // Input and output files are specified on the command line, e.g. like
-// ./ilchz ilchz.cmnd > out.txt
-// The main program contains the generation of a n-tuple (ROOT)
-// for further analysis. 
+// ./ilchz ilchz.cmnd [OPTIONS] > out.txt
+// The main program contains the generation of a n-tuple (ROOT) where
+// final state hadrons (kaons or pions, depending the option choosen) 
+// relating variables are kept for further analysis. 
 
 #include "ilchz.h"
 
@@ -25,7 +28,6 @@
 #include<algorithm>
 #include<utility>
 #include<iterator>
-//#include<set>
 
 
 // Helper class to declare hadrons-id
@@ -249,68 +251,11 @@ struct ParticleKinRootAux
     }
 };
 
-
-/*void fillstrangehadron(const Particle & quarkbeforerad, const int & quarkIndex, 
-        const Pythia & pythia, const RotBstMatrix & pre_restframe, ParticleKinRootAux & p)
-{
-    // Note that the quark particle should be obtained throught the method iBotCopyId,
-    // The bottom of the chain, just before hadronization (and after radiation)
-    const Particle & quark = pythia.event[quarkbeforerad.iBotCopyId()];
-    // Getting the original resonance
-    int gmId = pythia.event[quarkbeforerad.mother1()].id();
-    if(gmId == 0)
-    {
-        gmId = pythia.event[quarkbeforerad.mother2()].id();
-    }
-    // Getting the quark in its restframe:
-    //Particle  quarkatrest(quark); // quark after radiation (bottom of the chain)
-    Particle  quarkatrest(quarkbeforerad);  // quark BEFORE radiation (
-    quarkatrest.rotbst(pre_restframe);
-    
-    RotBstMatrix restframe(pre_restframe);
-    // Checking the quark is defined in the positive axis
-    if( quarkatrest.pz() < 0.0 )
-    {
-        restframe.rot(M_PI);
-    }
-
-    // List of pythia indices for all hadrons (in final state) of the types
-    // defined at p.strangehadrons
-    std::vector<int> finalhadrons; 
-std::cout << "[" << (pythia.info.getCounter(3)-1) << "] Chain for " << quark.name() << " quark (" << quark.index() << ") -only final: " ;
-    getfinaldaughters(quark.index(),pythia,p.strangehadrons,finalhadrons);
-    for(auto & ipythia: finalhadrons)
-    {
-        // Not duplicate
-        if( (std::find(p.getusedid()->begin(),p.getusedid()->end(),ipythia) != p.getusedid()->end() ) )
-        {
-            continue;
-        }
-        const Particle & strhad = pythia.event[ipythia];
- std::cout << strhad.name() << " (" << strhad.index() << ") ";
-        Particle restframehadron(strhad);
-        restframehadron.rotbst(restframe);
-        p.filltreevariables(ipythia,strhad.id(),quarkIndex,gmId,
-                restframehadron.pAbs(),quarkatrest.pAbs(),restframehadron.phi(),restframehadron.theta());
-    }
-    // Get list of quark-daughters which are final and are strange hadrons
-    *const int ndaughters = quark.daughterList().size();  
-    for(int k = 0; k < ndaughters; ++k)
-    {
-        const int currI = quark.daughterList()[k];
-        const Particle & strhad = pythia.event[currI];
-        if( !pythia.event[currI].isFinal() ||
-                (std::find(p.strangehadrons.begin(),p.strangehadrons.end(),strhad.idAbs()) == p.strangehadrons.end()) )
-        {
-            continue;
-        }
-        Particle restframehadron(strhad);
-        restframehadron.rotbst(restframe);
-        p.filltreevariables(currI,strhad.id(),quarkIndex,gmId,
-                restframehadron.pAbs(),quarkatrest.pAbs(),restframehadron.phi(),restframehadron.theta());
-    }*
-}*/
-
+// Storing variables used related with the resonances (the variable 'i' contains the pythia-index
+// of the resonance). The resonance and daughter quarks are persistified. Note that
+// the function returns a pair (PDG-ID resonance, RotBstMatrix), where the RotBstMatrix is 
+// a Lorentz transformation transforming any 4-vector to the Center of Mass of thee quark-antiquark
+// system
 std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pythia, ParticleKinRootAux & p)
 {
     // Fill the resonance relative info: Lab frame
@@ -349,12 +294,10 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     // Save info of the s-quark
     const bool isLeading_s = (s.pAbs() > sbar.pAbs());
 
-    //const int squarkIndex = 
     p.filltreevariables(iS,s.id(),reslocalIndex,(int)isLeading_s,
             s.pAbs(),resonance.pAbs(),s.phi(),s.theta());
     
     // Save info of the sbar-quark
-    //const int squarkbarIndex = 
     p.filltreevariables(iSbar,sbar.id(),reslocalIndex,(int)(not isLeading_s),
             sbar.pAbs(),resonance.pAbs(),sbar.phi(),sbar.theta());
     
@@ -363,8 +306,9 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     return std::pair<int,RotBstMatrix>(respdgId,restframe);
 }
 
-// Get the pythia index of the ancestor particle (which is defined by its PDG ID in consideredmums)
-// and the pythia index of the daughter of the ancestor (the daughter quark, before radiation)
+// Get the pythia-index of the ancestor particle (which is defined by its PDG ID in consideredmums)
+// and the pythia-index of the daughter of the ancestor (the daughter quark, before radiation). 
+// This quark-index is returned by reference (quarkindex variable)
 int getancestorindex(const int & currIndex, const Pythia & pythia,const std::vector<int> & consideredmums, int & quarkindex)
 {
     // Find the top copy, before calling the mother list
@@ -373,7 +317,7 @@ int getancestorindex(const int & currIndex, const Pythia & pythia,const std::vec
 
     // Check the mother list and found the resonance Id:
 #ifdef DEBUG
-    std::cout << "--> " << hadronbeforerad.name() << "(" << index << ")"; 
+    std::cout << "--> " << hadronbeforerad.name() << "(" << index << ") :::"; 
 #endif
     const std::vector<int> & mums = hadronbeforerad.motherList();
     for(unsigned int k = 0; k < mums.size(); ++k)
@@ -381,7 +325,8 @@ int getancestorindex(const int & currIndex, const Pythia & pythia,const std::vec
 #ifdef DEBUG
     std::cout << "--> " << pythia.event[mums[k]].name() << "(" << mums[k] << ")"; 
 #endif
-        if( std::find(consideredmums.begin(),consideredmums.end(),pythia.event[mums[k]].id()) != consideredmums.end() )
+        if( std::find(consideredmums.begin(),consideredmums.end(),pythia.event[mums[k]].id()) 
+                != consideredmums.end() )
         {
             return mums[k];
         }
@@ -476,14 +421,6 @@ int main(int argc, char* argv[])
 
     // Confirm that external files will be used for input and output.
     std::cout << "\n >>> PYTHIA settings will be read from file " << cmndfile << std::endl;
-       // << " <<< \n >>> HepMC events will be written to file "
-       // << argv[2] << " <<< \n" << std::endl;
-    
-    // Interface for conversion from Pythia8::Event to HepMC event.
-    //HepMC::Pythia8ToHepMC ToHepMC;
-
-    // Specify file where HepMC events will be stored.
-    //HepMC::IO_GenEvent ascii_io(argv[2], std::ios::out);
 
     // Generator.
     Pythia pythia;
@@ -534,16 +471,6 @@ int main(int argc, char* argv[])
             std::cout << " Event generation aborted prematurely, owing to error!\n";
             break;
         }
-        // Construct new empty HepMC event and fill it.
-        // Units will be as chosen for HepMC build, but can be changed
-        // by arguments, e.g. GenEvt( HepMC::Units::GEV, HepMC::Units::MM)
-        // HepMC::GenEvent* hepmcevt = new HepMC::GenEvent();
-        //ToHepMC.fill_next_event( pythia, hepmcevt );
-
-        // Write the HepMC event to file. Done with it.
-        //ascii_io << hepmcevt;
-        //delete hepmcevt;
-
         // Allocate variables
         particles.initloop();
 

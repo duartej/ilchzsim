@@ -6,12 +6,20 @@
 # ilchz.cmnd: pythia configuration input file
 #
 # COMPILATION:
-#  Change all the pythia and root related variables in order
-#  to point the installed paths, and 
-#
-#  $ make [-jX] ilchz
-#
 #  Requires Pythia8.2 and ROOT (>5.32)
+#  and cmake v2.8 (http://www.cmake.org/)
+#  
+#  In order to compile, create a build directory
+#  $ cmake ../path_to_code_dir 
+#  $ make [-jX] [install]
+#
+#  Note that CMakeLists.txt contains the information for
+#  the configuration of the Makefile. If the ROOT or Pythia
+#  package is not found, set the relevant variables either
+#  on the "cmake" command line or in the CMakeLists.txt:
+#    ROOT_INCLUDE ROOT_LIBRARIES ROOT_INCLUDE_DIRS
+#    PYTHIA8_INCLUDE_DIRS PYTHIA8_LIBRARIES
+#  and remove the lines containing the "find_package" module.
 #
 # 
 # LAUNCH:

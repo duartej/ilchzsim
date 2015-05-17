@@ -78,7 +78,7 @@ def evalefficiency(h,cutlist,name):
     # and fill it the Npass/Ntotal
     n = len(integral)
     eff = ROOT.TEfficiency(name,"Efficiency simple cut (r > cut);\
-                r=#sqrt{p_{||1}^{2}+p_{||}^{2}}[ [GeV];#varepsilon",50,0,60)
+                cut (< #sqrt{p_{||1}^{2}+p_{||}^{2}}) [GeV];#varepsilon",50,0,60)
     for (i,(p,npassed)) in enumerate(integral.iteritems()):
         #e = float(npassed)/float(total)
         ibin=eff.FindFixBin(p)
@@ -106,6 +106,7 @@ def process(inputfile,outputfile):
     :type inputfile : str
                     
     """
+    import sys
     import ROOT
     from math import pi,cos
 
@@ -129,8 +130,15 @@ def process(inputfile,outputfile):
     # Event loop
     noOpposite = 0
     nOpposite = 0
-    print "+-- Evaluating %s..." % inputfile
+    msg = "Evaluating %s..." % inputfile
+    pointpb = float(t.GetEntries())/100.0
+    _i = 0
     for iEvent in t:
+        # Progress bar
+        sys.stdout.write("\r\033[1;34m+-- \033[1;m"+msg+\
+                "[ " +"\b"+str(int(float(_i)/pointpb)+1).rjust(3)+"%]")
+        sys.stdout.flush()
+        _i+=1
         # Get the local indices of the leading kaons
         # -- store histograms of p (paralel component with respect the quark mother)
         #    for leading kaons in both hemispheres (in the CM-quark-antiquark system
@@ -159,7 +167,7 @@ def process(inputfile,outputfile):
                 nOpposite += 1
             except IndexError:
                 noOpposite =+ 1
-    print "Not found opposite hadrons in %i (of a total of %i) events" % \
+    print "\nNot found opposite hadrons in %i (of a total of %i) events" % \
             (noOpposite,(noOpposite+nOpposite))
     
     # Persistency

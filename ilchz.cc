@@ -474,10 +474,6 @@ int main(int argc, char* argv[])
         // Allocate variables
         particles.initloop();
 
-        // ROOT filling: loop over the event
-        // Particles already checked
-        //std::set<int> usedPart;
-
         // Mapping the rest-frame matrix of the quark systems to 
         // its PDG ID resonance number. Declaration
         std::map<int,RotBstMatrix> restframesmap;
@@ -537,11 +533,14 @@ int main(int argc, char* argv[])
             RotBstMatrix restframe(restframesmap[ancestorID]);
             Particle quarkatrest = pythia.event[quarkindex];
             quarkatrest.rotbst(restframe);
+            // NOTE:: Not use the flipping depending of the quark direction,
+            // due to the fact we want to deal with the two highest-pt hadrons
+            // in the opposite hemispheres of the CM-qqbar reference system
             //Checking the quark is defined in the positive axis
-            if( quarkatrest.pz() < 0.0 )
-            {
-                restframe.rot(M_PI);
-            }
+            //if( quarkatrest.pz() < 0.0 )
+            //{
+            //    restframe.rot(M_PI);
+            //}
             // And convert to qqbar system reference frame
             had.rotbst(restframe);
             
@@ -551,7 +550,6 @@ int main(int argc, char* argv[])
 #ifdef DEBUG
             std::cout << std::endl;
 #endif
-            //}
         }
         thz->Fill();
         // deallocate variables after the filling

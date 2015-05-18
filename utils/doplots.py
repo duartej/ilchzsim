@@ -198,7 +198,7 @@ def draweffpointsin(usefuldict,outname):
     textpos = {}
     _g = {}
     leg = getleg(x0=x0,y0=y0,x1=x1,y1=y1)
-    leg.SetTextSize(0.03)
+    leg.SetTextSize(0.035)
     for (k,(seff,(p,significance,sigeff,bkgeff))) in \
             enumerate(sorted(usefuldict.iteritems(),key=lambda (k,(p,sig,sigeff,bkgeff)): p)):
         _g[k] = ROOT.TGraph()
@@ -207,7 +207,7 @@ def draweffpointsin(usefuldict,outname):
         _g[k].SetMarkerColor(_COLOR[k])
         _g[k].SetPoint(0,p,significance)
         effstr="%.1f" % (sigeff*100.)
-        bkgstr="%.1f" % ((bkgeff**2.0)*100.)
+        bkgstr="%.2f" % ((bkgeff**2.0)*100.)
         text = " #varepsilon^{i}_{sig}=%s%s, #varepsilon^{i}_{bkg}=%s%s" % (effstr,"%",bkgstr,"%")
         leg.AddEntry(_g[k],text,'P')
     return _g,leg
@@ -248,7 +248,6 @@ def drawgraph(g,**kwd):
             g.Draw("PSAME")
         leg.Draw()
     c.SaveAs(a.outname+'.pdf')
-    c.SaveAs(a.outname+'.png')
 
 
 
@@ -295,8 +294,7 @@ def plots(rootfile,hadrons='kaons'):
             classname.find('TH2') == 0, _obj.iteritems()):
         c = ROOT.TCanvas()
         h.Draw("COLZ")    
-        c.SaveAs(name.replace('_th2f_','')+'.pdf')
-        c.SaveAs(name.replace('_th2f_','')+'.png')
+        c.SaveAs(name.replace('_th2_','_')+'.pdf')
 
     # Prepare the efficiencies
     c,effdict = setupefficiencies(_obj,hadrons)
@@ -342,7 +340,6 @@ def plots(rootfile,hadrons='kaons'):
         canvas.cd()
         leg[name].Draw()
         canvas.SaveAs('effcmp_'+name+'.pdf')
-        canvas.SaveAs('effcmp_'+name+'.png')
     #-- End efficiency plots
     
     # Filling the graphs for the significance and ROC 

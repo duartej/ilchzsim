@@ -113,6 +113,9 @@ struct ParticleKinRootAux
     std::vector<float> * pmother;
     std::vector<float> * phi;
     std::vector<float> * theta;
+    std::vector<float> * vx;
+    std::vector<float> * vy;
+    std::vector<float> * vz;
 
     // Auxiliary
     std::vector<int> * _listofusedpartindex;
@@ -130,6 +133,9 @@ struct ParticleKinRootAux
         pmother(0),
         phi(0),
         theta(0),
+        vx(0),
+        vy(0),
+        vz(0),
        _listofusedpartindex(0) 
     {
         _auxI.push_back(&pdgId);
@@ -139,6 +145,9 @@ struct ParticleKinRootAux
         _auxF.push_back(&pmother);
         _auxF.push_back(&phi);
         _auxF.push_back(&theta);
+        _auxF.push_back(&vx);
+        _auxF.push_back(&vy);
+        _auxF.push_back(&vz);
 
         _auxI.push_back(&_listofusedpartindex);
 
@@ -174,6 +183,9 @@ struct ParticleKinRootAux
         pmother        = new std::vector<float>;
         phi            = new std::vector<float>;
         theta          = new std::vector<float>;
+        vx             = new std::vector<float>;
+        vy             = new std::vector<float>;
+        vz             = new std::vector<float>;
 
         _listofusedpartindex = new std::vector<int>;
     }
@@ -200,7 +212,7 @@ struct ParticleKinRootAux
     }
     int filltreevariables(const int & pythiaindex, const int & id, const int & _motherindex, 
             const int & _catchall, const float & _p, const float & _pmother, const float & _phi, 
-            const float & _theta)
+            const float & _theta, const float & _vx, const float & _vy, const float & _vz)
     {
         this->pdgId->push_back(id);
         this->motherindex->push_back(_motherindex);
@@ -209,6 +221,9 @@ struct ParticleKinRootAux
         this->pmother->push_back(_pmother);
         this->phi->push_back(_phi);
         this->theta->push_back(_theta);
+        this->vx->push_back(_vx);
+        this->vy->push_back(_vy);
+        this->vz->push_back(_vz);
 
         this->usedparticle(pythiaindex);
 
@@ -248,6 +263,9 @@ struct ParticleKinRootAux
         t->Branch("pmother",&pmother);
         t->Branch("phi",&phi);
         t->Branch("theta",&theta);
+        t->Branch("vx",&vx);
+        t->Branch("vy",&vy);
+        t->Branch("vz",&vz);
     }
 };
 
@@ -266,7 +284,8 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     const int respdgId = resonanceHS.id();
     // Filling n-tuple and getting the n-tuple index of the Resonance
     const int reslocalIndex = p.filltreevariables(i,respdgId,-1,0,
-            resonanceHS.pAbs(),-1,resonanceHS.phi(),resonanceHS.theta());
+            resonanceHS.pAbs(),-1,resonanceHS.phi(),resonanceHS.theta(),
+            resonanceHS.xProd(),resonanceHS.yProd(),resonanceHS.zProd());
 
     // Before dealing with the daughters, recover the lowest copy (already 
     // radiated, therefore, the daughters are coming from a decay process)
@@ -295,11 +314,13 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     const bool isLeading_s = (s.pAbs() > sbar.pAbs());
 
     p.filltreevariables(iS,s.id(),reslocalIndex,(int)isLeading_s,
-            s.pAbs(),resonance.pAbs(),s.phi(),s.theta());
+            s.pAbs(),resonance.pAbs(),s.phi(),s.theta(),
+            s.xProd(),s.yProd(),s.zProd());
     
     // Save info of the sbar-quark
     p.filltreevariables(iSbar,sbar.id(),reslocalIndex,(int)(not isLeading_s),
-            sbar.pAbs(),resonance.pAbs(),sbar.phi(),sbar.theta());
+            sbar.pAbs(),resonance.pAbs(),sbar.phi(),sbar.theta(),
+            sbar.xProd(),s.yProd(),s.zProd());
     
     // Returning the PDG ID of the resonance and the rest-frame system of 
     // its quarks daughters
@@ -364,8 +385,12 @@ void display_usage()
         << "\t'pmother'    : std::vector<float> momentum of its mother [to be deprecated]\n"
         << "\t'phi'        : std::vector<float> phi of the particle\n"
         << "\t'theta'      : std::vector<float> theta of the particle\n"
+        << "\t'vx'         : std::vector<float> production vertex, x\n"
+        << "\t'vy'         : std::vector<float> production vertex, y\n"
+        << "\t'vz'         : std::vector<float> production vertex, z\n"
         << "Note that the p,phi,theta variables are respect the rest-frame of the q-qbar system\n"
-        << "in the case of the final-state hadrons, as well as the pmother\n";
+        << "in the case of the final-state hadrons, as well as the pmother."
+        << "However, the production vertex is respect the Laboratory frame.\n";
     std::cout << std::endl;
 	std::cout << "[OPTIONS]\n\t-o name of the ROOT output file [hzkin.root]\n"
         << "\t-p flag to keep final state PIONS instead of KAONS (default)\n"
@@ -544,9 +569,12 @@ int main(int argc, char* argv[])
             // And convert to qqbar system reference frame
             had.rotbst(restframe);
             
-            // storing info in the rest-frame of the quark-bquark ref. system
+            // storing info in the rest-frame of the quark-bquark ref. system (except
+            // for the vertex)
+            const Particle & hadatlab = pythia.event[currI];
             particles.filltreevariables(currI,had.id(),particles.getlocalindex(quarkindex),
-                    ancestorID,had.pAbs(),quarkatrest.pAbs(),had.phi(),had.theta());
+                    ancestorID,had.pAbs(),quarkatrest.pAbs(),had.phi(),had.theta(),
+                    hadatlab.xProd(),hadatlab.yProd(),hadatlab.zProd());
 #ifdef DEBUG
             std::cout << std::endl;
 #endif

@@ -194,7 +194,8 @@ def draweffpointsin(usefuldict,outname):
         y1 = 0.55
     # Prepare a new graph to be include in
     # the canvas c, (containing the significance curve)
-    _COLOR = [ ROOT.kCyan+2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen+2,ROOT.kRed-2, ROOT.kBlue-3 ]
+    _COLOR = [ ROOT.kCyan+2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen+2,ROOT.kRed-2, ROOT.kBlue-3,
+            ROOT.kBlack, ROOT.kRed+4]
     textpos = {}
     _g = {}
     leg = getleg(x0=x0,y0=y0,x1=x1,y1=y1)
@@ -343,7 +344,7 @@ def plots(rootfile,hadrons='kaons'):
     #-- End efficiency plots
     
     # Filling the graphs for the significance and ROC 
-    WP = [1,5,20,40,60,80]
+    WP = [1,20,40,60,80]
     TOLERANCEPERCENT = 0.2
     rocsgf = {}
     for res,sig in sigdict.iteritems():
@@ -377,7 +378,10 @@ def plots(rootfile,hadrons='kaons'):
 
         # Plot the graphs:
         # -- significance
-        xtitle = 'cut ( < #sqrt{p^{2}_{1||}+p^{2}_{2||}} ) [GeV]'
+        if res == 'Z':
+            xtitle = 'cut ( < #sqrt{p^{2}_{1}+p^{2}_{2}} ) [GeV]'
+        else:
+            xtitle = 'cut ( < #sqrt{p^{2}_{1||}+p^{2}_{2||}} ) [GeV]'
         ytitle = '#varepsilon_{S}/#sqrt{#varepsilon_{B}}'
         outname= res+'_significance'
         drawgraph(sgf,xtitle=xtitle,ytitle=ytitle,outname=outname,\

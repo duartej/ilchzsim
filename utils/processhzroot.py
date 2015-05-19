@@ -86,8 +86,23 @@ def evalefficiency(h,cutlist,name):
         eff.SetPassedEvents(ibin,int(npassed))
     return eff
 
+def settitles(h,totalmomentum):
+    """.. function:: settitles(h,ztotalmomentum) 
+    
+    put the titles in the histograms. The totalmomentum
+    flag is indicating to use the total momentum instead
+    the paralel to the quark axis
+    """
+    h.SetTitle('')
+    if totalmomentum:
+        h.SetXTitle('p^{1} [GeV]')
+        h.SetYTitle('p^{2} [GeV]')
+    else:
+        h.SetXTitle('p_{||}^{1} [GeV]')
+        h.SetYTitle('p_{||}^{2} [GeV]')
+    
 
-def process(inputfile,outputfile):
+def process(inputfile,outputfile,ztotalmomentum=False):
     """..function:: process(inputfile) 
 
     Process the 'inputfile' ROOT (obtained from the ilchz executable)
@@ -122,10 +137,11 @@ def process(inputfile,outputfile):
     hleading ={ 25: ROOT.TH2F('H'+namehistos,'paralel momentum leading hadrons',NBINS,XMIN,XMAX,NBINS,XMIN,XMAX),
             23: ROOT.TH2F('Z'+namehistos,'paralel momentum leading hadrons',NBINS,XMIN,XMAX,NBINS,XMIN,XMAX) }
     # Some cosmethics
-    for h in hleading.values():
-        h.SetTitle('')
-        h.SetXTitle('p_{||}^{1} [GeV]')
-        h.SetYTitle('p_{||}^{2} [GeV]')
+    for res,h in hleading.iteritems():
+        dototalmomentum = False
+        if res == 23:
+            dototalmomentum=True
+        settitles(h,dototalmomentum)
 
     # Event loop
     noOpposite = 0
@@ -148,9 +164,15 @@ def process(inputfile,outputfile):
             # One line: order hadrons by paralel momentum (or should I do it by momentum?)
             #           and return the local index (just for the hadrons coming from the
             #           resonance 'res'
+            if ztotalmomentum and res == 23:
+                fcos = lambda k: 1.0
+            else:
+                fcos = lambda k: abs(cos(iEvent.theta[k]))
+                
+            keycmp = lambda (x,y): y
             sortedhadrind = filter(lambda x: x in hadronsind[res], 
                     map(lambda (x,y): x, sorted(enumerate(iEvent.p),reverse=True,\
-                            key=(lambda (k,y):y*abs(cos(iEvent.theta[k]))) ) 
+                            key=lambda (x,y): y*fcos(x) ) 
                        )
                     )
             pup   = []
@@ -159,9 +181,9 @@ def process(inputfile,outputfile):
             # reference system
             for k in sortedhadrind:
                 if iEvent.theta[k] < pi/2.0:
-                    pup.append(iEvent.p[k]*abs(cos(iEvent.theta[k])))
+                    pup.append(iEvent.p[k]*fcos(k))
                 else:
-                    pdown.append(iEvent.p[k]*abs(cos(iEvent.theta[k])))
+                    pdown.append(iEvent.p[k]*fcos(k))
             try:
                 hleading[res].Fill(pup[0],pdown[0])
                 nOpposite += 1
@@ -191,13 +213,15 @@ if __name__ == '__main__':
     
     #Opciones de entrada
     parser = OptionParser()
-    parser.set_defaults(inputfile='hzkin.root',outputfile='processed.root')   
+    parser.set_defaults(inputfile='hzkin.root',outputfile='processed.root',totalmomentum=False)   
     parser.add_option( '-i', '--inputfile', action='store', type='string', dest='inputfile',\
             help="input root filename [hzkin.root]")
     parser.add_option( '-o', '--outputfile', action='store', type='string', dest='outputfile',\
             help="output root filename [processed.root]")
+    #parser.add_option( '-t', '--totalmomentum', action='store_true', dest='totalmomentum',\
+    #        help="activate for the Z case the use of the momentum (not the paralel momentum)")
     
     (opt,args) = parser.parse_args()
 
-    process(os.path.abspath(opt.inputfile),os.path.abspath(opt.outputfile))
+    process(os.path.abspath(opt.inputfile),os.path.abspath(opt.outputfile),True)
 

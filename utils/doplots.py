@@ -29,7 +29,7 @@ def setupefficiencies(rootobjdict,hadrons):
 
     # Just the selected hadrons
     effdict = dict(filter(lambda (x,y): x.find(hadrons) != -1,effpredict.iteritems()))
-    
+
     # cosmethics
     canvasdict = { 'Z': ROOT.TCanvas(), 'H': ROOT.TCanvas() }
     for name,canvas in canvasdict.iteritems():
@@ -109,11 +109,12 @@ def geteffsignalandbkgs(effdict):
 
     return sigdict,bkgdict
 
-# Branching ratios with respect ccbar
-BRuu_cc = 0.002
-BRbb_cc = 3.32
-BRss_cc = 0.075
-BRdd_cc = 0.004
+# Branching ratios with respect ccbar (m_q^2/m_c^2)
+# using the pole mass (measured) not the mass at the higgs scale
+BRuu_cc = 3.3e-6
+BRdd_cc = 1.4e-5
+BRss_cc = 0.006
+BRbb_cc = 10.75
 
 def getbr(name):
     """.. function:: getbr(name) -> br
@@ -171,8 +172,8 @@ def gettotalbkgeff(bkg):
         totalbkgeff.append( float(ibkg)/float(totalbkgdenominator) )
     return totalbkgeff 
 
-def draweffpointsin(usefuldict,outname):
-    """.. draweffpointsin(usefuldict,outname) -> graph,leg
+def draweffpointsinsignificance(usefuldict,outname):
+    """.. draweffpointsinsignificance(usefuldict,outname) -> graph,leg
 
     Draws a graph made of relavant working points in the significance
     which relates with the signal and backgrounds efficiency
@@ -187,11 +188,11 @@ def draweffpointsin(usefuldict,outname):
     x0 = 0.2
     x1 = 0.3
     if outname.find('H') == 0:
-        y0 = 0.45
-        y1 = 0.7
+        y0 = 0.65
+        y1 = 0.8
     else:
         y0 = 0.2
-        y1 = 0.55
+        y1 = 0.45
     # Prepare a new graph to be include in
     # the canvas c, (containing the significance curve)
     _COLOR = [ ROOT.kCyan+2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen+2,ROOT.kRed-2, ROOT.kBlue-3,
@@ -208,8 +209,44 @@ def draweffpointsin(usefuldict,outname):
         _g[k].SetMarkerColor(_COLOR[k])
         _g[k].SetPoint(0,p,significance)
         effstr="%.1f" % (sigeff*100.)
-        bkgstr="%.2f" % ((bkgeff**2.0)*100.)
+        bkgstr="%.2f" % (bkgeff*100.)
         text = " #varepsilon^{i}_{sig}=%s%s, #varepsilon^{i}_{bkg}=%s%s" % (effstr,"%",bkgstr,"%")
+        leg.AddEntry(_g[k],text,'P')
+    return _g,leg
+
+def draweffpointsinroc(usefuldict,outname):
+    """.. draweffpointsinroc(usefuldict,outname) -> graph,leg
+
+    Draws a graph made of relavant working points in the roc curve
+    which relates with the used cut
+
+    :param usefuldict. 
+
+    :return: The graph and the legend
+    :rtype:  (ROOT.TGraph,ROOT.TLegend)
+    """
+    import ROOT
+    # Get the resonance
+    x0 = 0.2
+    x1 = 0.3
+    y0 = 0.5
+    y1 = 0.75
+    # Prepare a new graph to be include in
+    # the canvas c, (containing the significance curve)
+    _COLOR = [ ROOT.kCyan+2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen+2,ROOT.kRed-2, ROOT.kBlue-3,
+            ROOT.kBlack, ROOT.kRed+4]
+    textpos = {}
+    _g = {}
+    leg = getleg(x0=x0,y0=y0,x1=x1,y1=y1)
+    leg.SetTextSize(0.035)
+    for (k,(seff,(p,significance,sigeff,bkgeff))) in \
+            enumerate(sorted(usefuldict.iteritems(),key=lambda (k,(p,sig,sigeff,bkgeff)): p)):
+        _g[k] = ROOT.TGraph()
+        _g[k].SetMarkerStyle(33)
+        _g[k].SetMarkerSize(2)
+        _g[k].SetMarkerColor(_COLOR[k])
+        _g[k].SetPoint(0,sigeff,bkgeff)
+        text = " cut @ p=%.1f GeV" % (p)
         leg.AddEntry(_g[k],text,'P')
     return _g,leg
 
@@ -244,7 +281,10 @@ def drawgraph(g,**kwd):
     _h.GetXaxis().SetTitle(a.xtitle)
     _h.GetYaxis().SetTitle(a.ytitle)
     if a.addtext:
-        ng,leg = draweffpointsin(a.addtext,a.outname)
+        if a.outname.find('significance') != -1:
+            ng,leg = draweffpointsinsignificance(a.addtext,a.outname)
+        elif a.outname.find('ROC') != -1:
+            ng,leg = draweffpointsinroc(a.addtext,a.outname)
         for g in ng.values():
             g.Draw("PSAME")
         leg.Draw()
@@ -280,7 +320,7 @@ def plots(rootfile,hadrons='kaons'):
     except ImportError:
         pass
     # Pseudo-global
-    COLOR = [ ROOT.kRed+4, ROOT.kAzure+3, ROOT.kOrange-2, ROOT.kGreen-5, ROOT.kBlue+5, \
+    COLOR = [ ROOT.kRed+4, ROOT.kAzure+3, ROOT.kOrange-2, ROOT.kGreen-5, ROOT.kYellow+2, \
             ROOT.kCyan-2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen-2,ROOT.kRed-4, ROOT.kGray-3 ]
     
     # Get the root file with the TH2 and TEfficiency objects
@@ -363,7 +403,7 @@ def plots(rootfile,hadrons='kaons'):
                 significance = 0.0
             sgf.SetPoint(i,p[i],significance)
             roc.SetPoint(i,efsignal,ibkgeff)
-            # Storing some working points  (respecting the signal efficiency)
+            # Storing some working points  (respect the signal efficiency)
             try: 
                 wp = filter(lambda x: abs(efsignal*100.0-x) < x*TOLERANCEPERCENT,WP)[0]
                 # Check if we already got it
@@ -388,7 +428,9 @@ def plots(rootfile,hadrons='kaons'):
                 addtext=rocsgf[res],log=True,opt='ALC')
         
         # -- roc
-        drawgraph(roc,xtitle='#varepsilon_{S}',ytitle='#varepsilon_{B}',outname=res+'_ROC',opt='ALC')
+        outnameroc=res+'_ROC'
+        drawgraph(roc,xtitle='#varepsilon_{S}',ytitle='#varepsilon_{B}',outname=outnameroc,\
+                addtext=rocsgf[res],opt='ALC')
         
 
 if __name__ == '__main__':

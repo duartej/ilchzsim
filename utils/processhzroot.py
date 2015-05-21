@@ -102,7 +102,7 @@ def settitles(h,totalmomentum):
         h.SetYTitle('p_{||}^{2} [GeV]')
     
 
-def process(inputfile,outputfile,ztotalmomentum=False):
+def process(inputfile,outputfile,d0cut,trackHF):
     """..function:: process(inputfile) 
 
     Process the 'inputfile' ROOT (obtained from the ilchz executable)
@@ -136,16 +136,23 @@ def process(inputfile,outputfile,ztotalmomentum=False):
     namehistos = '_th2_'+inputfile.split('/')[-1].replace('.root','')
     hleading ={ 25: ROOT.TH2F('H'+namehistos,'paralel momentum leading hadrons',NBINS,XMIN,XMAX,NBINS,XMIN,XMAX),
             23: ROOT.TH2F('Z'+namehistos,'paralel momentum leading hadrons',NBINS,XMIN,XMAX,NBINS,XMIN,XMAX) }
+    # More histograms if the user wants to keep track of the heavy flavour decays
+    histodictslist = [ hleading ]
+    if trackHF:
+        hleadingHF = { 25: ROOT.TH2F('H'+namehistos+'_HF','paralel momentum leading hadrons',NBINS,XMIN,XMAX,NBINS,XMIN,XMAX),
+            23: ROOT.TH2F('Z'+namehistos+'_HF','paralel momentum leading hadrons',NBINS,XMIN,XMAX,NBINS,XMIN,XMAX) }
+        histodictslist.append(hleadingHF)
     # Some cosmethics
-    for res,h in hleading.iteritems():
-        dototalmomentum = False
-        if res == 23:
-            dototalmomentum=True
-        settitles(h,dototalmomentum)
+    for histodict in histodictslist:
+        for res,h in histodict.iteritems():
+            dototalmomentum = False
+            if res == 23:
+                dototalmomentum=True
+            settitles(h,dototalmomentum)
 
     # Event loop
-    noOpposite = 0
-    nOpposite = 0
+    noOpposite = { 23: 0, 25: 0 }; noOppositeHF = {23: 0, 25: 0} ;
+    nOpposite = {23: 0, 25: 0 } ; nOppositeHF = {23: 0, 25: 0};
     msg = "Evaluating %s..." % inputfile
     pointpb = float(t.GetEntries())/100.0
     _i = 0
@@ -164,7 +171,7 @@ def process(inputfile,outputfile,ztotalmomentum=False):
             # One line: order hadrons by paralel momentum (or should I do it by momentum?)
             #           and return the local index (just for the hadrons coming from the
             #           resonance 'res'
-            if ztotalmomentum and res == 23:
+            if res == 23:
                 fcos = lambda k: 1.0
             else:
                 fcos = lambda k: abs(cos(iEvent.theta[k]))
@@ -175,22 +182,47 @@ def process(inputfile,outputfile,ztotalmomentum=False):
                             key=lambda (x,y): y*fcos(x) ) 
                        )
                     )
-            pup   = []
-            pdown = []
+            pup     = []
+            pupHF   = []
+            pdown   = []
+            pdownHF = []
             # Get the leading kaons in the opposite hemispheres (in the CM q-qbar 
             # reference system
             for k in sortedhadrind:
+                # Check the impact parameter if the cut is activated
+                #if d0cut:
+                    #d0 = sqrt(iEvent.vx[k]**2.+iEvent.vy[k]**2.)
+                    #if d0 > D0CUT:
+                    #    continue
+                momentum = iEvent.p[k]*fcos(k)
                 if iEvent.theta[k] < pi/2.0:
-                    pup.append(iEvent.p[k]*fcos(k))
+                    if trackHF and iEvent.isBCdaughter[k]:
+                        pupHF.append(momentum)
+                    else:
+                        pup.append(momentum)
                 else:
-                    pdown.append(iEvent.p[k]*fcos(k))
+                    if trackHF and iEvent.isBCdaughter[k]:
+                        pdownHF.append(momentum)
+                    else:
+                        pdown.append(momentum)
             try:
                 hleading[res].Fill(pup[0],pdown[0])
-                nOpposite += 1
+                nOpposite[res] += 1
             except IndexError:
-                noOpposite =+ 1
-    print "\nNot found opposite hadrons in %i (of a total of %i) events" % \
-            (noOpposite,(noOpposite+nOpposite))
+                noOpposite[res] =+ 1
+            if trackHF:
+                try:
+                    hleadingHF[res].Fill(pupHF[0],pdownHF[0])
+                    nOppositeHF[res] += 1
+                except IndexError:
+                    noOppositeHF[res] += 1
+    for res,opp in nOpposite.iteritems():
+        print "\n[%i] Not found opposite hadrons in %i (of a total of %i) events" % \
+                (res,noOpposite[res],(noOpposite[res]+opp))
+        if trackHF:
+            print "[%i] Not found opposite hadrons (decaying from heavy flavour mesons) "\
+                    "in %i (of a total of %i) events" % \
+                    (res,noOppositeHF[res],(noOppositeHF[res]+nOppositeHF[res]))
     
     # Persistency
     # Evaluate efficiency of a simple (radial) cut
@@ -200,10 +232,14 @@ def process(inputfile,outputfile,ztotalmomentum=False):
     for res in resn.keys():
         name = resn[res]+'_eff_'+inputfile.split('/')[-1].replace('.root','')
         eff[res] = evalefficiency(hleading[res],xrange(0,60,1),name)
+        if trackHF:
+            eff[str(res)+"_HF"] = evalefficiency(hleadingHF[res],xrange(0,60,1),name+'_HF')
+            eff[str(res)+"_HF"].Write("",ROOT.TObject.kOverwrite)
         # and storing it
         eff[res].Write("",ROOT.TObject.kOverwrite)
         # also store the TH2F
-        hleading[res].Write("",ROOT.TObject.kOverwrite)
+        for histodict in histodictslist:
+            histodict[res].Write("",ROOT.TObject.kOverwrite)
     efile.Close()
     del efile
     
@@ -213,15 +249,18 @@ if __name__ == '__main__':
     
     #Opciones de entrada
     parser = OptionParser()
-    parser.set_defaults(inputfile='hzkin.root',outputfile='processed.root',totalmomentum=False)   
+    parser.set_defaults(inputfile='hzkin.root',outputfile='processed.root',d0cut=False,hf=False)  
     parser.add_option( '-i', '--inputfile', action='store', type='string', dest='inputfile',\
             help="input root filename [hzkin.root]")
     parser.add_option( '-o', '--outputfile', action='store', type='string', dest='outputfile',\
             help="output root filename [processed.root]")
-    #parser.add_option( '-t', '--totalmomentum', action='store_true', dest='totalmomentum',\
-    #        help="activate for the Z case the use of the momentum (not the paralel momentum)")
+    parser.add_option( '-t', '--trackHF', action='store_true', dest='trackhf',\
+            help="do the plots split the final hadrons depending whether their provenance"\
+            " are heavy flavoured mesons")
+    parser.add_option( '-d', '--d0cut', action='store_true', dest='d0cut',\
+            help="activate the d0 cut (just taken into account ")
     
     (opt,args) = parser.parse_args()
 
-    process(os.path.abspath(opt.inputfile),os.path.abspath(opt.outputfile),True)
+    process(os.path.abspath(opt.inputfile),os.path.abspath(opt.outputfile),opt.d0cut,opt.trackhf)
 

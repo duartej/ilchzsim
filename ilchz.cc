@@ -38,9 +38,21 @@ struct FinalStateHadrons
     const int K_0      =  311;
     const int K_PLUS   =  321;
     const int K_MINUS  = -321;
+    
     const int PI_0     =  111;
     const int PI_PLUS  =  211;
     const int PI_MINUS = -211;
+
+    const int B_0      =  511;
+    const int B_PLUS   =  521;
+    const int B_MINUS  = -521;
+    const int B_0_S    =  531;
+
+    const int D_PLUS   =  411;
+    const int D_MINUS  = -411;
+    const int D_0      =  421;
+    const int D_PLUS_S =  431;
+    const int D_MINUS_S= -431;
 
     std::string _selectedtype;
     std::vector<int> _selected;
@@ -66,6 +78,19 @@ struct FinalStateHadrons
         }
     }
 
+    std::vector<int> getcharmed() const
+    {
+        std::vector<int> _charmed;
+        _charmed.push_back(D_0);
+        _charmed.push_back(D_PLUS);
+        _charmed.push_back(D_MINUS);
+        _charmed.push_back(D_PLUS_S);
+        _charmed.push_back(D_MINUS_S);
+
+        return _charmed;
+    }
+
+
     std::vector<int> getpions() const
     {
         std::vector<int> _pions;
@@ -84,6 +109,19 @@ struct FinalStateHadrons
 
         return _kaons;
     }
+    
+    std::vector<int> getbottoms() const
+    {
+        std::vector<int> _bottoms;
+        _bottoms.push_back(B_0);
+        _bottoms.push_back(B_PLUS);
+        _bottoms.push_back(B_MINUS);
+        _bottoms.push_back(B_0_S);
+
+        return _bottoms;
+    }
+
+
 
     const std::vector<int> getIDs() const
     {
@@ -109,6 +147,7 @@ struct ParticleKinRootAux
     //    catchall = grandmother PDG_ID for the strange hadrons promptly decayed from the resonance
     //    catchall = grandmother PDG_ID for the strange hadrons not prompt
     std::vector<int> * catchall;
+    std::vector<int> * isBCdaughter;
     std::vector<float> * p;
     std::vector<float> * pmother;
     std::vector<float> * phi;
@@ -129,6 +168,7 @@ struct ParticleKinRootAux
         pdgId(0),
         motherindex(0),
         catchall(0),
+        isBCdaughter(0),
         p(0),
         pmother(0),
         phi(0),
@@ -141,6 +181,7 @@ struct ParticleKinRootAux
         _auxI.push_back(&pdgId);
         _auxI.push_back(&motherindex);
         _auxI.push_back(&catchall);
+        _auxI.push_back(&isBCdaughter);
         _auxF.push_back(&p);
         _auxF.push_back(&pmother);
         _auxF.push_back(&phi);
@@ -179,6 +220,7 @@ struct ParticleKinRootAux
         pdgId          = new std::vector<int>;
         motherindex    = new std::vector<int>;
         catchall       = new std::vector<int>;
+        isBCdaughter   = new std::vector<int>;
         p              = new std::vector<float>;
         pmother        = new std::vector<float>;
         phi            = new std::vector<float>;
@@ -211,12 +253,13 @@ struct ParticleKinRootAux
         }
     }
     int filltreevariables(const int & pythiaindex, const int & id, const int & _motherindex, 
-            const int & _catchall, const float & _p, const float & _pmother, const float & _phi, 
+            const int & _catchall, const int & _isHF, const float & _p, const float & _pmother, const float & _phi, 
             const float & _theta, const float & _vx, const float & _vy, const float & _vz)
     {
         this->pdgId->push_back(id);
         this->motherindex->push_back(_motherindex);
         this->catchall->push_back(_catchall);
+        this->isBCdaughter->push_back(_isHF);
         this->p->push_back(_p);
         this->pmother->push_back(_pmother);
         this->phi->push_back(_phi);
@@ -259,6 +302,7 @@ struct ParticleKinRootAux
         t->Branch("pdgId",&pdgId);
         t->Branch("motherindex",&motherindex);
         t->Branch("catchall",&catchall);
+        t->Branch("isBCdaughter",&isBCdaughter);
         t->Branch("p",&p);
         t->Branch("pmother",&pmother);
         t->Branch("phi",&phi);
@@ -283,7 +327,7 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     const Particle & resonanceHS = pythia.event[iHS];
     const int respdgId = resonanceHS.id();
     // Filling n-tuple and getting the n-tuple index of the Resonance
-    const int reslocalIndex = p.filltreevariables(i,respdgId,-1,0,
+    const int reslocalIndex = p.filltreevariables(i,respdgId,-1,0,0,
             resonanceHS.pAbs(),-1,resonanceHS.phi(),resonanceHS.theta(),
             resonanceHS.xProd(),resonanceHS.yProd(),resonanceHS.zProd());
 
@@ -313,12 +357,12 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     // Save info of the s-quark
     const bool isLeading_s = (s.pAbs() > sbar.pAbs());
 
-    p.filltreevariables(iS,s.id(),reslocalIndex,(int)isLeading_s,
+    p.filltreevariables(iS,s.id(),reslocalIndex,(int)isLeading_s,0,
             s.pAbs(),resonance.pAbs(),s.phi(),s.theta(),
             s.xProd(),s.yProd(),s.zProd());
     
     // Save info of the sbar-quark
-    p.filltreevariables(iSbar,sbar.id(),reslocalIndex,(int)(not isLeading_s),
+    p.filltreevariables(iSbar,sbar.id(),reslocalIndex,(int)(not isLeading_s),0,
             sbar.pAbs(),resonance.pAbs(),sbar.phi(),sbar.theta(),
             sbar.xProd(),s.yProd(),s.zProd());
     
@@ -373,26 +417,29 @@ void display_usage()
     std::cout << "Simulate the generation of the e+ e- --> H0 Z0 --> s sbar s sbar" 
         << " process (defined\nin the 'ilchz.cmnd' input file) using the Pythia8.2 "
         << "library. A n-tuple is created \n(called 'mctrue') containing the following info:\n"
-        << "\t'pdgId'      : std::vector<int> of the PDG ID code of the stored particle\n"
-        << "\t'motherindex': std::vector<int> of the n-tuple vector index of the mother\n"
-        << "\t               Note that -1 is used when the particle is the FS hadrons\n"
-        << "\t'catchall'   : std::vector<int> a multi-use variable, changing its meaning\n"
-        << "\t               depending the type of the particle:\n"
+        << "\t'pdgId'        : std::vector<int> of the PDG ID code of the stored particle\n"
+        << "\t'motherindex'  : std::vector<int> of the n-tuple vector index of the mother\n"
+        << "\t                 Note that -1 is used when the particle is the FS hadrons\n"
+        << "\t'catchall'     : std::vector<int> a multi-use variable, changing its meaning\n"
+        << "\t                 depending the type of the particle:\n"
             << "\t\t\t * 0                  for the resonance (H,Z)\n"
             << "\t\t\t * is higher p quark? for the s-squark resonance daughters\n"
             << "\t\t\t * grandmother PDG_ID for the 'final state' strange hadrons\n"
-        << "\t'p'          : std::vector<float> momentum of the particle\n"
-        << "\t'pmother'    : std::vector<float> momentum of its mother [to be deprecated]\n"
-        << "\t'phi'        : std::vector<float> phi of the particle\n"
-        << "\t'theta'      : std::vector<float> theta of the particle\n"
-        << "\t'vx'         : std::vector<float> production vertex, x\n"
-        << "\t'vy'         : std::vector<float> production vertex, y\n"
-        << "\t'vz'         : std::vector<float> production vertex, z\n"
+        << "\t'isBoCdaughter': std::vector<int>   describes if the hadrons is coming from\n"
+        << "                   a Bottom or Charm hadron.\n"
+        << "\t'p'            : std::vector<float> momentum of the particle\n"
+        << "\t'pmother'      : std::vector<float> momentum of its mother [to be deprecated]\n"
+        << "\t'phi'          : std::vector<float> phi of the particle\n"
+        << "\t'theta'        : std::vector<float> theta of the particle\n"
+        << "\t'vx'           : std::vector<float> production vertex, x\n"
+        << "\t'vy'           : std::vector<float> production vertex, y\n"
+        << "\t'vz'           : std::vector<float> production vertex, z\n"
         << "Note that the p,phi,theta variables are respect the rest-frame of the q-qbar system\n"
         << "in the case of the final-state hadrons, as well as the pmother."
         << "However, the production vertex is respect the Laboratory frame.\n";
     std::cout << std::endl;
 	std::cout << "[OPTIONS]\n\t-o name of the ROOT output file [hzkin.root]\n"
+        << "\t-b flag to keep track if the final hadrons provenance is from charmed or bottom hadrons\n"
         << "\t-p flag to keep final state PIONS instead of KAONS (default)\n"
         << "\t-h show this help" << std::endl;
 }
@@ -411,24 +458,30 @@ int main(int argc, char* argv[])
     // Declare option-related variables
     std::string outputfilename("hzkin.root");
     std::string strangehadrontype("kaons");
+    bool accountforheavyflavoured = false;
+
 	
     std::string cmndfile;
     // get options
     for(int i = 1; i < argc; ++i)
-	{
+    {
         if( strcmp(argv[i],"-h") == 0 )
-		{
+        {
             display_usage();
-			return 0;
-		}
+            return 0;
+        }
         else if( strcmp(argv[i],"-o") == 0 )
-		{
-			outputfilename = argv[i+1];
+        {
+            outputfilename = argv[i+1];
             ++i;
-		}
+        }
         else if( strcmp(argv[i],"-p") == 0 )
         {
             strangehadrontype = "pions";
+        }
+        else if( strcmp(argv[i],"-b") == 0 )
+        {
+            accountforheavyflavoured = true;
         }
         else
         {
@@ -442,7 +495,7 @@ int main(int argc, char* argv[])
             }
             cmndfile = argv[i];
         }
-	}
+    }
 
     // Confirm that external files will be used for input and output.
     std::cout << "\n >>> PYTHIA settings will be read from file " << cmndfile << std::endl;
@@ -473,6 +526,18 @@ int main(int argc, char* argv[])
     std::vector<int> idResonance;
     idResonance.push_back(23);  // Z0
     idResonance.push_back(25);  // Higgs (h0)
+
+    // If the user want to keep track of the final hadrons created
+    // from heavy flavour hadrons (B or D)
+    std::vector<int> * hfhadrons = 0;
+    if( accountforheavyflavoured )
+    {
+        hfhadrons = new std::vector<int>;
+        std::vector<int> _provb = fshadrons.getbottoms();
+        hfhadrons->insert(hfhadrons->end(),_provb.begin(),_provb.end());
+        std::vector<int> _provc= fshadrons.getcharmed();
+        hfhadrons->insert(hfhadrons->end(),_provc.begin(),_provc.end());
+    }
      
     // Begin event loop.
     int iAbort = 0;
@@ -568,12 +633,23 @@ int main(int argc, char* argv[])
             //}
             // And convert to qqbar system reference frame
             had.rotbst(restframe);
-            
+         
+            // Check if the hadron come from a Bottom or charmed hadron (if relevant)
+            int isBCdaughter = 0;
+            pre_quarkindex   = currI;
+            if(hfhadrons != 0)
+            {
+               if( getancestorindex(currI,pythia,*hfhadrons,pre_quarkindex) != 0 )
+               {
+                   isBCdaughter = 1;
+               }
+            }
             // storing info in the rest-frame of the quark-bquark ref. system (except
             // for the vertex)
             const Particle & hadatlab = pythia.event[currI];
             particles.filltreevariables(currI,had.id(),particles.getlocalindex(quarkindex),
-                    ancestorID,had.pAbs(),quarkatrest.pAbs(),had.phi(),had.theta(),
+                    ancestorID,isBCdaughter,
+                    had.pAbs(),quarkatrest.pAbs(),had.phi(),had.theta(),
                     hadatlab.xProd(),hadatlab.yProd(),hadatlab.zProd());
 #ifdef DEBUG
             std::cout << std::endl;
@@ -583,6 +659,13 @@ int main(int argc, char* argv[])
         // deallocate variables after the filling
         particles.endloop();
     }
+    // Deallocate
+    if( hfhadrons != 0 )
+    {
+        delete hfhadrons;
+        hfhadrons=0;
+    }
+
     // End of event loop. Statistics.
     pythia.stat();
 

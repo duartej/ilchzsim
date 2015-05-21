@@ -19,7 +19,7 @@ Next:numberCount = 1000             ! print message every n events
 Next:numberShowLHA = 1              ! print LHA information n times
 Next:numberShowInfo = 1             ! print event information n times
 Next:numberShowProcess = 1          ! print process record n times
-Next:numberShowEvent = 1            ! print event record n times
+Next:numberShowEvent = 5            ! print event record n times
 Stat:showPartonLevel = on           ! additional statistics on MPI
 
 ! 3) Beam parameter settings. Values below agree with default ones.
@@ -40,11 +40,19 @@ HiggsSM:ffbar2HZ = on
 
 ! 5a1) Allowed decay channel // See http://home.thep.lu.se/~torbjorn/pythia82php/ParticleDataScheme.php?filepath=files/
 25:onMode:* = off ! switch off all h0 decay channels
-25:2:onMode = 1   | switch on h0-> s sbar
+25:0:onMode = 0   | switch on h0-> d dbar
 25:1:onMode = 0   | switch on h0-> u ubar
+25:2:onMode = 1   | switch on h0-> s sbar
+25:3:onMode = 0   | switch on h0-> c cbar
+25:4:onMode = 0   | switch on h0-> b cbar
+25:5:onMode = 0   | switch on h0-> t cbar
 23:onMode:* = off ! switch off all Z0 decay channels
-23:2:onMode = 1   | switch on Z0-> s sbar
-23:1:onMode = 0   | switch on Z0-> u ubar
+23:0:onMode = 1   | switch on Z0-> d ubar
+23:1:onMode = 0   | switch on Z0-> u sbar
+23:2:onMode = 0   | switch on Z0-> s ubar
+23:3:onMode = 0   | switch on Z0-> c sbar
+23:4:onMode = 0   | switch on Z0-> b sbar
+23:5:onMode = 0   | switch on Z0-> t sbar
 
 
 !PhaseSpace:pTHatMin = 20.          ! minimum pT of hard process

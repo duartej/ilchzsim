@@ -360,7 +360,7 @@ def drawgraph(g,**kwd):
         for g in ng.values():
             g.Draw("PSAME")
         leg.Draw()
-    c.SaveAs(a.outname+'.pdf')
+    c.SaveAs(a.outname+globals()['SUFFIXPLOTS'])
     c.SaveAs(a.outname+'.root')
 
 def getlatextable(cutdict):
@@ -419,6 +419,8 @@ def plots(rootfile,hadrons='kaons'):
     global BRbb_cc
     global hiInstance
 
+    suffixplots = globals()['SUFFIXPLOTS']
+
     try:
         from PyAnUtils.plotstyles import squaredStyle,setpalette
         lstyle = squaredStyle()
@@ -442,7 +444,7 @@ def plots(rootfile,hadrons='kaons'):
             classname.find('TH2') == 0, _obj.iteritems()):
         c = ROOT.TCanvas()
         h.Draw("COLZ")    
-        c.SaveAs(name.replace('_th2_','_')+'.pdf')
+        c.SaveAs(name.replace('_th2_','_')+suffixplots)
     
     # Prepare the efficiencies
     c,effdict = setupefficiencies(_obj,hadrons)
@@ -489,7 +491,7 @@ def plots(rootfile,hadrons='kaons'):
     for name,canvas in c.iteritems():
         canvas.cd()
         leg[name].Draw()
-        canvas.SaveAs('effcmp_'+name+'.pdf')
+        canvas.SaveAs('effcmp_'+name+suffixplots)
     #-- End efficiency plots
     
     # Filling the graphs for the significance and ROC 
@@ -612,7 +614,7 @@ def plots(rootfile,hadrons='kaons'):
             for cut in [ 0.1,0.5,0.7,1.0]: 
                 cutdict[name][cut] = h.Integral(1,h.FindBin(cut))/_int
         leg.Draw()
-        c.SaveAs(res+'_d0.pdf')
+        c.SaveAs(res+'_d0'+suffixplots)
         
         print "===  d0 cuts |%s| ==========================" % (res)
         print getlatextable(cutdict)
@@ -638,6 +640,6 @@ if __name__ == '__main__':
     (opt,args) = parser.parse_args()
 
     if opt.suffixout:
-        globals()['SUFFIXPLOTS'] ='.'+opt.suffixout
-
+        suff = opt.suffixout.replace('.','')
+        globals()['SUFFIXPLOTS'] ='.'+suff
     plots(os.path.abspath(opt.inputfile))

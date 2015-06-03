@@ -15,7 +15,7 @@ XMAX  = 60
 
 
 def gethadronsind(iEvent):
-    """.. function:: gethadronsind(iEvent) -> [ i1, i2, ... ]
+    """.. function:: gethadronsind(iEvent) -> { resPDGID: [ i1, i2, ... ], .. }
 
     return the local indices of all the particles which are
     hadrons (in practical, because of 
@@ -30,8 +30,8 @@ def gethadronsind(iEvent):
     :param iEvent: current tree-entry
     :type  iEvent: TTree
     
-    :return: local indices list corresponding to hadrons
-    :rtype : list(int)
+    :return: local indices list corresponding to hadrons (per resonance)
+    :rtype : dict(list(int))
     """
     hadronsind = {}
     for i,pdgid in enumerate(iEvent.catchall):
@@ -100,7 +100,7 @@ def settitles(h,totalmomentum):
     else:
         h.SetXTitle('p_{||}^{1} [GeV]')
         h.SetYTitle('p_{||}^{2} [GeV]')
-    
+
 
 def process(inputfile,outputfile,d0cut,trackHF):
     """..function:: process(inputfile) 
@@ -123,7 +123,7 @@ def process(inputfile,outputfile,d0cut,trackHF):
     """
     import sys
     import ROOT
-    from math import pi,cos
+    from math import pi,cos,sqrt
 
     # ROOT File
     f = ROOT.TFile(inputfile)
@@ -150,18 +150,31 @@ def process(inputfile,outputfile,d0cut,trackHF):
                 dototalmomentum=True
             settitles(h,dototalmomentum)
 
+    # d0-histograms
+    extrahist = { 25: ROOT.TH1F('H'+namehistos.replace('th2','th1')+'_d0','',NBINS*2,0,5),
+            23: ROOT.TH1F('Z'+namehistos.replace('th2','th1')+'_d0','',NBINS*2,0,5) 
+            }
+    th1list = extrahist.values()
+    if trackHF:
+        extrahistHF = { 25: ROOT.TH1F('H'+namehistos.replace('th2','th1')+'_d0_HF','',NBINS*2,0,5),
+                23: ROOT.TH1F('Z'+namehistos.replace('th2','th1')+'_d0_HF','',NBINS*2,0,5) 
+                }
+        th1list += extrahistHF.values()
+    # cosmethics
+    for h in th1list:
+        h.SetXTitle('d_{0} [mm]')
+
+
     # Event loop
     noOpposite = { 23: 0, 25: 0 }; noOppositeHF = {23: 0, 25: 0} ;
     nOpposite = {23: 0, 25: 0 } ; nOppositeHF = {23: 0, 25: 0};
     msg = "Evaluating %s..." % inputfile
     pointpb = float(t.GetEntries())/100.0
-    _i = 0
-    for iEvent in t:
+    for _i,iEvent in enumerate(t):
         # Progress bar
         sys.stdout.write("\r\033[1;34m+-- \033[1;m"+msg+\
                 "[ " +"\b"+str(int(float(_i)/pointpb)+1).rjust(3)+"%]")
         sys.stdout.flush()
-        _i+=1
         # Get the local indices of the leading kaons
         # -- store histograms of p (paralel component with respect the quark mother)
         #    for leading kaons in both hemispheres (in the CM-quark-antiquark system
@@ -190,29 +203,34 @@ def process(inputfile,outputfile,d0cut,trackHF):
             # reference system
             for k in sortedhadrind:
                 # Check the impact parameter if the cut is activated
-                #if d0cut:
-                    #d0 = sqrt(iEvent.vx[k]**2.+iEvent.vy[k]**2.)
-                    #if d0 > D0CUT:
-                    #    continue
+                if d0cut:
+                    d0 = sqrt(iEvent.vx[k]**2.+iEvent.vy[k]**2.)
+                    if d0 > float(d0cut):
+                        continue
                 momentum = iEvent.p[k]*fcos(k)
+                d0       = sqrt(iEvent.vx[k]**2.0+iEvent.vy[k]**2.0)
                 if iEvent.theta[k] < pi/2.0:
                     if trackHF and iEvent.isBCdaughter[k]:
-                        pupHF.append(momentum)
+                        pupHF.append((momentum,d0))
                     else:
-                        pup.append(momentum)
+                        pup.append((momentum,d0))
                 else:
                     if trackHF and iEvent.isBCdaughter[k]:
-                        pdownHF.append(momentum)
+                        pdownHF.append((momentum,d0))
                     else:
-                        pdown.append(momentum)
+                        pdown.append((momentum,d0))
             try:
-                hleading[res].Fill(pup[0],pdown[0])
+                hleading[res].Fill(pup[0][0],pdown[0][0])
+                extrahist[res].Fill(pup[0][1])
+                extrahist[res].Fill(pdown[0][1])
                 nOpposite[res] += 1
             except IndexError:
                 noOpposite[res] =+ 1
             if trackHF:
                 try:
-                    hleadingHF[res].Fill(pupHF[0],pdownHF[0])
+                    hleadingHF[res].Fill(pupHF[0][0],pdownHF[0][0])
+                    extrahistHF[res].Fill(pupHF[0][1])
+                    extrahistHF[res].Fill(pdownHF[0][1])
                     nOppositeHF[res] += 1
                 except IndexError:
                     noOppositeHF[res] += 1
@@ -240,6 +258,9 @@ def process(inputfile,outputfile,d0cut,trackHF):
         # also store the TH2F
         for histodict in histodictslist:
             histodict[res].Write("",ROOT.TObject.kOverwrite)
+        # and the TH1F
+        for _hth1 in th1list:
+            _hth1.Write("",ROOT.TObject.kOverwrite)
     efile.Close()
     del efile
     
@@ -257,8 +278,8 @@ if __name__ == '__main__':
     parser.add_option( '-t', '--trackHF', action='store_true', dest='trackhf',\
             help="do the plots split the final hadrons depending whether their provenance"\
             " are heavy flavoured mesons")
-    parser.add_option( '-d', '--d0cut', action='store_true', dest='d0cut',\
-            help="activate the d0 cut (just taken into account ")
+    parser.add_option( '-d', '--d0cut', metavar="D0CUT",action='store', dest='d0cut',\
+            help="activate the d0 cut (d0<D0CUT) for the hadrons to be considered")
     
     (opt,args) = parser.parse_args()
 

@@ -8,6 +8,16 @@
                  processhzroot script
 	  .. moduleauthor:: Jordi Duarte-Campderros <jorge.duarte.campderros@cern.ch>
 """
+#_COLOR = [ ROOT.kCyan+2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen+2,ROOT.kRed-2, ROOT.kBlue-3,
+#        ROOT.kBlack, ROOT.kRed+4]
+def getcolor():
+    import ROOT
+    return [ ROOT.kRed+4, ROOT.kAzure+3, ROOT.kOrange-2, ROOT.kGreen-5, ROOT.kYellow+2, \
+        ROOT.kCyan-2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen-2,ROOT.kRed-4, ROOT.kGray-3 ]
+
+SUFFIXPLOTS='.pdf'
+
+
 def setupefficiencies(rootobjdict,hadrons):
     """ ..function ::setupefficiencies(rootobjdict) -> {str: ROOT.TCanvas(), .. }
 
@@ -109,6 +119,45 @@ def geteffsignalandbkgs(effdict):
 
     return sigdict,bkgdict
 
+# Static class to deal with inputs
+class higgsinputs:
+    # Data obtained from 
+    # Branching ratios: https://twiki.cern.ch/twiki/bin/view/LHCPhysics/CERNYellowReportPageBR3
+    # Cross section   : 
+    def __init__(self):
+        self.mH         = 125.7 # (GeV)
+        self.eeToHat250 = 2.5e2 # (fb)
+        # Generic, only dependent of the higgs mass
+        # therefore, following values at self.mH higgs
+        # mass
+        self.brbbbar    = 5.66e-1
+        self.brccbar    = 2.85e-2
+        self.brssbar    = 2.41e-4
+        self.bruubar    = 0.0  # just below 1e-4
+        self.brddbar    = 0.0  # just below 1e-4
+        self.Lint       = 0 #(fb)
+        self.higgsproduced = 0
+
+    def setLint(self,_Lint):
+        self.Lint = float(_Lint)
+        self.higgsproduced = self.eeToHat250*self.Lint
+
+    def getEvents(self,decaychannel):
+        """
+        """
+        if self.Lint == 0:
+            raise RuntimeError("First set the integral luminosity"\
+                    " using the 'setLint(Lint) method")
+        try:
+            br = getattr(self,'br'+decaychannel)
+        except AttributeError:
+            raise AttributeError('There is no br "%s" '\
+                    'defined in this class' % decaychannel)
+        return self.higgsproduced*br
+
+hiInstance = higgsinputs()
+hiInstance.setLint(500) # (fb-1)
+
 # Branching ratios with respect ccbar (m_q^2/m_c^2)
 # using the pole mass (measured) not the mass at the higgs scale
 BRuu_cc = 3.3e-6
@@ -116,27 +165,43 @@ BRdd_cc = 1.4e-5
 BRss_cc = 0.006
 BRbb_cc = 10.75
 
+BRuu_ss = 5.9e-4
+BRdd_ss = 2.6e-3
+BRcc_ss = 180.1
+BRbb_ss = 1936.0
+
 def getbr(name):
     """.. function:: getbr(name) -> br
 
     given the name of a sample returns the branching
     reation involved (with respect the ccbar)
     """
-    global BRuu_cc
-    global BRbb_cc
-    global BRss_cc
-    global BRdd_cc 
+    global BRuu_ss
+    global BRdd_ss 
+    global BRcc_ss
+    global BRbb_ss
 
     if name.find("bbbar") != -1:
-        return BRbb_cc
+        return BRbb_ss
     elif name.find("uubar") != -1:
-        return BRuu_cc
+        return BRuu_ss
     elif name.find("ddbar") != -1:
-        return BRdd_cc
+        return BRdd_ss
     elif name.find("ssbar") != -1:
-        return BRss_cc
-    elif name.find("ccbar") != -1:
         return 1.0
+    elif name.find("ccbar") != -1:
+        return BRcc_ss
+
+def parseprocess(name):
+    """
+    """
+    availpr = [ 'bbbar', 'uubar', 'ddbar', 'ssbar', 'ccbar' ]
+    try:
+        process = filter(lambda x: name.find(x) != -1,availpr)[0]
+    except IndexError:
+        raise RuntimeError("Not correctly parsed: '%s'" % name)
+      
+    return process
 
 def gettotalbkgeff(bkg):
     """.. function:: gettotalbkgeff(bkg) -> [eff1,eff2,...]
@@ -159,8 +224,11 @@ def gettotalbkgeff(bkg):
              of momentum (radial cut in the p1,p2 space)
     :rtype: list(float)
     """
+    global hiInstance
     # Get the backgrounds
-    totalbkgdenominator = sum([ getbr(bkgname) for bkgname in bkg.keys()])
+    #totalbkgdenominator = sum([ getbr(bkgname) for bkgname in bkg.keys()])
+    bkgparsed = map(lambda x: parseprocess(x), bkg.keys())
+    totalbkgdenominator = sum([ getattr(hiInstance,'br'+bkgname) for bkgname in bkgparsed])
     ilist = xrange(len(bkg.values()[0]))
     totalbkgeff = []
     for i in ilist:
@@ -168,14 +236,15 @@ def gettotalbkgeff(bkg):
         # for the momentum cut i-essim
         ibkg = 0
         for bkgname,bkgefflist in bkg.iteritems():
-            ibkg += getbr(bkgname)*bkgefflist[i]
+            #ibkg += getbr(bkgname)*bkgefflist[i]
+            ibkg += getattr(hiInstance,'br'+parseprocess(bkgname))*bkgefflist[i]
         totalbkgeff.append( float(ibkg)/float(totalbkgdenominator) )
     return totalbkgeff 
 
 def draweffpointsinsignificance(usefuldict,outname):
     """.. draweffpointsinsignificance(usefuldict,outname) -> graph,leg
 
-    Draws a graph made of relavant working points in the significance
+    Draws a graph made of relevant working points in the significance
     which relates with the signal and backgrounds efficiency
 
     :param usefuldict. 
@@ -195,8 +264,9 @@ def draweffpointsinsignificance(usefuldict,outname):
         y1 = 0.45
     # Prepare a new graph to be include in
     # the canvas c, (containing the significance curve)
-    _COLOR = [ ROOT.kCyan+2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen+2,ROOT.kRed-2, ROOT.kBlue-3,
-            ROOT.kBlack, ROOT.kRed+4]
+    #_COLOR = [ ROOT.kCyan+2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen+2,ROOT.kRed-2, ROOT.kBlue-3,
+    #        ROOT.kBlack, ROOT.kRed+4]
+    COLOR=getcolor()
     textpos = {}
     _g = {}
     leg = getleg(x0=x0,y0=y0,x1=x1,y1=y1)
@@ -206,7 +276,7 @@ def draweffpointsinsignificance(usefuldict,outname):
         _g[k] = ROOT.TGraph()
         _g[k].SetMarkerStyle(33)
         _g[k].SetMarkerSize(2)
-        _g[k].SetMarkerColor(_COLOR[k])
+        _g[k].SetMarkerColor(COLOR[k])
         _g[k].SetPoint(0,p,significance)
         effstr="%.1f" % (sigeff*100.)
         bkgstr="%.2f" % (bkgeff*100.)
@@ -227,14 +297,16 @@ def draweffpointsinroc(usefuldict,outname):
     """
     import ROOT
     # Get the resonance
-    x0 = 0.2
-    x1 = 0.3
-    y0 = 0.5
-    y1 = 0.75
+    x0 = 0.3
+    x1 = 0.4
+    y0 = 0.2
+    y1 = 0.45
     # Prepare a new graph to be include in
     # the canvas c, (containing the significance curve)
-    _COLOR = [ ROOT.kCyan+2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen+2,ROOT.kRed-2, ROOT.kBlue-3,
-            ROOT.kBlack, ROOT.kRed+4]
+    #_COLOR = [ ROOT.kCyan+2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen+2,ROOT.kRed-2, ROOT.kBlue-3,
+    #        ROOT.kBlack, ROOT.kRed+4]
+    COLOR=getcolor()
+
     textpos = {}
     _g = {}
     leg = getleg(x0=x0,y0=y0,x1=x1,y1=y1)
@@ -244,9 +316,9 @@ def draweffpointsinroc(usefuldict,outname):
         _g[k] = ROOT.TGraph()
         _g[k].SetMarkerStyle(33)
         _g[k].SetMarkerSize(2)
-        _g[k].SetMarkerColor(_COLOR[k])
-        _g[k].SetPoint(0,sigeff,bkgeff)
-        text = " cut @ p=%.1f GeV" % (p)
+        _g[k].SetMarkerColor(COLOR[k])
+        _g[k].SetPoint(0,bkgeff,sigeff)
+        text = " S/#sqrt{B}=%.1f (@ p=%.1f GeV)" % (significance,p)
         leg.AddEntry(_g[k],text,'P')
     return _g,leg
 
@@ -289,8 +361,45 @@ def drawgraph(g,**kwd):
             g.Draw("PSAME")
         leg.Draw()
     c.SaveAs(a.outname+'.pdf')
+    c.SaveAs(a.outname+'.root')
 
+def getlatextable(cutdict):
+    """.. function:: getlatextable(cutdict) -> str(latex table)
+    """
+    # Set an order 
+    _setorder = { 's': 1, 'u': 2, 'd': 3, 'c': 4, 'b': 5 }
+    
+    ncols = len(cutdict.values()[0])
+    latex = '\\begin{tabular}{c '
+    for i in xrange(ncols):
+        latex += ' c '
+    latex += '}\n'
+    latex += ' & ' 
+    for i in sorted(cutdict.values()[0].keys()):
+        latex += ' $d_{0}$ < %.1f [mm] &' % i
+    latex = latex[:-1]
+    latex += '\\\\ \\hline\\hline\n'
+    for process,cuts in sorted(cutdict.iteritems(),key=lambda (x,y): _setorder[x[0]]):
+        pre_latexify = process.replace('bar','')
+        latexify = '$'+pre_latexify[0]+'\\bar{'+pre_latexify[1]+'}$'+\
+                pre_latexify[2:]+' &'
+        latex += latexify
+        for cut,val in sorted(cuts.iteritems()):
+            latex += ' %.3f &' % val
+        latex = latex[:-1]+'\\\\\n'
+    latex += '\\hline\\hline\n'
+    latex += '\\end{tabular}\n'
 
+    return latex
+
+def saveallinfo(d):
+    """
+    """
+    import pickle
+
+    output = open('allinfo.pkl','wb')
+    pickle.dump(d,output)
+    output.close()
 
 def plots(rootfile,hadrons='kaons'):
     """.. function:: plots(rootfile[,hadrons='kaons'])
@@ -308,6 +417,7 @@ def plots(rootfile,hadrons='kaons'):
     from math import sqrt
     global BRuu_cc
     global BRbb_cc
+    global hiInstance
 
     try:
         from PyAnUtils.plotstyles import squaredStyle,setpalette
@@ -319,9 +429,6 @@ def plots(rootfile,hadrons='kaons'):
         setpalette("darkbody")
     except ImportError:
         pass
-    # Pseudo-global
-    COLOR = [ ROOT.kRed+4, ROOT.kAzure+3, ROOT.kOrange-2, ROOT.kGreen-5, ROOT.kYellow+2, \
-            ROOT.kCyan-2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen-2,ROOT.kRed-4, ROOT.kGray-3 ]
     
     # Get the root file with the TH2 and TEfficiency objects
     f = ROOT.TFile(rootfile)
@@ -336,7 +443,7 @@ def plots(rootfile,hadrons='kaons'):
         c = ROOT.TCanvas()
         h.Draw("COLZ")    
         c.SaveAs(name.replace('_th2_','_')+'.pdf')
-
+    
     # Prepare the efficiencies
     c,effdict = setupefficiencies(_obj,hadrons)
 
@@ -346,6 +453,7 @@ def plots(rootfile,hadrons='kaons'):
     for _k in k.keys():
         leg[_k] = getleg()
     
+    COLOR = getcolor()
     for name,eff in sorted(effdict.iteritems()):
         if name.find('Z') == 0:
             res = 'Z'
@@ -356,6 +464,7 @@ def plots(rootfile,hadrons='kaons'):
         leg[res].AddEntry(eff,entry,"PL")
         ploteffs(c[res],eff,COLOR[k[res]])
         k[res] += 1
+
     # Get the total background efficiency to include it
     # in the efficiency plots
     # For this I need to extract signal and backgrounds dictionaries
@@ -384,9 +493,12 @@ def plots(rootfile,hadrons='kaons'):
     #-- End efficiency plots
     
     # Filling the graphs for the significance and ROC 
-    WP = [1,20,40,60,80]
-    TOLERANCEPERCENT = 0.2
+    WP = [20,40,60]
+    SIGNIFICANCE = [1,3,5]
+    TOLERANCEPERCENT = 0.02
     rocsgf = {}
+    sigsgf = {}
+    allinfodict = {}
     for res,sig in sigdict.iteritems():
         ## -- Get total background efficiency
         bkgeff = totalbkgeff[res]
@@ -395,14 +507,30 @@ def plots(rootfile,hadrons='kaons'):
         sgf = ROOT.TGraph()
         roc = ROOT.TGraph()
         rocsgf[res] = {}
+        sigsgf[res] = {}
+        allinfodict[res] = []
         for i,efsignal in enumerate(sig):
             ibkgeff = bkgeff[i]
             try:
-                significance = float(efsignal)/sqrt(ibkgeff)
+                #significance = float(efsignal)/sqrt(ibkgeff)
+                ###correct = getbr('uubar')+getbr('ddbar')+getbr('ccbar')+getbr('bbbar')
+                #m_c=1.275
+                #m_s=0.095
+                #correct *= (m_c/m_s)**2.0
+                ###significance = float(efsignal)/(ibkgeff*correct)
+                Nbkgevents = sum(map(lambda decay: hiInstance.getEvents(decay),
+                    ['bbbar','ccbar','uubar','ddbar']))
+                _B = Nbkgevents*ibkgeff
+                Nsignalevents = hiInstance.getEvents('ssbar')
+                _S = Nsignalevents*efsignal
+                significance = float(_S)/sqrt(float(_B))
+
             except ZeroDivisionError:
                 significance = 0.0
             sgf.SetPoint(i,p[i],significance)
-            roc.SetPoint(i,efsignal,ibkgeff)
+            roc.SetPoint(i,ibkgeff,efsignal)
+            # extra info
+            allinfodict[res].append( (p[i],_S,_B,significance) )
             # Storing some working points  (respect the signal efficiency)
             try: 
                 wp = filter(lambda x: abs(efsignal*100.0-x) < x*TOLERANCEPERCENT,WP)[0]
@@ -415,6 +543,20 @@ def plots(rootfile,hadrons='kaons'):
                     rocsgf[res][wp]= (p[i],significance,efsignal,ibkgeff)
             except IndexError:
                 pass
+            #Doing the same for the significance
+            try:
+                wps = filter(lambda x: abs(significance-x) < x*1.,SIGNIFICANCE)[0]
+                # Check if we already got it
+                if sigsgf[res].has_key(wps):
+                    # Only update it if is the lowest distance
+                    if abs(wps-significance) < abs(wps-sigsgf[res][wps][1]):
+                        sigsgf[res][wps]= (p[i],significance,efsignal,ibkgeff)
+                else:
+                    sigsgf[res][wps]= (p[i],significance,efsignal,ibkgeff)
+            except IndexError:
+                pass
+        # Adding the significance working points to the roc dict
+        rocsgf[res].update(sigsgf[res])
 
         # Plot the graphs:
         # -- significance
@@ -422,27 +564,80 @@ def plots(rootfile,hadrons='kaons'):
             xtitle = 'cut ( < #sqrt{p^{2}_{1}+p^{2}_{2}} ) [GeV]'
         else:
             xtitle = 'cut ( < #sqrt{p^{2}_{1||}+p^{2}_{2||}} ) [GeV]'
-        ytitle = '#varepsilon_{S}/#sqrt{#varepsilon_{B}}'
+        #ytitle = '#varepsilon_{S}/#sqrt{#varepsilon_{B}}'
+        #ytitle = '#varepsilon_{S}/#sum_{q}(m_{q}/m_{s}}^{2}#varepsilon_{B}'
+        ytitle = 'S/#sqrt{B}'
         outname= res+'_significance'
         drawgraph(sgf,xtitle=xtitle,ytitle=ytitle,outname=outname,\
-                addtext=rocsgf[res],log=True,opt='ALC')
+                addtext=rocsgf[res],opt='ALC')
         
         # -- roc
         outnameroc=res+'_ROC'
-        drawgraph(roc,xtitle='#varepsilon_{S}',ytitle='#varepsilon_{B}',outname=outnameroc,\
+        drawgraph(roc,ytitle='#varepsilon_{S}',xtitle='#varepsilon_{B}',outname=outnameroc,\
                 addtext=rocsgf[res],opt='ALC')
         
+    # Finally, plotting TH1F (d0 of the leading hadrons)
+    _pre_th1hists = filter(lambda ((x,classname),y): classname.find('TH1') == 0,\
+                _obj.iteritems())
+    th1hists = { 'H': map(lambda ((z,x),h): h, \
+                  filter(lambda ((name,classname),h): name.find('H') == 0,\
+                    _pre_th1hists)),
+                  'Z': map(lambda ((z,x),h): h, \
+                     filter(lambda ((name,x),y): name.find('Z') == 0, \
+                     _pre_th1hists))
+               }
+    for res,histlist in th1hists.iteritems():
+        c = ROOT.TCanvas()
+        c.SetLogy()
+        #c.SetLogx()
+        leg = getleg(x0=0.6,x1=0.75)
+        cutdict = {}
+        for i,h in enumerate(sorted(histlist)):
+            h.SetLineColor(COLOR[i])
+            h.SetLineWidth(2)
+            h.SetMarkerStyle(20)
+            h.SetMarkerSize(0.5)
+            h.SetMarkerColor(COLOR[i])
+            h.SetNormFactor(1.0/h.Integral())
+            if i == 0:
+                h.GetYaxis().SetTitle('A.U./'+str(h.GetXaxis().GetBinWidth(1)))
+                h.Draw("PE")
+            else:
+                h.Draw("PESAME") 
+            name = h.GetName().replace(res+'_th1_hz','').replace('_kaons_d0',' ').replace('_','')
+            leg.AddEntry(h,name,'PL')
+            # Getting the values of some cuts
+            _int  = h.Integral()
+            cutdict[name] = {}
+            for cut in [ 0.1,0.5,0.7,1.0]: 
+                cutdict[name][cut] = h.Integral(1,h.FindBin(cut))/_int
+        leg.Draw()
+        c.SaveAs(res+'_d0.pdf')
+        
+        print "===  d0 cuts |%s| ==========================" % (res)
+        print getlatextable(cutdict)
+    
+    allinfodict['HEADER'] = ('MOMENTUM-CUT','EFF_SIGNAL','EFF_BKG','SIGNIFICANCE')
+    saveallinfo(allinfodict)
+
+
+
 
 if __name__ == '__main__':
     from optparse import OptionParser,OptionGroup
     import os
-    
+
     #Opciones de entrada
     parser = OptionParser()
     parser.set_defaults(inputfile='processed.root')    
     parser.add_option( '-i', '--inputfile', action='store', type='string', dest='inputfile',\
             help="input root filename [processed.root]")
+    parser.add_option( '-s', '--suffix', action='store', type='string', dest='suffixout',\
+            help="output suffix for the plots .pdf]")
     
     (opt,args) = parser.parse_args()
+
+    if opt.suffixout:
+        globals()['SUFFIXPLOTS'] ='.'+opt.suffixout
 
     plots(os.path.abspath(opt.inputfile))

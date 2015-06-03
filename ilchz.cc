@@ -148,6 +148,7 @@ struct ParticleKinRootAux
     //    catchall = grandmother PDG_ID for the strange hadrons not prompt
     std::vector<int> * catchall;
     std::vector<int> * isBCdaughter;
+    std::vector<int> * isPrimaryHadron;
     std::vector<float> * p;
     std::vector<float> * pmother;
     std::vector<float> * phi;
@@ -169,6 +170,7 @@ struct ParticleKinRootAux
         motherindex(0),
         catchall(0),
         isBCdaughter(0),
+        isPrimaryHadron(0),
         p(0),
         pmother(0),
         phi(0),
@@ -182,6 +184,7 @@ struct ParticleKinRootAux
         _auxI.push_back(&motherindex);
         _auxI.push_back(&catchall);
         _auxI.push_back(&isBCdaughter);
+        _auxI.push_back(&isPrimaryHadron);
         _auxF.push_back(&p);
         _auxF.push_back(&pmother);
         _auxF.push_back(&phi);
@@ -221,6 +224,7 @@ struct ParticleKinRootAux
         motherindex    = new std::vector<int>;
         catchall       = new std::vector<int>;
         isBCdaughter   = new std::vector<int>;
+        isPrimaryHadron= new std::vector<int>;
         p              = new std::vector<float>;
         pmother        = new std::vector<float>;
         phi            = new std::vector<float>;
@@ -253,13 +257,15 @@ struct ParticleKinRootAux
         }
     }
     int filltreevariables(const int & pythiaindex, const int & id, const int & _motherindex, 
-            const int & _catchall, const int & _isHF, const float & _p, const float & _pmother, const float & _phi, 
+            const int & _catchall, const int & _isHF, const int & _isPH,
+            const float & _p, const float & _pmother, const float & _phi, 
             const float & _theta, const float & _vx, const float & _vy, const float & _vz)
     {
         this->pdgId->push_back(id);
         this->motherindex->push_back(_motherindex);
         this->catchall->push_back(_catchall);
         this->isBCdaughter->push_back(_isHF);
+        this->isPrimaryHadron->push_back(_isPH);
         this->p->push_back(_p);
         this->pmother->push_back(_pmother);
         this->phi->push_back(_phi);
@@ -303,6 +309,7 @@ struct ParticleKinRootAux
         t->Branch("motherindex",&motherindex);
         t->Branch("catchall",&catchall);
         t->Branch("isBCdaughter",&isBCdaughter);
+        t->Branch("isPrimaryHadron",&isPrimaryHadron);
         t->Branch("p",&p);
         t->Branch("pmother",&pmother);
         t->Branch("phi",&phi);
@@ -327,7 +334,7 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     const Particle & resonanceHS = pythia.event[iHS];
     const int respdgId = resonanceHS.id();
     // Filling n-tuple and getting the n-tuple index of the Resonance
-    const int reslocalIndex = p.filltreevariables(i,respdgId,-1,0,0,
+    const int reslocalIndex = p.filltreevariables(i,respdgId,-1,0,0,-1,
             resonanceHS.pAbs(),-1,resonanceHS.phi(),resonanceHS.theta(),
             resonanceHS.xProd(),resonanceHS.yProd(),resonanceHS.zProd());
 
@@ -357,12 +364,12 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     // Save info of the s-quark
     const bool isLeading_s = (s.pAbs() > sbar.pAbs());
 
-    p.filltreevariables(iS,s.id(),reslocalIndex,(int)isLeading_s,0,
+    p.filltreevariables(iS,s.id(),reslocalIndex,(int)isLeading_s,0,-1,
             s.pAbs(),resonance.pAbs(),s.phi(),s.theta(),
             s.xProd(),s.yProd(),s.zProd());
     
     // Save info of the sbar-quark
-    p.filltreevariables(iSbar,sbar.id(),reslocalIndex,(int)(not isLeading_s),0,
+    p.filltreevariables(iSbar,sbar.id(),reslocalIndex,(int)(not isLeading_s),0,-1,
             sbar.pAbs(),resonance.pAbs(),sbar.phi(),sbar.theta(),
             sbar.xProd(),s.yProd(),s.zProd());
     
@@ -644,11 +651,18 @@ int main(int argc, char* argv[])
                    isBCdaughter = 1;
                }
             }
+
+            // Check if it is a primary hadron: Pythia code 81-89
+            int isPrimaryHadron = 0;
+            if( had.status() >= 81 && had.status() <= 89)
+            {
+                isPrimaryHadron = 1;
+            }
             // storing info in the rest-frame of the quark-bquark ref. system (except
             // for the vertex)
             const Particle & hadatlab = pythia.event[currI];
             particles.filltreevariables(currI,had.id(),particles.getlocalindex(quarkindex),
-                    ancestorID,isBCdaughter,
+                    ancestorID,isBCdaughter,isPrimaryHadron,
                     had.pAbs(),quarkatrest.pAbs(),had.phi(),had.theta(),
                     hadatlab.xProd(),hadatlab.yProd(),hadatlab.zProd());
 #ifdef DEBUG

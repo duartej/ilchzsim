@@ -63,12 +63,12 @@ struct FinalStateHadrons
         if(hadrontype == "kaons")
         {
             _selectedtype = "kaons";
-            _selected = getkaons();
+            _selected = get_charged_kaons();
         }
         else if(hadrontype == "pions")
         {
             _selectedtype = "pions";
-            _selected = getpions();
+            _selected = get_charged_pions();
         }
         else if(hadrontype == "kaons_pions" || hadrontype == "pions_kaons")
         {

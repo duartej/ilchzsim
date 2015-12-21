@@ -71,7 +71,32 @@ def getbr(name):
     """.. function:: getbr(name) -> br
 
     given the name of a sample returns the branching
+    reation involved 
+    """
+    return getattr(hiInstance,'br{0}'.format(name))
+
+def getbr_cc(name):
+    """.. function:: getbr(name) -> relative_br
+
+    given the name of a sample returns the branching
     reation involved (with respect the ccbar)
+    """
+    if name.find("bbbar") != -1:
+        return BRbb_cc
+    elif name.find("uubar") != -1:
+        return BRuu_cc
+    elif name.find("ddbar") != -1:
+        return BRdd_cc
+    elif name.find("ssbar") != -1:
+        return BRss_cc
+    elif name.find("ccbar") != -1:
+        return 1.0
+
+def getbr_ss(name):
+    """.. function:: getbr(name) -> relative_br
+
+    given the name of a sample returns the branching
+    reation involved (with respect the ssbar)
     """
     if name.find("bbbar") != -1:
         return BRbb_ss
@@ -95,10 +120,39 @@ def parseprocess(name):
       
     return process
 
+def get_histo_name(th3names,decay_channel,hadron_state):
+    """Given a standarized (TH3) histogram list of names (obtained from the 
+    processedhzroot.py script), it returns the name of the histogram matching
+    the final state
 
-def get_filtered_eff(_obj,decay_channel,hadrons,pLcut,d0cut):
-    """Extract the efficiency given exist an histogram related with the
-    decay channel and hadrons passing the pl and d0 cut
+    Parameters
+    ----------
+    th3names: list(str)
+        the names of all the TH3 dicts found in a root processed file by the
+        processedhzroot script
+    hadron_state: str
+        the two opposite-hemisphere final state hadrons: KK, KP, PP (K-kaon,
+        P-pion)
+
+    Return
+    ------
+    str, the name of the input list matching the final state
+    """
+    try:
+        histo_name = filter(lambda x: 
+                x.find('H_th3_hz{0}'.format(decay_channel)) ==0 and 
+                    x.find('{0}_PLd0s'.format(hadron_state)) != -1,
+                th3names)[0]
+    except IndexError:
+        raise RuntimeError('Not found the histogram "H_th3_hz{0}_*_{1}_PLd0s"'\
+                ' in the root file'.format(decay_channel,hadron_state))
+    return histo_name
+
+def get_final_state_pr(_obj,decay_channel,hadrons):
+    """Extract the probabiliy of having two hadrons of the asked type in each 
+    hemisphere given a decay channel
+
+    .. math::f_{AB}^{q\bar{q}} = P( L_{AB} | (ee\rightarrow HZ\rightarrow q\bar{q}) I_0 )
 
     Parameters
     ----------
@@ -107,8 +161,42 @@ def get_filtered_eff(_obj,decay_channel,hadrons,pLcut,d0cut):
         hadrons involved
     decay_channel: str
     hadrons: str, 
-        the hadrons to look at, which can be pions, kaons or 
-        pions_kaons (kaons_pions)
+        the hadrons to look at, which can be the: KK, KP, PP (K-kaon, P-pion)
+
+    Returns
+    -------
+    efficiency: float
+    """
+    
+    # Get the final state hadron histo
+    histo_name = get_histo_name(_obj.keys(),decay_channel,hadrons)
+    n_current_hadrons = _obj[histo_name].GetEntries()
+
+    # get the list of TH3 histos related to this decay_channel
+    histos = filter(lambda h: 
+            h.GetName().find('H_th3_hz{0}'.format(decay_channel)) == 0, \
+                    _obj.values())
+    
+    n_total_decay = sum(map(lambda x: x.GetEntries(), histos))
+
+    return float(n_current_hadrons)/float(n_total_decay)
+
+
+def get_cuts_eff(_obj,decay_channel,hadrons,pLcut,d0cut):
+    """Extract the efficiency of the cuts (d0 and pL-circular) given a final 
+    couple of hedrons in each hemisphere, and a decay channel
+
+    .. math::\varepsilon_{AB}^{q\bar{q}} = P( d0^{c} p_{||}^c |
+                   L_{AB} (ee\rightarrow HZ\rightarrow q\bar{q}) I_0 )
+
+    Parameters
+    ----------
+    _obj : dict(str,TH3F)
+        the histograms with the proper names containing the decay channel and the
+        hadrons involved
+    decay_channel: str
+    hadrons: str, 
+        the hadrons to look at, which can be the: KK, KP, PP (K-kaon, P-pion)
     pLcut: float 
     d0cut: float
 
@@ -116,16 +204,8 @@ def get_filtered_eff(_obj,decay_channel,hadrons,pLcut,d0cut):
     -------
     efficiency: float
     """
-    try:
-        histo_name = filter(lambda x: 
-                x.find('H_th3_hz{0}'.format(decay_chanel)) ==0 and 
-                    x.find('{0}_PLd0s'.format(hadrons)) != -1,
-                _obj.keys())[0]
-    except KeyError:
-        raise RuntimeError('Not found the histogram "H_th3_hz{0]_*_{1}_PLd0s"'\
-                ' in the root file'.format(decay_channel,hadrons))
-
-        h = _obj['H_th3_hz{0}_{1}_PLd0s'.format(decay_channel, hadrons)]
+    histo_name = get_histo_name(_obj.keys(),decay_channel,hadrons)
+    h = _obj[histo_name]
 
     # TH1 histos to obtain bin numbers and other manipulations
     pL_h  = h.ProjectionX()
@@ -140,6 +220,9 @@ def get_filtered_eff(_obj,decay_channel,hadrons,pLcut,d0cut):
     pL_maxBin = h.GetNbinsX()+1
 
     evts = h.Integral(pL_bin,pL_maxBin,1,d01_bin,1,d02_bin)
+
+    if h.GetEntries() == 0: 
+        return 0.0
 
     # Entries takes into account overflow bin
     return float(evts)/float(h.GetEntries())
@@ -160,6 +243,73 @@ def plots():
     except ImportError:
         pass
 
+class eff_cut_hadron(object):
+    """
+    .. math::\varepsilon_{AB}^{q\bar{q}} = P( d0^{c} p_{||}^c L_{AB} | 
+                (ee\rightarrow HZ\rightarrow q\bar{q}) I_0 )
+    """
+    def __init__(self,decay_channel):
+        """
+        """
+        self.decay_channel = decay_channel
+        self.final_state_hadrons = ['KK','KP','PP']
+
+    def set_total_eff(self,histodict,pLcut,d0cut):
+        """
+        """
+        for i in self.final_state_hadrons:
+            # p ( d0 pL | L_AB decay_channel I0 )
+            self.__setattr__('eff_cut_{0}'.format(i),
+                    get_cuts_eff(histodict,self.decay_channel,i,pLcut,d0cut))
+            # p ( L_AB | decay_channel I0 )
+            self.__setattr__('p_{0}'.format(i),
+                    get_final_state_pr(histodict,self.decay_channel,i))
+
+    def get_total_events(self,hadrons):
+        """
+        """
+        if not hasattr(self,'eff_cut_{0}'.format(self.final_state_hadrons[0])):
+            raise AttributeError('eff_total ERROR: You need to call the '\
+                    'set_total_eff method before try to calculate the total fraction')
+        
+        return hiInstance.getEvents(self.decay_channel.split('_')[0])*\
+                getattr(self,'eff_cut_{0}'.format(hadrons))*\
+                getattr(self,'p_{0}'.format(hadrons))
+
+
+class eff_final_state_hadrons(object):
+    """
+    .. math::\varepsilon_{AB}^{q\bar{q}} = P( d0^{c} p_{||}^c |
+                   L_{AB} (ee\rightarrow HZ\rightarrow q\bar{q}) I_0 )
+    """
+    def __init__(self,decay_channel):
+        """
+        """
+        self.decay_channel = decay_channel
+        self.final_state_hadrons = ['KK','KP','PP']
+
+    def set_total_eff(self,histodict,pLcut,d0cut):
+        """
+        """
+        for i in self.final_state_hadrons:
+            self.__setattr__('eff_cut_{0}'.format(i),
+                    get_cuts_eff(histodict,self.decay_channel,i,pLcut,d0cut))
+            self.__setattr__('p_{0}'.format(i),
+                    get_final_state_pr(histodict,self.decay_channel,i))
+
+    def get_total_fraction(self):
+        """
+        """
+        if not hasattr(self,'eff_cut_{0}'.format(self.final_state_hadrons[0])):
+            raise AttributeError('eff_total ERROR: You need to call the '\
+                    'set_total_eff method before try to calculate the total fraction')
+        
+        denominator = sum(map(lambda x: 
+            self.__getattribute__('eff_cut_{0}'.format(x))*
+                         self.__getattribute__('p_{0}'.format(x)), 
+            self.final_state_hadrons))
+
+        return ((self.eff_cut_KK)*self.p_KK)/denominator
 
 
 def main(rootfile):
@@ -179,6 +329,8 @@ def main(rootfile):
     
     # Get the root file with and the TH3 object (only)
     f = ROOT.TFile(rootfile)
+    if f.IsZombie():
+        raise IOError("ROOT file '{0}' doesn\'t exist".format(rootfile))
     _preobj = dict(map(lambda x:(x.GetName(), f.Get(x.GetName())),
          filter(lambda x: x.GetClassName().find('TH3') == 0,f.GetListOfKeys())))
     
@@ -194,22 +346,38 @@ def main(rootfile):
     # just take care in the H-ressonance...
 
     # XXX: can be entered by option
-    d0cuts = [0.3, 0.5]
-    pLcuts = [20.0]
+    d0cuts = [0.1,0.3, 0.5]
+    pLcuts = [20.0,25.]
     eff = {}
     # Prepare efficiencies (changing pL cut) per each d0-cut
     for d0 in d0cuts:
         for pL in pLcuts:
-            eff_ssbar_pions = get_filtered_eff(_obj['H'],'ssbar','pions',pL,d0)
-            eff_ssbar_kaons = get_filtered_eff(_obj['H'],'ssbar','kaons',pL,d0)
- 
-            eff_bbbar_pions = get_filtered_eff(_obj['H'],'bbbar','pions',pL,d0)
-            eff_bbbar_kaons  = get_filtered_eff(_obj['H'],'bbbar','kaons',pL,d0)
-
+            # Signal related efficiencies: Just getted from the ideally identified kaons
+            # 
+            # --- p(d0cut pLcut | N_KK (ee->H->ssbar) I_0)
             print '='*80
             print 'd0 = {0:.1f} [mm] , pL = {1:.1f} [GeV] ======='.format(d0,pL)
-            print 'Pion efficiency in ssbar:',eff_ssbar_pions
-            print 'Pion efficiency in bbbar:',eff_bbbar_pions
+            eff = {}
+            for decay_channel in [ 'ssbar_PID', 'bbbar', 'ccbar']: #'ddbar', 'uubar']
+                eff[decay_channel] = eff_cut_hadron(decay_channel)
+                eff[decay_channel].set_total_eff(_obj['H'],pL,d0)
+                
+                print '---- {0}'.format(decay_channel)
+                print '     eff_cut: KK={0:.4f} '\
+                        ' KP={1:.4f}  PP={2:.4f}'.format(eff[decay_channel].eff_cut_KK,
+                                eff[decay_channel].eff_cut_KP,eff[decay_channel].eff_cut_PP)
+                print '     p_Hadrons: KK={0:.4f} '\
+                        ' KP={1:.4f}  PP={2:.4f}'.format(eff[decay_channel].p_KK,eff[decay_channel].p_KP,eff[decay_channel].p_PP)
+                N = 0
+                print '    Events:',
+                for h in eff[decay_channel].final_state_hadrons:
+                    current_n =eff[decay_channel].get_total_events(h)
+                    N += current_n
+                    print ' {0}: {1:.4f}'.format(h,current_n),
+                print ' Total: {0:.4f}'.format(N)
+            # ----- Background KK, KP PP
+            
+            #print 'Pion efficiency in bbbar:',eff_bbbar_pions
             #print 
             #print 'N_ssbar={0:.2f}    N_bbbar={1:.2f}'.format(n_ssbar_pions,n_bbbar_pions)
             #print 'N_bbbar/N_ssbar={0:f}'.format(float(n_bbbar_pions)/float(n_ssbar_pions))

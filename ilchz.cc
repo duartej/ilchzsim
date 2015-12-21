@@ -70,6 +70,13 @@ struct FinalStateHadrons
             _selectedtype = "pions";
             _selected = getpions();
         }
+        else if(hadrontype == "kaons_pions" || hadrontype == "pions_kaons")
+        {
+            _selectedtype = "kaons_pions";
+            _selected = get_charged_kaons();
+            std::vector<int> pions = get_charged_pions();
+            _selected.insert(std::end(_selected), std::begin(pions), std::end(pions));
+        }
         else
         {
             _selectedtype = "NONE";
@@ -100,11 +107,27 @@ struct FinalStateHadrons
         return _pions;
     }
     
+    std::vector<int> get_charged_pions() const
+    {
+        std::vector<int> _pions;
+        _pions.push_back(PI_PLUS);
+
+        return _pions;
+    }
+    
     std::vector<int> getkaons() const
     {
         std::vector<int> _kaons;
         _kaons.push_back(K_LONG);
         _kaons.push_back(K_SHORT);
+        _kaons.push_back(K_PLUS);
+
+        return _kaons;
+    }
+    
+    std::vector<int> get_charged_kaons() const
+    {
+        std::vector<int> _kaons;
         _kaons.push_back(K_PLUS);
 
         return _kaons;
@@ -447,7 +470,7 @@ void display_usage()
     std::cout << std::endl;
 	std::cout << "[OPTIONS]\n\t-o name of the ROOT output file [hzkin.root]\n"
         << "\t-b flag to keep track if the final hadrons provenance is from charmed or bottom hadrons\n"
-        << "\t-p flag to keep final state PIONS instead of KAONS (default)\n"
+        << "\t-f final state hadrons to keep: pions,kaons or pions_kaons [default:kaons])\n"
         << "\t-h show this help" << std::endl;
 }
 
@@ -482,9 +505,10 @@ int main(int argc, char* argv[])
             outputfilename = argv[i+1];
             ++i;
         }
-        else if( strcmp(argv[i],"-p") == 0 )
+        else if( strcmp(argv[i],"-f") == 0 )
         {
-            strangehadrontype = "pions";
+            strangehadrontype = argv[i+1];
+            ++i;
         }
         else if( strcmp(argv[i],"-b") == 0 )
         {
@@ -502,6 +526,13 @@ int main(int argc, char* argv[])
             }
             cmndfile = argv[i];
         }
+    }
+    // Check was passed the proper hadron type
+    if( strangehadrontype != "pions" && strangehadrontype != "kaone" && 
+            (strangehadrontype != "pions_kaons" || strangehadrontype != "kaons_pions") )
+    {
+            std::cerr << "ilc: Invalid option value '-f " << strangehadrontype
+                << "' Valid values are 'kaons', 'pions' or 'pions_kaons''" << std::endl;
     }
 
     // Confirm that external files will be used for input and output.

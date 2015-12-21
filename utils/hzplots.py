@@ -358,6 +358,7 @@ def main(rootfile):
             print '='*80
             print 'd0 = {0:.1f} [mm] , pL = {1:.1f} [GeV] ======='.format(d0,pL)
             eff = {}
+            N = {}
             for decay_channel in [ 'ssbar_PID', 'bbbar', 'ccbar']: #'ddbar', 'uubar']
                 eff[decay_channel] = eff_cut_hadron(decay_channel)
                 eff[decay_channel].set_total_eff(_obj['H'],pL,d0)
@@ -368,23 +369,16 @@ def main(rootfile):
                                 eff[decay_channel].eff_cut_KP,eff[decay_channel].eff_cut_PP)
                 print '     p_Hadrons: KK={0:.4f} '\
                         ' KP={1:.4f}  PP={2:.4f}'.format(eff[decay_channel].p_KK,eff[decay_channel].p_KP,eff[decay_channel].p_PP)
-                N = 0
+                N[decay_channel] = 0
                 print '    Events:',
                 for h in eff[decay_channel].final_state_hadrons:
                     current_n =eff[decay_channel].get_total_events(h)
-                    N += current_n
+                    N[decay_channel] += current_n
                     print ' {0}: {1:.4f}'.format(h,current_n),
-                print ' Total: {0:.4f}'.format(N)
-            # ----- Background KK, KP PP
+                print ' Total: {0:.4f}'.format(N[decay_channel])
+            print float(N['ssbar_PID'])/sqrt(float(sum(map(lambda (x,y): y,\
+                    filter(lambda (x,y): x != 'ssbar_PID', N.iteritems() )))))
             
-            #print 'Pion efficiency in bbbar:',eff_bbbar_pions
-            #print 
-            #print 'N_ssbar={0:.2f}    N_bbbar={1:.2f}'.format(n_ssbar_pions,n_bbbar_pions)
-            #print 'N_bbbar/N_ssbar={0:f}'.format(float(n_bbbar_pions)/float(n_ssbar_pions))
-            #print            
-            #print 'N_ssbar={0:.2f}    N_bbbar={1:.2f}'.format(n_ssbar_kaons,n_bbbar_pions)
-            #print 'N_bbbar/N_ssbar={0:f}'.format(float(n_bbbar_pions)/float(n_ssbar_kaons))
-    #    eff = getefficiencies(_obj['H'],d0)
 
 
 

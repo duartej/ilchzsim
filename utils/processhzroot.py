@@ -109,6 +109,7 @@ def process(inputfile,outputfile,d0cut,trackHF):
     in order to obtain several ROOT objects:
       * TH2F: Paralel momentum of the leading hadrons (one per resonance)
       * TEfficiency: efficiency (radial) cut in p1 vs. p2
+      * TH2F: Number of events vs. d0. pL circular cut
     These objects are written to the ROOT file: 'processed.root'. If
     any object already exists in the ROOT file will be overwritten.
 
@@ -137,7 +138,7 @@ def process(inputfile,outputfile,d0cut,trackHF):
     hleading ={ 25: ROOT.TH2F('H'+namehistos,'paralel momentum leading hadrons',NBINS,XMIN,XMAX,NBINS,XMIN,XMAX),
             23: ROOT.TH2F('Z'+namehistos,'paralel momentum leading hadrons',NBINS,XMIN,XMAX,NBINS,XMIN,XMAX) }
     # More histograms if the user wants to keep track of the heavy flavour decays
-    histodictslist = [ hleading ]
+    histodictslist = [hleading] 
     if trackHF:
         hleadingHF = { 25: ROOT.TH2F('H'+namehistos+'_HF','paralel momentum leading hadrons',NBINS,XMIN,XMAX,NBINS,XMIN,XMAX),
             23: ROOT.TH2F('Z'+namehistos+'_HF','paralel momentum leading hadrons',NBINS,XMIN,XMAX,NBINS,XMIN,XMAX) }
@@ -149,20 +150,31 @@ def process(inputfile,outputfile,d0cut,trackHF):
             if res == 23:
                 dototalmomentum=True
             settitles(h,dototalmomentum)
+    
+    # sqrt(d0_1^2+d0^2_2), d0_1,d0^2
+    hd0PL ={ 25: ROOT.TH3F('H'+namehistos.replace('th2','th3')+'_PLd0s','p_{||} circular cut and d_{0}'\
+            '; p_{||} cut [GeV]; d_{0}^{1} [mm];  d_{0}^{2} [mm]',NBINS,XMIN,XMAX,
+            NBINS*2,0,1.0,NBINS*2,0,1),
+            23: ROOT.TH3F('Z'+namehistos.replace('th2','th3')+'_PLd0s','p_{||} circular cut and d_{0}'\
+            '; p_{||} cut [GeV]; d_{0}^{1} [mm];  d_{0}^{2} [mm]', NBINS,XMIN,XMAX,
+            NBINS*2,0,1.0,NBINS*2,0,1),
+            }
+    histodictslist.append(hd0PL)
 
-    # d0-histograms
-    extrahist = { 25: ROOT.TH1F('H'+namehistos.replace('th2','th1')+'_d0','',NBINS*2,0,5),
-            23: ROOT.TH1F('Z'+namehistos.replace('th2','th1')+'_d0','',NBINS*2,0,5) 
+    # d0-histograms : -->  TO BE DEPRECATED, ioncluded in the TH3
+    extrahist = { 25: ROOT.TH2F('H'+namehistos+'_d0','',NBINS*2,0,5,NBINS*2,0,1),
+            23: ROOT.TH2F('Z'+namehistos+'_d0','',NBINS*2,0,5,NBINS*2,0,1) 
             }
     th1list = extrahist.values()
     if trackHF:
-        extrahistHF = { 25: ROOT.TH1F('H'+namehistos.replace('th2','th1')+'_d0_HF','',NBINS*2,0,5),
-                23: ROOT.TH1F('Z'+namehistos.replace('th2','th1')+'_d0_HF','',NBINS*2,0,5) 
+        extrahistHF = { 25: ROOT.TH1F('H'+namehistos+'_d0_HF','',NBINS*2,0,1,NBINS*2,0,1),
+                23: ROOT.TH1F('Z'+namehistos+'_d0_HF','',NBINS*2,0,1,NBINS*2,0,1) 
                 }
         th1list += extrahistHF.values()
     # cosmethics
     for h in th1list:
-        h.SetXTitle('d_{0} [mm]')
+        h.SetXTitle('d_{0}^{1} [mm]')
+        h.SetYTitle('d_{0}^{2} [mm]')
 
 
     # Event loop
@@ -219,18 +231,21 @@ def process(inputfile,outputfile,d0cut,trackHF):
                         pdownHF.append((momentum,d0))
                     else:
                         pdown.append((momentum,d0))
+
             try:
+                # --- the 
+                pSqrt  = sqrt(pup[0][0]**2.0+pdown[0][0]**2.0)
+
                 hleading[res].Fill(pup[0][0],pdown[0][0])
-                extrahist[res].Fill(pup[0][1])
-                extrahist[res].Fill(pdown[0][1])
+                hd0PL[res].Fill(pSqrt,pup[0][1],pdown[0][1])
+                extrahist[res].Fill(pup[0][1],pdown[0][1])
                 nOpposite[res] += 1
             except IndexError:
                 noOpposite[res] =+ 1
             if trackHF:
                 try:
                     hleadingHF[res].Fill(pupHF[0][0],pdownHF[0][0])
-                    extrahistHF[res].Fill(pupHF[0][1])
-                    extrahistHF[res].Fill(pdownHF[0][1])
+                    extrahistHF[res].Fill(pupHF[0][1],pdownHF[0][1])
                     nOppositeHF[res] += 1
                 except IndexError:
                     noOppositeHF[res] += 1

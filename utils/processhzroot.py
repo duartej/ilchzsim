@@ -13,6 +13,8 @@ NBINS = 50
 XMIN  = 0
 XMAX  = 60
 
+#FIXME: NEED TO ADD A WAY TO USE ONLY KAONS, PIONS OR BOTH (a new option)
+
 
 def gethadronsind(iEvent):
     """.. function:: gethadronsind(iEvent) -> { resPDGID: [ i1, i2, ... ], .. }

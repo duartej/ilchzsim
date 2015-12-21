@@ -13,6 +13,9 @@ NBINS = 50
 XMIN  = 0
 XMAX  = 60
 
+KAON_ID = 321
+PION_ID = 211
+
 #FIXME: NEED TO ADD A WAY TO USE ONLY KAONS, PIONS OR BOTH (a new option)
 
 
@@ -154,14 +157,31 @@ def process(inputfile,outputfile,d0cut,trackHF):
             settitles(h,dototalmomentum)
     
     # sqrt(d0_1^2+d0^2_2), d0_1,d0^2
-    hd0PL ={ 25: ROOT.TH3F('H'+namehistos.replace('th2','th3')+'_PLd0s','p_{||} circular cut and d_{0}'\
+    # for 3 different cases: kaons_kaons, kaons_pions and pions_pions
+    hd0PL_kk ={ 25: ROOT.TH3F('H'+namehistos.replace('th2','th3')+'_KK_PLd0s','p_{||} circular cut and d_{0}'\
             '; p_{||} cut [GeV]; d_{0}^{1} [mm];  d_{0}^{2} [mm]',NBINS,XMIN,XMAX,
             NBINS*2,0,1.0,NBINS*2,0,1),
-            23: ROOT.TH3F('Z'+namehistos.replace('th2','th3')+'_PLd0s','p_{||} circular cut and d_{0}'\
+            23: ROOT.TH3F('Z'+namehistos.replace('th2','th3')+'_KK_PLd0s','p_{||} circular cut and d_{0}'\
             '; p_{||} cut [GeV]; d_{0}^{1} [mm];  d_{0}^{2} [mm]', NBINS,XMIN,XMAX,
             NBINS*2,0,1.0,NBINS*2,0,1),
             }
-    histodictslist.append(hd0PL)
+    hd0PL_kp ={ 25: ROOT.TH3F('H'+namehistos.replace('th2','th3')+'_KP_PLd0s','p_{||} circular cut and d_{0}'\
+            '; p_{||} cut [GeV]; d_{0}^{1} [mm];  d_{0}^{2} [mm]',NBINS,XMIN,XMAX,
+            NBINS*2,0,1.0,NBINS*2,0,1),
+            23: ROOT.TH3F('Z'+namehistos.replace('th2','th3')+'_KP_PLd0s','p_{||} circular cut and d_{0}'\
+            '; p_{||} cut [GeV]; d_{0}^{1} [mm];  d_{0}^{2} [mm]', NBINS,XMIN,XMAX,
+            NBINS*2,0,1.0,NBINS*2,0,1),
+            }
+    hd0PL_pp ={ 25: ROOT.TH3F('H'+namehistos.replace('th2','th3')+'_PP_PLd0s','p_{||} circular cut and d_{0}'\
+            '; p_{||} cut [GeV]; d_{0}^{1} [mm];  d_{0}^{2} [mm]',NBINS,XMIN,XMAX,
+            NBINS*2,0,1.0,NBINS*2,0,1),
+            23: ROOT.TH3F('Z'+namehistos.replace('th2','th3')+'_PP_PLd0s','p_{||} circular cut and d_{0}'\
+            '; p_{||} cut [GeV]; d_{0}^{1} [mm];  d_{0}^{2} [mm]', NBINS,XMIN,XMAX,
+            NBINS*2,0,1.0,NBINS*2,0,1),
+            }
+    histodictslist.append(hd0PL_kk)
+    histodictslist.append(hd0PL_kp)
+    histodictslist.append(hd0PL_pp)
 
     # d0-histograms : -->  TO BE DEPRECATED, ioncluded in the TH3
     extrahist = { 25: ROOT.TH2F('H'+namehistos+'_d0','',NBINS*2,0,5,NBINS*2,0,1),
@@ -209,12 +229,16 @@ def process(inputfile,outputfile,d0cut,trackHF):
                             key=lambda (x,y): y*fcos(x) ) 
                        )
                     )
-            pup     = []
-            pupHF   = []
-            pdown   = []
-            pdownHF = []
             # Get the leading kaons in the opposite hemispheres (in the CM q-qbar 
-            # reference system
+            # reference system):
+            # Fill a list and take first elements of the list
+            up_List   = []
+            down_List = []
+            upHF_List   = []
+            downHF_List = []
+            upPDGID_List   = []
+            downPDGID_List = []
+
             for k in sortedhadrind:
                 # Check the impact parameter if the cut is activated
                 if d0cut:
@@ -225,29 +249,45 @@ def process(inputfile,outputfile,d0cut,trackHF):
                 d0       = sqrt(iEvent.vx[k]**2.0+iEvent.vy[k]**2.0)
                 if iEvent.theta[k] < pi/2.0:
                     if trackHF and iEvent.isBCdaughter[k]:
-                        pupHF.append((momentum,d0))
+                        upHF_List.append( (momentum,d0) )
                     else:
-                        pup.append((momentum,d0))
+                        up_List.append((momentum,d0))
+                        upPDGID_List.append(iEvent.pdgId[k])
                 else:
                     if trackHF and iEvent.isBCdaughter[k]:
-                        pdownHF.append((momentum,d0))
+                        downHF_List.append((momentum,d0))
                     else:
-                        pdown.append((momentum,d0))
-
+                        down_List.append((momentum,d0))
+                        downPDGID_List.append(iEvent.pdgId[k]) 
+                # Check if already filled, so break the loop
+                if len(up_List) > 0 and len(down_List) > 0:
+                    if trackHF:
+                        if len(up_List) > 0 and len(down_List) > 0:
+                            break
+                    else: 
+                        break
+            # Just getting the highest momentum particles: index 0 of the lists
             try:
                 # --- the 
-                pSqrt  = sqrt(pup[0][0]**2.0+pdown[0][0]**2.0)
+                pSqrt  = sqrt(up_List[0][0]**2.0+down_List[0][0]**2.0)
 
-                hleading[res].Fill(pup[0][0],pdown[0][0])
-                hd0PL[res].Fill(pSqrt,pup[0][1],pdown[0][1])
-                extrahist[res].Fill(pup[0][1],pdown[0][1])
+                hleading[res].Fill(up_List[0][0],down_List[0][0])
+                extrahist[res].Fill(up_List[0][1],down_List[0][1])
                 nOpposite[res] += 1
+
+                # keeping info regarding the hadron content
+                if abs(int(upPDGID_List[0]*downPDGID_List[0])) == KAON_ID*KAON_ID:
+                    hd0PL_kk[res].Fill(pSqrt,up_List[0][1],down_List[0][1])
+                elif abs(int(upPDGID_List[0]*downPDGID_List[0])) == KAON_ID*PION_ID :
+                    hd0PL_kp[res].Fill(pSqrt,up_List[0][1],down_List[0][1])
+                elif abs(int(upPDGID_List[0]*downPDGID_List[0])) == PION_ID*PION_ID :
+                    hd0PL_pp[res].Fill(pSqrt,up_List[0][1],down_List[0][1])
             except IndexError:
                 noOpposite[res] =+ 1
             if trackHF:
                 try:
-                    hleadingHF[res].Fill(pupHF[0][0],pdownHF[0][0])
-                    extrahistHF[res].Fill(pupHF[0][1],pdownHF[0][1])
+                    hleadingHF[res].Fill(upHF_List[0][0],downHF_List[0][0])
+                    extrahistHF[res].Fill(upHF_List[0][1],downHF_List[0][1])
                     nOppositeHF[res] += 1
                 except IndexError:
                     noOppositeHF[res] += 1

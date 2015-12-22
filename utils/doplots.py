@@ -126,7 +126,7 @@ class higgsinputs:
     # Cross section   : 
     def __init__(self):
         self.mH         = 125.7 # (GeV)
-        self.eeToHat250 = 2.5e2 # (fb)
+        self.eeToHat250 = 2.5e2 # (fb) (at 250 GeV center of mass, is almost equivalent to ee->HZ)
         # Generic, only dependent of the higgs mass
         # therefore, following values at self.mH higgs
         # mass
@@ -472,7 +472,7 @@ def plots(rootfile,hadrons='kaons'):
     # For this I need to extract signal and backgrounds dictionaries
     # which are obtained when do the significance calculation 
     sigdict,bkgdict = geteffsignalandbkgs(effdict)
-        
+
     totalbkgeff= dict(map(lambda (res,bkgs): (res,gettotalbkgeff(bkgs)),bkgdict.iteritems()))
     # Getting the momentum involved
     p = [effdict.values()[0].GetTotalHistogram().GetBinCenter(i) \
@@ -600,16 +600,16 @@ def plots(rootfile,hadrons='kaons'):
             h.SetMarkerStyle(20)
             h.SetMarkerSize(0.5)
             h.SetMarkerColor(COLOR[i])
-            h.SetNormFactor(1.0/h.Integral())
+            h.SetNormFactor(1.0/h.Integral())  # FIXME: you should include the overflow bin !!! 
             if i == 0:
                 h.GetYaxis().SetTitle('A.U./'+str(h.GetXaxis().GetBinWidth(1)))
                 h.Draw("PE")
             else:
                 h.Draw("PESAME") 
-            name = h.GetName().replace(res+'_th1_hz','').replace('_kaons_d0',' ').replace('_','')
+            name = h.GetName().replace(res+'_th1_hz','').replace('_'+hadrons+'_d0',' ').replace('_','')
             leg.AddEntry(h,name,'PL')
             # Getting the values of some cuts
-            _int  = h.Integral()
+            _int  = h.Integral()  # FIXME: you should include the overflow bin !!!
             cutdict[name] = {}
             for cut in [ 0.1,0.5,0.7,1.0]: 
                 cutdict[name][cut] = h.Integral(1,h.FindBin(cut))/_int
@@ -635,11 +635,13 @@ if __name__ == '__main__':
     parser.add_option( '-i', '--inputfile', action='store', type='string', dest='inputfile',\
             help="input root filename [processed.root]")
     parser.add_option( '-s', '--suffix', action='store', type='string', dest='suffixout',\
-            help="output suffix for the plots .pdf]")
+            help="output suffix for the plots [.pdf]")
+    parser.add_option( '--hadron', action='store', type='string', dest='hadrons',\
+            help="final state hadron type [kaons]")
     
     (opt,args) = parser.parse_args()
 
     if opt.suffixout:
         suff = opt.suffixout.replace('.','')
         globals()['SUFFIXPLOTS'] ='.'+suff
-    plots(os.path.abspath(opt.inputfile))
+    plots(os.path.abspath(opt.inputfile),opt.hadrons)

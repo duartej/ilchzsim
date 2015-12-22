@@ -22,4 +22,10 @@ target_link_libraries(ilchz ${LIBS})
 
 install(TARGETS ilchz 
     RUNTIME DESTINATION bin)
+install(PROGRAMS utils/processhzroot.py 
+    DESTINATION bin
+    RENAME processhzroot)
+install(PROGRAMS utils/hzplots.py 
+    DESTINATION bin
+    RENAME hzplots)
 

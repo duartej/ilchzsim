@@ -15,6 +15,34 @@ def getcolor():
         ROOT.kCyan-2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen-2,ROOT.kRed-4, ROOT.kGray-3 ]
 
 SUFFIXPLOTS='.pdf'
+SPINNING = [ "-","\\","|","/"]
+
+def getleg(**kwd):
+    """.. function:: getleg(**kwd) -> ROOT.TLegend()
+    
+    Return a ROOT.TLegend object with some cosmethics already filled
+
+    kwd accepts the following keys: x0, x1, y0, y1
+    """
+    import ROOT
+    class coord:
+        def __init__(self):
+            self.x0=0.2
+            self.x1=0.45
+            self.y0=0.7
+            self.y1=0.9
+    c = coord()
+
+    for key,val in kwd.iteritems():
+        setattr(c,key,val)
+
+    leg = ROOT.TLegend(c.x0,c.y0,c.x1,c.y1)
+    leg.SetBorderSize(0)
+    leg.SetFillColor(10)
+    leg.SetTextSize(0.04)
+    leg.SetTextFont(112)
+
+    return leg
 
 # Static class to deal with inputs
 class higgsinputs:
@@ -226,22 +254,7 @@ def get_cuts_eff(_obj,decay_channel,hadrons,pLcut,d0cut):
 
     # Entries takes into account overflow bin
     return float(evts)/float(h.GetEntries())
-
-def plots():
-    """
-    """
-    suffixplots = globals()['SUFFIXPLOTS']
-
-    try:
-        from PyAnUtils.plotstyles import squaredStyle,setpalette
-        lstyle = squaredStyle()
-        lstyle.cd()
-        ROOT.gROOT.ForceStyle()
-        ROOT.gStyle.SetOptStat(0)
-
-        setpalette("darkbody")
-    except ImportError:
-        pass
+    
 
 class eff_cut_hadron(object):
     """
@@ -253,10 +266,30 @@ class eff_cut_hadron(object):
         """
         self.decay_channel = decay_channel
         self.final_state_hadrons = ['KK','KP','PP']
+        self.initialized = False
+        self.current_d0cut = None
+        self.current_pLcut = None
+
+    def __str__(self):
+        out = 'eff_cut_hadron instance: \n'
+        out+= '  decay channel: {0} \n'.format(self.decay_channel)
+        
+        eff = '  d0,pL cut eff:            '.format(self.decay_channel)
+        p   = '  H1_H2 final states prob:  '.format(self.decay_channel)
+        if self.initialized:
+            for i in self.final_state_hadrons:
+                eff+= '{0}={1:.4f} '.format(i,getattr(self,'eff_cut_{0}'.format(i)))
+                p  += '{0}={1:.4f} '.format(i,getattr(self,'p_{0}'.format(i)))
+            out += eff+'\n'
+            out += p+'\n'
+        return out
+
 
     def set_total_eff(self,histodict,pLcut,d0cut):
         """
         """
+        self.current_d0cut = d0cut
+        self.current_pLcut = pLcut
         for i in self.final_state_hadrons:
             # p ( d0 pL | L_AB decay_channel I0 )
             self.__setattr__('eff_cut_{0}'.format(i),
@@ -264,17 +297,38 @@ class eff_cut_hadron(object):
             # p ( L_AB | decay_channel I0 )
             self.__setattr__('p_{0}'.format(i),
                     get_final_state_pr(histodict,self.decay_channel,i))
+        self.initialized=True
 
-    def get_total_events(self,hadrons):
+    def get_total_eff(self,hadrons):
         """
         """
-        if not hasattr(self,'eff_cut_{0}'.format(self.final_state_hadrons[0])):
+        return getattr(self,'eff_cut_{0}'.format(hadrons))*\
+                getattr(self,'p_{0}'.format(hadrons))
+
+
+    def get_events(self,hadrons):
+        """
+        """
+        if not self.initialized:
             raise AttributeError('eff_total ERROR: You need to call the '\
                     'set_total_eff method before try to calculate the total fraction')
         
         return hiInstance.getEvents(self.decay_channel.split('_')[0])*\
+                self.get_total_eff(hadrons)
+
+    def get_total_events(self):
+        """
+        """
+        if not self.initialized:
+            raise AttributeError('eff_total ERROR: You need to call the '\
+                    'set_total_eff method before try to calculate the total fraction')
+        
+        N = 0
+        for hadrons in self.final_state_hadrons:
+            N += hiInstance.getEvents(self.decay_channel.split('_')[0])*\
                 getattr(self,'eff_cut_{0}'.format(hadrons))*\
                 getattr(self,'p_{0}'.format(hadrons))
+        return N
 
 
 class eff_final_state_hadrons(object):
@@ -311,8 +365,125 @@ class eff_final_state_hadrons(object):
 
         return ((self.eff_cut_KK)*self.p_KK)/denominator
 
+#def print_events(eff,decay_channel):
+#    print 'Total events:',
+#    for h in eff[decay_channel].final_state_hadrons:
+#        current_n =eff[decay_channel].get_events(h)        
+#        print ' {0}: {1:.4f}'.format(h,current_n),
+#        print ' Total: {0:.4f}'.format(eff[decay_channel].get_total_events())
+#        print float(eff[signal].get_total_events())/sqrt(float(sum(map(lambda (x,y): y.get_total_events(),\
+#                filter(lambda (x,y): x != signal, eff.iteritems() )))))
 
-def main(rootfile):
+
+def update_limits(d0_pLlist_dict,pl_attr_inst):
+    """
+    """
+    getfunc = lambda func,i: func(map(lambda x: x[i], plList))
+    # get all the values
+    min_x0 = 1e10
+    max_x1 = 0.0
+    min_y0 = 1e10
+    max_y1 = 0.0
+    for plList in d0_pLlist_dict.values():
+        x0 = getfunc(min,0)
+        if x0 < min_x0:
+            min_x0 = x0*0.98
+        x1 = getfunc(max,0)
+        if x1 > max_x1:
+            max_x1 = x1*1.02
+        y0 = getfunc(min,1)
+        if y0 < min_y0:
+            min_y0 = y0*0.98
+        y1 = getfunc(max,1)
+        if y1 > max_y1:
+            max_y1 = y1*1.02
+
+    if not hasattr(pl_attr_inst,'x0'):
+        pl_attr_inst.x0 = min_x0
+        
+    if not hasattr(pl_attr_inst,'x1'):
+        pl_attr_inst.x1 = max_x1
+
+    if not hasattr(pl_attr_inst,'y0'):
+        pl_attr_inst.y0 = min_y0
+        
+    if not hasattr(pl_attr_inst,'y1'):
+        pl_attr_inst.y1 = max_y1
+
+
+class plot_attributes(object):
+    """
+    """
+    def __init__(self,plotname,**kwd):
+        """
+        """
+        self.plotname = plotname
+        self.xtitle   = ''
+        self.xunit    = ''
+        self.ytitle   = ''
+        self.yunit    = ''
+        self.title    = ''
+        self.log      = False
+        self.opt      = ''
+        for key,val in kwd.iteritems():
+            setattr(self,key,val)
+
+def make_plot(points_dict,plot_attr,leg_position="UP"):
+    """
+    """
+    import ROOT
+    
+    suffixplots = globals()['SUFFIXPLOTS']
+    
+    # Plotting
+    ROOT.gROOT.SetBatch()
+
+    try:
+        from PyAnUtils.plotstyles import squaredStyle,setpalette
+        lstyle = squaredStyle()
+        lstyle.cd()
+        ROOT.gROOT.ForceStyle()
+        ROOT.gStyle.SetOptStat(0)
+
+        setpalette("darkbody")
+    except ImportError:
+        pass
+
+    c = ROOT.TCanvas()
+    if plot_attr.log:
+        c.SetLogy()
+    # una grafica para el mismo d0
+    # Extract the limits
+    dummy = update_limits(points_dict,plot_attr)
+    
+    # Legend
+    if leg_position == "DOWN":
+        leg = getleg(y0 = 0.2, y1 = 0.34, x0 = 0.4, x1= 0.65)
+    else:
+        leg = getleg()
+
+    frame = c.DrawFrame(plot_attr.x0,plot_attr.y0,plot_attr.x1,plot_attr.y1)
+    frame.SetXTitle(plot_attr.xtitle+' '+plot_attr.xunit)
+    frame.SetYTitle(plot_attr.ytitle+' '+plot_attr.yunit)
+    k = 0
+    d_graphs = []
+    for d0cut,pL_list in points_dict.iteritems():
+        g = ROOT.TGraph(len(pL_list))
+        d_graphs.append(g)
+        g.SetLineWidth(2)
+        g.SetLineColor(getcolor()[k])
+        g.SetLineStyle(3*k)
+        g.SetMarkerColor(getcolor()[k])
+        g.SetMarkerStyle(20+k)
+        leg.AddEntry(g,'d_{0}={1} [mm]'.format('{0}',d0cut),'PL')
+        for i,val in enumerate(pL_list):
+            g.SetPoint(i,val[0],val[1])
+        g.Draw("LSAME {0}".format(plot_attr.opt))
+        k+=1
+    leg.Draw()
+    c.SaveAs('{0}{1}'.format(plot_attr.plotname.split('.')[0],suffixplots))
+
+def main(rootfile,channels):
     """Main function gathering all the plots to be performed:
      * Plot of all the efficiencies vs. momentum cut in the
      same canvas (including the total background efficiency
@@ -324,6 +495,7 @@ def main(rootfile):
     
     """
     import ROOT
+    import sys
     from math import sqrt
 
     
@@ -339,47 +511,80 @@ def main(rootfile):
             'Z' : dict(filter(lambda (x,y): x.find('Z') == 0,_preobj.iteritems()))
             }
 
-    
-    # Plotting
-    ROOT.gROOT.SetBatch()
+    #signal=filter(lambda x: x.find('ssbar') != -1,channels)[0]
+    signal_PID   = filter(lambda x: x.find('ssbar_PID') != -1,channels)[0]
+    signal_noPID = filter(lambda x: x.find('ssbar_noPID') != -1,channels)[0]
     
     # just take care in the H-ressonance...
 
     # XXX: can be entered by option
     d0cuts = [0.1,0.3, 0.5]
-    pLcuts = [20.0,25.]
-    eff = {}
-    # Prepare efficiencies (changing pL cut) per each d0-cut
-    for d0 in d0cuts:
-        for pL in pLcuts:
-            # Signal related efficiencies: Just getted from the ideally identified kaons
-            # 
-            # --- p(d0cut pLcut | N_KK (ee->H->ssbar) I_0)
-            print '='*80
-            print 'd0 = {0:.1f} [mm] , pL = {1:.1f} [GeV] ======='.format(d0,pL)
-            eff = {}
-            N = {}
-            for decay_channel in [ 'ssbar_PID', 'bbbar', 'ccbar']: #'ddbar', 'uubar']
-                eff[decay_channel] = eff_cut_hadron(decay_channel)
-                eff[decay_channel].set_total_eff(_obj['H'],pL,d0)
-                
-                print '---- {0}'.format(decay_channel)
-                print '     eff_cut: KK={0:.4f} '\
-                        ' KP={1:.4f}  PP={2:.4f}'.format(eff[decay_channel].eff_cut_KK,
-                                eff[decay_channel].eff_cut_KP,eff[decay_channel].eff_cut_PP)
-                print '     p_Hadrons: KK={0:.4f} '\
-                        ' KP={1:.4f}  PP={2:.4f}'.format(eff[decay_channel].p_KK,eff[decay_channel].p_KP,eff[decay_channel].p_PP)
-                N[decay_channel] = 0
-                print '    Events:',
-                for h in eff[decay_channel].final_state_hadrons:
-                    current_n =eff[decay_channel].get_total_events(h)
-                    N[decay_channel] += current_n
-                    print ' {0}: {1:.4f}'.format(h,current_n),
-                print ' Total: {0:.4f}'.format(N[decay_channel])
-            print float(N['ssbar_PID'])/sqrt(float(sum(map(lambda (x,y): y,\
-                    filter(lambda (x,y): x != 'ssbar_PID', N.iteritems() )))))
-            
+    pLcuts = xrange(0,30)
 
+    # the eff. classes 
+    eff = dict(map(lambda x: (x,eff_cut_hadron(x)), channels))
+    
+    message = "\r\033[1;34mhzplots INFO\033[1;m Obtaining the data"
+    # List of plots: { 'd0cut1' [ (pLcut1,valueX,valueY), ... ] }
+    effsig_vs_pion_reject = {}
+    effsig_vs_purity         = {}
+    significance_vs_pLcut    = {}
+    for d0 in d0cuts:
+        d0str = '{0:.1f}'.format(d0)
+        effsig_vs_pion_reject[d0str] = []
+        effsig_vs_purity[d0str] = []
+        significance_vs_pLcut[d0str] = []
+        i = 0
+        for pL in pLcuts:
+            sys.stdout.write( "{0} {1}".format(message,SPINNING[i % len(SPINNING)]))
+            sys.stdout.flush()
+
+            #print '='*80
+            #print 'd0 = {0:.1f} [mm] , pL = {1:.1f} [GeV] ======='.format(d0,pL)
+            # setting the current cuts to all the efficienciesa
+            _dummy = map( lambda e: e.set_total_eff(_obj['H'],pL,d0), eff.values())
+            
+            # Some needed values
+            eff_sig = eff['ssbar_PID'].get_total_eff('KK')
+            n_KK    = eff['ssbar_PID'].get_total_events()
+            bkg_tot_evts = sum(map(lambda (x,y): y.get_total_events(),\
+                    filter(lambda (x,y): x != signal_PID or x != signal_noPID, eff.iteritems() )))
+            
+            # Signal efficiency calculation: assuming 100% p-K separation with the PID 
+            # effsig := eff['ssbar_PID']
+            # purity := 2*N_KK/(2*N_KK+2*N_KP+2*N_KK) = N_KK/(N_KK+NKP+N_PP)
+            # Pion rejection: N_b/N_signal assuming no p-K separation (no PID)
+            # Note: sigma_HZ*L_int*Sum_qq BR(H->qq)/Sum_qq BR(h->qq)*(Sum_qq BR(H->qq) eff_qq*f_qq)
+            # the Sum_qq BR(H->qq) terms are cancelled... 
+            effsig_vs_pion_reject[d0str].append( (eff_sig,
+                    float(bkg_tot_evts)/float(n_KK)) )
+            effsig_vs_purity[d0str].append( (eff_sig,
+                    float(2.0*eff['ssbar_noPID'].get_events('KK'))/\
+                            (float(2.0*eff['ssbar_noPID'].get_events('KK'))+\
+                            float(eff['ssbar_noPID'].get_events('KP'))+\
+                            float(2.0*eff['ssbar_noPID'].get_events('PP')))
+                            ) )
+            significance_vs_pLcut[d0str].append( (pL,float(n_KK)/sqrt(float(bkg_tot_evts))) )
+            i+=1
+    # plotting
+    print "\033[1;34mhzplots INFO\033[1;m Plotting..."
+    pr_attr = plot_attributes('pion_rejection',
+            xtitle='#varepsilon_{S}', 
+            ytitle='pion rejection (N_{BKG}/N_{s#bar{s}} with no PID)',
+            x0 = 0.0, x1 = 1.0 , y0 = 0.0 )
+    make_plot(effsig_vs_pion_reject,pr_attr)
+
+    purity_attr = plot_attributes('purity',
+            xtitle='#varepsilon_{S}', 
+            ytitle='purity',
+            x0 = 0.0, x1 = 1.0 , y0 = 0.0, y1= 0.0 )
+    make_plot(effsig_vs_purity,purity_attr)
+
+    significance_attr = plot_attributes('significance',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='N_{S}/#sqrt{N_{B}}',
+            x0 = 0.0, y0 = 0.0 )
+    make_plot(significance_vs_pLcut,significance_attr,"DOWN")
 
 
 if __name__ == '__main__':
@@ -393,10 +598,18 @@ if __name__ == '__main__':
             help="input root filename [processed.root]")
     parser.add_option( '-s', '--suffix', action='store', type='string', dest='suffixout',\
             help="output suffix for the plots [.pdf]")
+    parser.add_option( '-p', '--pid', action='store_true', dest='pid',\
+            help="Assume an efficiency of 100% distinguishing between kaons and pions")
     
     (opt,args) = parser.parse_args()
 
     if opt.suffixout:
         suff = opt.suffixout.replace('.','')
         globals()['SUFFIXPLOTS'] ='.'+suff
-    main(os.path.abspath(opt.inputfile))
+    channels = [ 'ssbar_PID', 'ssbar_noPID', 'bbbar', 'ccbar'] #'ddbar', 'uubar']
+    #if opt.pid:
+    #    channels.append('ssbar_PID')
+    #else:
+    #    channels.append('ssbar_noPID')
+
+    main(os.path.abspath(opt.inputfile),channels)

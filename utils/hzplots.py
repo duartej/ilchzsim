@@ -475,7 +475,7 @@ def make_plot(points_dict,plot_attr,leg_position="UP"):
         g.SetLineStyle(3*k)
         g.SetMarkerColor(getcolor()[k])
         g.SetMarkerStyle(20+k)
-        leg.AddEntry(g,'d_{0}={1} [mm]'.format('{0}',d0cut),'PL')
+        leg.AddEntry(g,'d_{0}={1} mm'.format('{0}',d0cut),'PL')
         for i,val in enumerate(pL_list):
             g.SetPoint(i,val[0],val[1])
         g.Draw("LSAME {0}".format(plot_attr.opt))

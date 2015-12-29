@@ -209,8 +209,36 @@ def get_final_state_pr(_obj,decay_channel,hadrons):
 
     return float(n_current_hadrons)/float(n_total_decay)
 
+def get_bin(h,order,value):
+    """Obtain the bin corresponding to the value given by `value`
+    for the coordinate given by `order`
 
-def get_cuts_eff(_obj,decay_channel,hadrons,pLcut,d0cut):
+    Parameters
+    ----------
+    h: ROOT.TH3 (ROOT.TH2)
+    order: int
+        coordinate, valid values are 0 for X, 1 for Y and 2 for Z
+    value: float
+        value to check
+
+    Return
+    ------
+    int, the bin corresponding to the `value`
+    """
+    # TH1 histos to obtain bin numbers and other manipulations
+    if order == 0:
+        projection  = h.ProjectionX()
+    elif order == 1:
+        projection  = h.ProjectionY()
+    elif order == 2:
+        projection  = h.ProjectionZ()
+    else:
+        raise RuntimeError("get_bin: Invalid coordinate '{0}'".format(order))
+    
+    return projection.FindBin(value)
+
+def get_cuts_eff(_obj,decay_channel,hadrons,\
+        pLcut=None,d0cut=None,pLbin=None,d0bin=None):
     """Extract the efficiency of the cuts (d0 and pL-circular) given a final 
     couple of hedrons in each hemisphere, and a decay channel
 
@@ -225,8 +253,10 @@ def get_cuts_eff(_obj,decay_channel,hadrons,pLcut,d0cut):
     decay_channel: str
     hadrons: str, 
         the hadrons to look at, which can be the: KK, KP, PP (K-kaon, P-pion)
-    pLcut: float 
-    d0cut: float
+    pLcut: float, optional, incompatible with pLbin  
+    d0cut: float, optional, incompatible with d0bin
+    pLbin: int, optional, incompatible with pLcut
+    d0bin: int, optional, incompatible with d0bin
 
     Returns
     -------
@@ -235,19 +265,23 @@ def get_cuts_eff(_obj,decay_channel,hadrons,pLcut,d0cut):
     histo_name = get_histo_name(_obj.keys(),decay_channel,hadrons)
     h = _obj[histo_name]
 
-    # TH1 histos to obtain bin numbers and other manipulations
-    pL_h  = h.ProjectionX()
-    d01_h = h.ProjectionY()
-    d02_h = h.ProjectionZ()
-
-    # First obtaining the bin where the cut are located
-    pL_bin = pL_h.FindBin(pLcut)
-    d01_bin= d01_h.FindBin(d0cut)
-    d02_bin= d02_h.FindBin(d0cut)
+    # Should it get the bin information?
+    if pLbin is None and d0bin is None:
+        # First obtaining the bin where the cut are located
+        pLbin = get_bin(h,0,pLcut)
+        d01bin= get_bin(h,1,d0cut)
+        d02bin= get_bin(h,2,d0cut)
+    elif pLcut is None and d0cut is None:
+        d01bin = d0bin
+        d02bin = d0bin
+    else:
+        raise RuntimeError('Unexpected ERROR! "get_cuts_eff" function'\
+                ' called unconsistently.')
+    
     # counting all the events, including those in the overflow bins
     pL_maxBin = h.GetNbinsX()+1
 
-    evts = h.Integral(pL_bin,pL_maxBin,1,d01_bin,1,d02_bin)
+    evts = h.Integral(pLbin,pL_maxBin,1,d01bin,1,d02bin)
 
     if h.GetEntries() == 0: 
         return 0.0
@@ -285,7 +319,7 @@ class eff_cut_hadron(object):
         return out
 
 
-    def set_total_eff(self,histodict,pLcut,d0cut):
+    def set_total_eff(self,histodict,pLcut=None,d0cut=None,pLbin=None,d0bin=None):
         """
         """
         self.current_d0cut = d0cut
@@ -293,7 +327,8 @@ class eff_cut_hadron(object):
         for i in self.final_state_hadrons:
             # p ( d0 pL | L_AB decay_channel I0 )
             self.__setattr__('eff_cut_{0}'.format(i),
-                    get_cuts_eff(histodict,self.decay_channel,i,pLcut,d0cut))
+                    get_cuts_eff(histodict,self.decay_channel,i,\
+                            pLcut=pLcut,d0cut=d0cut,pLbin=pLbin,d0bin=d0bin))
             # p ( L_AB | decay_channel I0 )
             self.__setattr__('p_{0}'.format(i),
                     get_final_state_pr(histodict,self.decay_channel,i))
@@ -342,12 +377,13 @@ class eff_final_state_hadrons(object):
         self.decay_channel = decay_channel
         self.final_state_hadrons = ['KK','KP','PP']
 
-    def set_total_eff(self,histodict,pLcut,d0cut):
+    def set_total_eff(self,histodict,pLcut=None,d0cut=None,pLbin=None,d0bin=None):
         """
         """
         for i in self.final_state_hadrons:
             self.__setattr__('eff_cut_{0}'.format(i),
-                    get_cuts_eff(histodict,self.decay_channel,i,pLcut,d0cut))
+                    get_cuts_eff(histodict,self.decay_channel,i,\
+                            pLcut=pLcut,d0cut=d0cut,pLbin=pLbin,d0bin=d0bin))
             self.__setattr__('p_{0}'.format(i),
                     get_final_state_pr(histodict,self.decay_channel,i))
 
@@ -535,14 +571,18 @@ def main(rootfile,channels):
         effsig_vs_purity[d0str] = []
         significance_vs_pLcut[d0str] = []
         i = 0
+        # assuming the same binning for all histograms, also only TH3F in the 
+        # _obj['H'] dictionary
+        d0bin = get_bin(_obj['H'].values()[0],1,d0)
         for pL in pLcuts:
             sys.stdout.write( "{0} {1}".format(message,SPINNING[i % len(SPINNING)]))
             sys.stdout.flush()
 
+            pLbin = get_bin(_obj['H'].values()[0],0,pL)
             #print '='*80
             #print 'd0 = {0:.1f} [mm] , pL = {1:.1f} [GeV] ======='.format(d0,pL)
             # setting the current cuts to all the efficienciesa
-            _dummy = map( lambda e: e.set_total_eff(_obj['H'],pL,d0), eff.values())
+            _dummy = map( lambda e: e.set_total_eff(_obj['H'],pLbin=pLbin,d0bin=d0bin), eff.values())
             
             # Some needed values
             eff_sig = eff['ssbar_PID'].get_total_eff('KK')

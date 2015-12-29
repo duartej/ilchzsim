@@ -559,14 +559,15 @@ def main(rootfile,channels):
             effsig_vs_pion_reject[d0str].append( (eff_sig,
                     float(bkg_tot_evts)/float(n_KK)) )
             effsig_vs_purity[d0str].append( (eff_sig,
-                    float(2.0*eff['ssbar_noPID'].get_events('KK'))/\
-                            (float(2.0*eff['ssbar_noPID'].get_events('KK'))+\
+                    float(eff['ssbar_noPID'].get_events('KK'))/\
+                            (float(eff['ssbar_noPID'].get_events('KK'))+\
                             float(eff['ssbar_noPID'].get_events('KP'))+\
-                            float(2.0*eff['ssbar_noPID'].get_events('PP')))
+                            float(eff['ssbar_noPID'].get_events('PP')))
                             ) )
             significance_vs_pLcut[d0str].append( (pL,float(n_KK)/sqrt(float(bkg_tot_evts))) )
             i+=1
     # plotting
+    print
     print "\033[1;34mhzplots INFO\033[1;m Plotting..."
     pr_attr = plot_attributes('pion_rejection',
             xtitle='#varepsilon_{S}', 

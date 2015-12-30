@@ -499,7 +499,7 @@ def get_point_graphs(points_dict,obs_indices,wp_index,working_points_list,leg_en
     y0 = 0.8; y1 = 0.94; x0 = 0.01; x1= 0.25;
     for d0cut,val_list in points_dict.iteritems():
         selected_points = []
-        TOLERANCE = 1e-20
+        TOLERANCE = 1e-10
         # Extract the working points from the val_list list, assuming
         # tuple_index as the value to check and to be equal to the 
         # working_points_list values. Using a very small tolerance
@@ -508,7 +508,7 @@ def get_point_graphs(points_dict,obs_indices,wp_index,working_points_list,leg_en
         while len(selected_points) != len(working_points_list):
             try:
                 selected_points =  map(lambda y: 
-                        filter(lambda x: abs(x[wp_index]-y) <= TOLERANCE, val_list)[0], 
+                        filter(lambda x: abs(x[wp_index]-y) <= y*TOLERANCE, val_list)[0], 
                         working_points_list)
             except IndexError:
                 # not found anything, so continue
@@ -732,13 +732,13 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
     print "\033[1;34mhzplots INFO\033[1;m Plotting..."
     # --- Some extra points (WP)
     if wp_activated:
-        leg_format_pion_rej = ( 'S/#sqrt{B}=%.1f @ p^{c}=%.0f GeV',(I_SIGN,I_PL) )
+        leg_format_pion_rej = ( 'S/#sqrt{B}=%.1f @ p_{||}^{c}=%.0f GeV',(I_SIGN,I_PL) )
         graphs_leg_pion_rej = get_point_graphs(observables,(I_EFF_SIG,I_PION_REJEC),I_PL,[10,20],leg_format_pion_rej)
     
-        leg_format_pur = ( 'S/#sqrt{B}=%.1f @ p^{c}=%.0f GeV',(I_SIGN,I_PL) )
+        leg_format_pur = ( 'S/#sqrt{B}=%.1f @ p_{||}^{c}=%.0f GeV',(I_SIGN,I_PL) )
         graphs_leg_pur = get_point_graphs(observables,(I_EFF_SIG,I_PURITY),I_PL,[10,20],leg_format_pur)
         
-        leg_format_sig = ( '#varepsilon_{signal}=%.2f, #pi-rej. factor=%.1f',(I_EFF_SIG,I_PION_REJEC) )
+        leg_format_sig = ( '#varepsilon_{signal}=%.2f, #pi-rej.factor=%.0f',(I_EFF_SIG,I_PION_REJEC) )
         graphs_leg_sig = get_point_graphs(observables,(I_PL,I_SIGN),I_EFF_SIG,[0.4,0.8],leg_format_sig)
     else:
         graphs_leg_pion_rej = None

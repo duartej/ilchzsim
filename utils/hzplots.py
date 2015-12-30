@@ -463,9 +463,13 @@ class plot_attributes(object):
         for key,val in kwd.iteritems():
             setattr(self,key,val)
 
-def make_plot_2D(points_dict,plot_attr,aux_dict=None,leg_position="UP"):
+def make_plot_2D(rootfile):
+    """Plot all the TH2 histograms found 
     """
-    """
+    import ROOT
+
+    suffixplots = globals()['SUFFIXPLOTS']
+    
     try:
         from PyAnUtils.plotstyles import squaredStyle,setpalette
         lstyle = squaredStyle()
@@ -476,6 +480,20 @@ def make_plot_2D(points_dict,plot_attr,aux_dict=None,leg_position="UP"):
         setpalette("darkbody")
     except ImportError:
         pass
+
+    ROOT.gROOT.SetBatch()
+
+    _obj = dict(((x.GetName(),x.GetClassName()), \
+            rootfile.Get(x.GetName())) for x in rootfile.GetListOfKeys())
+
+    # Plotting TH2F (p1 vs. p2 of the leading hadrons)
+    for ((name,k),h) in filter(lambda ((x,classname),y): \
+            classname.find('TH2') == 0 and x.find('d0') == -1, _obj.iteritems()):
+        c = ROOT.TCanvas()
+        h.Draw("COLZ")    
+        c.SaveAs(name.replace('_th2_','_')+suffixplots)
+    # Plotting
+    ROOT.gROOT.SetBatch()
 
 def get_point_graphs(points_dict,obs_indices,wp_index,working_points_list,leg_entry_format):
     """
@@ -641,7 +659,7 @@ def get_latex_table(obsList):
 
     return latex
 
-def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
+def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated,doTH2Plots):
     """Main function gathering all the plots to be performed:
      * Plot of all the efficiencies vs. momentum cut in the
      same canvas (including the total background efficiency
@@ -663,6 +681,10 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
         raise IOError("ROOT file '{0}' doesn\'t exist".format(rootfile))
     _preobj = dict(map(lambda x:(x.GetName(), f.Get(x.GetName())),
          filter(lambda x: x.GetClassName().find('TH3') == 0,f.GetListOfKeys())))
+
+    if doTH2Plots:
+        print "\033[1;34mhzplots INFO\033[1;m "
+        make_plot_2D(f)
     
     # Split by resonance
     _obj = { 'H' : dict(filter(lambda (x,y): x.find('H') == 0,_preobj.iteritems())),
@@ -771,7 +793,6 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
             print get_latex_table(obsList)
 
 
-
 if __name__ == '__main__':
     from optparse import OptionParser,OptionGroup
     import os
@@ -783,8 +804,6 @@ if __name__ == '__main__':
             help="input root filename [processed.root]")
     parser.add_option( '-s', '--suffix', action='store', type='string', dest='suffixout',\
             help="output suffix for the plots [.pdf]")
-    #parser.add_option( '-p', '--pid', action='store_true', dest='pid',\
-    #        help="Assume an efficiency of 100% distinguishing between kaons and pions")
     parser.add_option( '-d', '--d0', action='store', type='string', dest='d0',\
             metavar='d01[,d02,...]',help="Impact parameters cuts [0.1,0.3,0.5]")
     parser.add_option( '-p', '--pL-cut', action='store', type='string', dest='pLMax',\
@@ -793,6 +812,9 @@ if __name__ == '__main__':
             help="whether or not print the latex tables")
     parser.add_option( '-w','--working-points', action='store_true', dest='wp_activate',\
             help="whether or not plot the some working points in the plots")
+    parser.add_option( '-l','--leading-hadrons', action='store_true', dest='doTH2Plots',\
+            help="whether or not activate the paralel momentum 2-dim plots of the"\
+            " leading hadrons")
     
     (opt,args) = parser.parse_args()
 
@@ -800,12 +822,15 @@ if __name__ == '__main__':
         suff = opt.suffixout.replace('.','')
         globals()['SUFFIXPLOTS'] ='.'+suff
     channels = [ 'ssbar_PID', 'ssbar_noPID', 'bbbar', 'ccbar'] #'ddbar', 'uubar']
-    #if opt.pid:
-    #    channels.append('ssbar_PID')
-    #else:
-    #    channels.append('ssbar_noPID')
+    
     d0cuts = []
     for d0cut in sorted(opt.d0.split(','),key=lambda x: float(x)):
         d0cuts.append(float(d0cut))
 
-    main(os.path.abspath(opt.inputfile),channels,opt.tables,int(opt.pLMax),d0cuts,opt.wp_activate)
+    main(os.path.abspath(opt.inputfile),channels,
+            opt.tables,
+            int(opt.pLMax),
+            d0cuts,
+            opt.wp_activate,
+            opt.doTH2Plots
+            )

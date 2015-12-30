@@ -441,7 +441,7 @@ def plots(rootfile,hadrons='kaons'):
 
     # Plotting TH2F (p1 vs. p2 of the leading hadrons)
     for ((name,k),h) in filter(lambda ((x,classname),y): \
-            classname.find('TH2') == 0, _obj.iteritems()):
+            classname.find('TH2') == 0 and x.find('_d0') == -1, _obj.iteritems()):
         c = ROOT.TCanvas()
         h.Draw("COLZ")    
         c.SaveAs(name.replace('_th2_','_')+suffixplots)
@@ -579,7 +579,7 @@ def plots(rootfile,hadrons='kaons'):
                 addtext=rocsgf[res],opt='ALC')
         
     # Finally, plotting TH1F (d0 of the leading hadrons)
-    _pre_th1hists = filter(lambda ((x,classname),y): classname.find('TH1') == 0,\
+    _pre_th1hists = filter(lambda ((x,classname),y): classname.find('TH2') == 0 and x.find('_d0') != -1,\
                 _obj.iteritems())
     th1hists = { 'H': map(lambda ((z,x),h): h, \
                   filter(lambda ((name,classname),h): name.find('H') == 0,\
@@ -589,34 +589,17 @@ def plots(rootfile,hadrons='kaons'):
                      _pre_th1hists))
                }
     for res,histlist in th1hists.iteritems():
-        c = ROOT.TCanvas()
-        c.SetLogy()
-        #c.SetLogx()
-        leg = getleg(x0=0.6,x1=0.75)
         cutdict = {}
         for i,h in enumerate(sorted(histlist)):
-            h.SetLineColor(COLOR[i])
-            h.SetLineWidth(2)
-            h.SetMarkerStyle(20)
-            h.SetMarkerSize(0.5)
-            h.SetMarkerColor(COLOR[i])
-            h.SetNormFactor(1.0/h.Integral())  # FIXME: you should include the overflow bin !!! 
-            if i == 0:
-                h.GetYaxis().SetTitle('A.U./'+str(h.GetXaxis().GetBinWidth(1)))
-                h.Draw("PE")
-            else:
-                h.Draw("PESAME") 
-            name = h.GetName().replace(res+'_th1_hz','').replace('_'+hadrons+'_d0',' ').replace('_','')
-            leg.AddEntry(h,name,'PL')
-            # Getting the values of some cuts
-            _int  = h.Integral()  # FIXME: you should include the overflow bin !!!
+            name = h.GetName().replace(res+'_th2_hz','').replace('_'+hadrons+'_d0',' ').replace('_','')
+            _int  = h.GetEntries()
             cutdict[name] = {}
             for cut in [ 0.1,0.5,0.7,1.0]: 
-                cutdict[name][cut] = h.Integral(1,h.FindBin(cut))/_int
-        leg.Draw()
-        c.SaveAs(res+'_d0'+suffixplots)
+                _bin = h.ProjectionX().FindBin(cut)
+                cutdict[name][cut] = h.Integral(1,_bin,1,_bin)/_int
         
         print "===  d0 cuts |%s| ==========================" % (res)
+        print cutdict
         print getlatextable(cutdict)
     
     allinfodict['HEADER'] = ('MOMENTUM-CUT','EFF_SIGNAL','EFF_BKG','SIGNIFICANCE')
@@ -631,7 +614,7 @@ if __name__ == '__main__':
 
     #Opciones de entrada
     parser = OptionParser()
-    parser.set_defaults(inputfile='processed.root')    
+    parser.set_defaults(inputfile='processed.root',hadrons='kaons')    
     parser.add_option( '-i', '--inputfile', action='store', type='string', dest='inputfile',\
             help="input root filename [processed.root]")
     parser.add_option( '-s', '--suffix', action='store', type='string', dest='suffixout',\

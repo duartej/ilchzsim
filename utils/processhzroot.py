@@ -242,11 +242,19 @@ def process(inputfile,outputfile,d0cut,trackHF):
             for k in sortedhadrind:
                 # Check the impact parameter if the cut is activated
                 if d0cut:
-                    d0 = sqrt(iEvent.vx[k]**2.+iEvent.vy[k]**2.)
+                    ## See below [1]
+                    d0 = (iEvent.vy[k]-iEvent.vx[k]*iEvent.phi_lab[k])*cos(iEvent.phi_lab[k])
+                    #d0 = sqrt(iEvent.vx[k]**2.+iEvent.vy[k]**2.)
                     if d0 > float(d0cut):
                         continue
                 momentum = iEvent.p[k]*fcos(k)
-                d0       = sqrt(iEvent.vx[k]**2.0+iEvent.vy[k]**2.0)
+                # [1] --> this is not d0, is radius on the transverse plane !!
+                # d0       = sqrt(iEvent.vx[k]**2.0+iEvent.vy[k]**2.0)
+                # A rough estimation assuming straight line trajectory: use 
+                # the phi angle at the lab frame (define the vector director 
+                # of a straight line) and the minimum distance of the line 
+                # with respect the IP 
+                d0 = (iEvent.vy[k]-iEvent.vx[k]*iEvent.phi_lab[k])*cos(iEvent.phi_lab[k])
                 if iEvent.theta[k] < pi/2.0:
                     if trackHF and iEvent.isBCdaughter[k]:
                         upHF_List.append( (momentum,d0) )

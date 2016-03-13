@@ -546,7 +546,7 @@ int main(int argc, char* argv[])
         }
     }
     // Check was passed the proper hadron type
-    if( strangehadrontype != "pions" && strangehadrontype != "kaone" && 
+    if( strangehadrontype != "pions" && strangehadrontype != "kaons" && 
             (strangehadrontype != "pions_kaons" || strangehadrontype != "kaons_pions") )
     {
             std::cerr << "ilc: Invalid option value '-f " << strangehadrontype

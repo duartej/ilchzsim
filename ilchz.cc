@@ -547,10 +547,10 @@ int main(int argc, char* argv[])
     }
     // Check was passed the proper hadron type
     if( strangehadrontype != "pions" && strangehadrontype != "kaons" && 
-            (strangehadrontype != "pions_kaons" || strangehadrontype != "kaons_pions") )
+            (strangehadrontype != "pions_kaons" && strangehadrontype != "kaons_pions") )
     {
-            std::cerr << "ilc: Invalid option value '-f " << strangehadrontype
-                << "' Valid values are 'kaons', 'pions' or 'pions_kaons''" << std::endl;
+            std::cerr << "ilc: Invalid option value -f '" << strangehadrontype
+                << "' Valid values are 'kaons', 'pions' or 'pions_kaons' (or 'kaons_pions')" << std::endl;
     }
 
     // Confirm that external files will be used for input and output.

@@ -158,39 +158,37 @@ def process(inputfile,outputfile,d0cut,trackHF):
     
     # sqrt(d0_1^2+d0^2_2), d0_1,d0^2
     # for 3 different cases: kaons_kaons, kaons_pions and pions_pions
-    hd0PL_kk ={ 25: ROOT.TH3F('H'+namehistos.replace('th2','th3')+'_KK_PLd0s','p_{||} circular cut and d_{0}'\
-            '; p_{||} cut [GeV]; d_{0}^{1} [mm];  d_{0}^{2} [mm]',NBINS,XMIN,XMAX,
-            NBINS*2,0,1.0,NBINS*2,0,1),
-            23: ROOT.TH3F('Z'+namehistos.replace('th2','th3')+'_KK_PLd0s','p_{||} circular cut and d_{0}'\
-            '; p_{||} cut [GeV]; d_{0}^{1} [mm];  d_{0}^{2} [mm]', NBINS,XMIN,XMAX,
-            NBINS*2,0,1.0,NBINS*2,0,1),
-            }
-    hd0PL_kp ={ 25: ROOT.TH3F('H'+namehistos.replace('th2','th3')+'_KP_PLd0s','p_{||} circular cut and d_{0}'\
-            '; p_{||} cut [GeV]; d_{0}^{1} [mm];  d_{0}^{2} [mm]',NBINS,XMIN,XMAX,
-            NBINS*2,0,1.0,NBINS*2,0,1),
-            23: ROOT.TH3F('Z'+namehistos.replace('th2','th3')+'_KP_PLd0s','p_{||} circular cut and d_{0}'\
-            '; p_{||} cut [GeV]; d_{0}^{1} [mm];  d_{0}^{2} [mm]', NBINS,XMIN,XMAX,
-            NBINS*2,0,1.0,NBINS*2,0,1),
-            }
-    hd0PL_pp ={ 25: ROOT.TH3F('H'+namehistos.replace('th2','th3')+'_PP_PLd0s','p_{||} circular cut and d_{0}'\
-            '; p_{||} cut [GeV]; d_{0}^{1} [mm];  d_{0}^{2} [mm]',NBINS,XMIN,XMAX,
-            NBINS*2,0,1.0,NBINS*2,0,1),
-            23: ROOT.TH3F('Z'+namehistos.replace('th2','th3')+'_PP_PLd0s','p_{||} circular cut and d_{0}'\
-            '; p_{||} cut [GeV]; d_{0}^{1} [mm];  d_{0}^{2} [mm]', NBINS,XMIN,XMAX,
-            NBINS*2,0,1.0,NBINS*2,0,1),
-            }
+    # title
+    TITLE = 'p_{||} circular cut and d_{0}; p_{||} cut [GeV];'\
+            'd_{0}^{1} [mm];  d_{0}^{2} [mm]'
+    D0MAX = 1.0
+    # quick way to initialize the histograms: hd0PL_kk, hd0PL_kp and hd0PL_pp
+    _prehists = {}
+    for dictname,suffix in  [('hd0PL_kk','_KK_PLd0s'),('hd0PL_kp','_KP_PLd0s'),('hd0PL_pp','_PP_PLd0s')]:      
+        _prehists[dictname] = \
+                {25:  ROOT.TH3F('H'+namehistos.replace('th2','th3')+suffix,
+                    TITLE,NBINS,XMIN,XMAX,
+                    NBINS*2,-1.*D0MAX,D0MAX,NBINS*2,-1.*D0MAX,D0MAX),
+                 23: ROOT.TH3F('Z'+namehistos.replace('th2','th3')+suffix,
+                    TITLE,NBINS,XMIN,XMAX,
+                    NBINS*2,-1.*D0MAX,D0MAX,NBINS*2,-1.*D0MAX,D0MAX)
+                 }
+    hd0PL_kk = _prehists['hd0PL_kk']
+    hd0PL_kp = _prehists['hd0PL_kp']
+    hd0PL_pp = _prehists['hd0PL_pp']
+
     histodictslist.append(hd0PL_kk)
     histodictslist.append(hd0PL_kp)
     histodictslist.append(hd0PL_pp)
 
     # d0-histograms : -->  TO BE DEPRECATED, ioncluded in the TH3
-    extrahist = { 25: ROOT.TH2F('H'+namehistos+'_d0','',NBINS*2,0,5,NBINS*2,0,1),
-            23: ROOT.TH2F('Z'+namehistos+'_d0','',NBINS*2,0,5,NBINS*2,0,1) 
+    extrahist = { 25: ROOT.TH2F('H'+namehistos+'_d0','',NBINS*2,-5,5,NBINS*2,-5.,5.),
+            23: ROOT.TH2F('Z'+namehistos+'_d0','',NBINS*2,-5,5,NBINS*2,-5.,5.) 
             }
     th1list = extrahist.values()
     if trackHF:
-        extrahistHF = { 25: ROOT.TH1F('H'+namehistos+'_d0_HF','',NBINS*2,0,1,NBINS*2,0,1),
-                23: ROOT.TH1F('Z'+namehistos+'_d0_HF','',NBINS*2,0,1,NBINS*2,0,1) 
+        extrahistHF = { 25: ROOT.TH1F('H'+namehistos+'_d0_HF','',NBINS*2,-5,5,NBINS*2,-5.,5),
+                23: ROOT.TH1F('Z'+namehistos+'_d0_HF','',NBINS*2,-5,5,NBINS*2,-5.,5) 
                 }
         th1list += extrahistHF.values()
     # cosmethics

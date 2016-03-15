@@ -463,8 +463,9 @@ class plot_attributes(object):
         for key,val in kwd.iteritems():
             setattr(self,key,val)
 
-def make_plot_2D(rootfile):
-    """Plot all the TH2 histograms found 
+def make_extra_plots(rootfile):
+    """Plot all the TH2 histograms found and other plots:
+
     """
     import ROOT
 
@@ -492,8 +493,9 @@ def make_plot_2D(rootfile):
         c = ROOT.TCanvas()
         h.Draw("COLZ")    
         c.SaveAs(name.replace('_th2_','_')+suffixplots)
-    # Plotting
-    ROOT.gROOT.SetBatch()
+
+    # Extra plots: d0 distributions, profiles, P distributions,...
+    # 
 
 def get_point_graphs(points_dict,obs_indices,wp_index,working_points_list,leg_entry_format):
     """
@@ -684,7 +686,7 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated,doTH2Plots):
 
     if doTH2Plots:
         print "\033[1;34mhzplots INFO\033[1;m "
-        make_plot_2D(f)
+        make_extra_plots(f)
     
     # Split by resonance
     _obj = { 'H' : dict(filter(lambda (x,y): x.find('H') == 0,_preobj.iteritems())),
@@ -694,6 +696,19 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated,doTH2Plots):
     #signal=filter(lambda x: x.find('ssbar') != -1,channels)[0]
     signal_PID   = filter(lambda x: x.find('ssbar_PID') != -1,channels)[0]
     signal_noPID = filter(lambda x: x.find('ssbar_noPID') != -1,channels)[0]
+
+    # check if the noPID histograms are present
+    try:
+        _test = filter(lambda name: name.find('ssbar_noPID') != -1,_obj['H'].keys())[0]
+        purity_evaluation = True
+    except IndexError:
+        # not found the related histograms, we cannot calculate purity
+        # just warn, but continue with the plots
+        print "\033[1;33mhzplots WARNING\033[1;m No 'ssbar_noPID' available." \
+                " The purity terms are not evaluated"
+        purity_evaluation = False
+        # and remove the signal_noPID from the channels list
+        channels.remove(signal_noPID)
     
     # just take care in the H-ressonance...
 
@@ -740,10 +755,13 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated,doTH2Plots):
             # Note: sigma_HZ*L_int*Sum_qq BR(H->qq)/Sum_qq BR(h->qq)*(Sum_qq BR(H->qq) eff_qq*f_qq)
             # the Sum_qq BR(H->qq) terms are cancelled... 
             pion_rejection = float(bkg_tot_evts)/float(n_KK)
-            purity         = float(eff['ssbar_noPID'].get_events('KK'))/\
-                    (float(eff['ssbar_noPID'].get_events('KK'))+\
-                    float(eff['ssbar_noPID'].get_events('KP'))+\
-                    float(eff['ssbar_noPID'].get_events('PP')))
+            purity = -1
+            if purity_evaluation:
+                purity         = float(eff['ssbar_noPID'].get_events('KK'))/\
+                        (float(eff['ssbar_noPID'].get_events('KK'))+\
+                        float(eff['ssbar_noPID'].get_events('KP'))+\
+                        float(eff['ssbar_noPID'].get_events('PP')))
+                purity_evaluation = True
             significance   = float(n_KK)/sqrt(float(bkg_tot_evts))
 
             # store it
@@ -757,8 +775,11 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated,doTH2Plots):
         leg_format_pion_rej = ( 'S/#sqrt{B}=%.1f @ p_{||}^{c}=%.0f GeV',(I_SIGN,I_PL) )
         graphs_leg_pion_rej = get_point_graphs(observables,(I_EFF_SIG,I_PION_REJEC),I_PL,[10,20],leg_format_pion_rej)
     
-        leg_format_pur = ( 'S/#sqrt{B}=%.1f @ p_{||}^{c}=%.0f GeV',(I_SIGN,I_PL) )
-        graphs_leg_pur = get_point_graphs(observables,(I_EFF_SIG,I_PURITY),I_PL,[10,20],leg_format_pur)
+        leg_format_pur = None
+        graphs_leg_pur = None
+        if purity_evaluation:
+            leg_format_pur = ( 'S/#sqrt{B}=%.1f @ p_{||}^{c}=%.0f GeV',(I_SIGN,I_PL) )
+            graphs_leg_pur = get_point_graphs(observables,(I_EFF_SIG,I_PURITY),I_PL,[10,20],leg_format_pur)
         
         leg_format_sig = ( '#varepsilon_{signal}=%.2f, #pi-rej.factor=%.0f',(I_EFF_SIG,I_PION_REJEC) )
         graphs_leg_sig = get_point_graphs(observables,(I_PL,I_SIGN),I_EFF_SIG,[0.4,0.8],leg_format_sig)
@@ -773,11 +794,12 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated,doTH2Plots):
             x0 = 0.0, x1 = 1.0 , y0 = 0.0 )
     make_plot(observables,(I_EFF_SIG,I_PION_REJEC),pr_attr,g_points_dict=graphs_leg_pion_rej)
 
-    purity_attr = plot_attributes('purity',
-            xtitle='#varepsilon_{S}', 
-            ytitle='purity',
-            x0 = 0.0, x1 = 1.0 , y0 = 0.0, y1= 0.0 )
-    make_plot(observables,(I_EFF_SIG,I_PURITY),purity_attr,g_points_dict=graphs_leg_pur)
+    if purity_evaluation:
+        purity_attr = plot_attributes('purity',
+                xtitle='#varepsilon_{S}', 
+                ytitle='purity',
+                x0 = 0.0, x1 = 1.0 , y0 = 0.0, y1= 0.0 )
+        make_plot(observables,(I_EFF_SIG,I_PURITY),purity_attr,g_points_dict=graphs_leg_pur)
 
     significance_attr = plot_attributes('significance',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 

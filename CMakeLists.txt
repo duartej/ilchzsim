@@ -28,4 +28,7 @@ install(PROGRAMS utils/processhzroot.py
 install(PROGRAMS utils/hzplots.py 
     DESTINATION bin
     RENAME hzplots)
+install(PROGRAMS utils/kinplots.py 
+    DESTINATION bin
+    RENAME kinplots)
 

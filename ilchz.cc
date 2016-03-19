@@ -87,12 +87,7 @@ struct FinalStateHadrons
 
     std::vector<int> getcharmed() const
     {
-        std::vector<int> _charmed;
-        _charmed.push_back(D_0);
-        _charmed.push_back(D_PLUS);
-        _charmed.push_back(D_MINUS);
-        _charmed.push_back(D_PLUS_S);
-        _charmed.push_back(D_MINUS_S);
+        std::vector<int> _charmed = { D_0, D_PLUS, D_MINUS, D_PLUS_S, D_MINUS_S };
 
         return _charmed;
     }
@@ -100,51 +95,38 @@ struct FinalStateHadrons
 
     std::vector<int> getpions() const
     {
-        std::vector<int> _pions;
-        _pions.push_back(PI_0);
-        _pions.push_back(PI_PLUS);
+        std::vector<int> _pions = { PI_0, PI_PLUS };
 
         return _pions;
     }
     
     std::vector<int> get_charged_pions() const
     {
-        std::vector<int> _pions;
-        _pions.push_back(PI_PLUS);
+        std::vector<int> _pions = {PI_PLUS};
 
         return _pions;
     }
     
     std::vector<int> getkaons() const
     {
-        std::vector<int> _kaons;
-        _kaons.push_back(K_LONG);
-        _kaons.push_back(K_SHORT);
-        _kaons.push_back(K_PLUS);
+        std::vector<int> _kaons = {K_LONG, K_SHORT, K_PLUS };
 
         return _kaons;
     }
     
     std::vector<int> get_charged_kaons() const
     {
-        std::vector<int> _kaons;
-        _kaons.push_back(K_PLUS);
+        std::vector<int> _kaons = {K_PLUS};
 
         return _kaons;
     }
     
     std::vector<int> getbottoms() const
     {
-        std::vector<int> _bottoms;
-        _bottoms.push_back(B_0);
-        _bottoms.push_back(B_PLUS);
-        _bottoms.push_back(B_MINUS);
-        _bottoms.push_back(B_0_S);
+        std::vector<int> _bottoms = { B_0, B_PLUS, B_MINUS, B_0_S };
 
         return _bottoms;
     }
-
-
 
     const std::vector<int> getIDs() const
     {
@@ -184,46 +166,39 @@ struct ParticleKinRootAux
 
     // Auxiliary
     std::vector<int> * _listofusedpartindex;
-    std::vector<std::vector<int> **> _auxI;
-    std::vector<std::vector<float> **> _auxF;
+    
+    // list of vector (ints)
+    std::vector<std::vector<int> **> _auxI = { 
+        &pdgId, &motherindex, 
+        &catchall, &isBCdaughter, &isPrimaryHadron,
+        &_listofusedpartindex } ;
+    // list of vectors (floats)
+    std::vector<std::vector<float> **> _auxF = { 
+        &p, &pmother, 
+        &phi, &phi_lab,
+        &theta, &theta_lab,
+        &vx, &vy, &vz } ;
     // Strange hadron PDG ID concerned by
     std::vector<int> strangehadrons;
 
     // Constructor
     ParticleKinRootAux(const std::vector<int> & finalstatehadrons): 
-        pdgId(0),
-        motherindex(0),
-        catchall(0),
-        isBCdaughter(0),
-        isPrimaryHadron(0),
-        p(0),
-        pmother(0),
-        phi(0),
-        phi_lab(0),
-        theta(0),
-        theta_lab(0),
-        vx(0),
-        vy(0),
-        vz(0),
-       _listofusedpartindex(0) 
+        pdgId(nullptr),
+        motherindex(nullptr),
+        catchall(nullptr),
+        isBCdaughter(nullptr),
+        isPrimaryHadron(nullptr),
+        p(nullptr),
+        pmother(nullptr),
+        phi(nullptr),
+        phi_lab(nullptr),
+        theta(nullptr),
+        theta_lab(nullptr),
+        vx(nullptr),
+        vy(nullptr),
+        vz(nullptr),
+       _listofusedpartindex(nullptr) 
     {
-        _auxI.push_back(&pdgId);
-        _auxI.push_back(&motherindex);
-        _auxI.push_back(&catchall);
-        _auxI.push_back(&isBCdaughter);
-        _auxI.push_back(&isPrimaryHadron);
-        _auxF.push_back(&p);
-        _auxF.push_back(&pmother);
-        _auxF.push_back(&phi);
-        _auxF.push_back(&phi_lab);
-        _auxF.push_back(&theta);
-        _auxF.push_back(&theta_lab);
-        _auxF.push_back(&vx);
-        _auxF.push_back(&vy);
-        _auxF.push_back(&vz);
-
-        _auxI.push_back(&_listofusedpartindex);
-
         // User define the hadrons
         strangehadrons.insert(strangehadrons.end(),finalstatehadrons.begin(),
                 finalstatehadrons.end());
@@ -272,18 +247,18 @@ struct ParticleKinRootAux
     {
         for(std::vector<std::vector<int>** >::const_iterator it=_auxI.begin(); it < _auxI.end(); ++it)
         {
-            if( *(*it) != 0 )
+            if( *(*it) != nullptr )
             {
                 delete *(*it);
-                *(*it) = 0;
+                *(*it) = nullptr;
             }
         }
         for(std::vector<std::vector<float>** >::const_iterator it=_auxF.begin(); it < _auxF.end(); ++it)
         {
-            if( *(*it) != 0 )
+            if( *(*it) != nullptr )
             {
                 delete *(*it);
-                *(*it) = 0;
+                *(*it) = nullptr;
             }
         }
     }
@@ -549,7 +524,7 @@ int main(int argc, char* argv[])
     if( strangehadrontype != "pions" && strangehadrontype != "kaons" && 
             (strangehadrontype != "pions_kaons" && strangehadrontype != "kaons_pions") )
     {
-            std::cerr << "ilc: Invalid option value -f '" << strangehadrontype
+            std::cerr << "ilchz: Invalid option value -f '" << strangehadrontype
                 << "' Valid values are 'kaons', 'pions' or 'pions_kaons' (or 'kaons_pions')" << std::endl;
     }
 
@@ -579,13 +554,12 @@ int main(int argc, char* argv[])
 
     // Some pseudo-constants initializations
     // resonances PDG IDs
-    std::vector<int> idResonance;
-    idResonance.push_back(23);  // Z0
-    idResonance.push_back(25);  // Higgs (h0)
+    std::vector<int> idResonance = { 23, 25 };
+    //                               Z0, h0
 
     // If the user want to keep track of the final hadrons created
     // from heavy flavour hadrons (B or D)
-    std::vector<int> * hfhadrons = 0;
+    std::vector<int> * hfhadrons = nullptr;
     if( accountforheavyflavoured )
     {
         hfhadrons = new std::vector<int>;
@@ -724,10 +698,10 @@ int main(int argc, char* argv[])
         particles.endloop();
     }
     // Deallocate
-    if( hfhadrons != 0 )
+    if( hfhadrons != nullptr )
     {
         delete hfhadrons;
-        hfhadrons=0;
+        hfhadrons=nullptr;
     }
 
     // End of event loop. Statistics.

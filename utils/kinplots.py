@@ -41,6 +41,7 @@ def get_leading_kaons(tree,applycharge):
     """
     """
     from math import cos,sqrt
+    import os
     import sys
 
     # auxiliar function to obtain the signed (+1 top hemisphere, 
@@ -53,6 +54,10 @@ def get_leading_kaons(tree,applycharge):
     nentries = tree.getentries()
     leading_kaons = {}    
     msg = "Evaluating {0}...".format(tree._rootfiles[0])
+    if len(msg) > 100:
+        shorten_name = "{0}.../{1}".format(tree._rootfiles[0][:50],
+                os.path.basename(tree._rootfiles[0]))
+        msg = "Evaluating {0}...".format(shorten_name)
     pointpb = float(nentries)/100.0
     for i in xrange(nentries):
         # Progress bar

@@ -200,7 +200,11 @@ def process(inputfile,outputfile,d0cut,trackHF):
     # Event loop
     noOpposite = { 23: 0, 25: 0 }; noOppositeHF = {23: 0, 25: 0} ;
     nOpposite = {23: 0, 25: 0 } ; nOppositeHF = {23: 0, 25: 0};
-    msg = "Evaluating %s..." % inputfile
+    msg = "Evaluating {0}...".format(inputfile)
+    if len(msg) > 100:
+        shorten_name = "{0}.../{1}".format(inputfile[:50],
+                os.path.basename(inputfile))
+        msg = "Evaluating {0}...".format(shorten_name)
     pointpb = float(t.GetEntries())/100.0
     for _i,iEvent in enumerate(t):
         # Progress bar

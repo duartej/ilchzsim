@@ -52,7 +52,9 @@ def get_leading_kaons(tree,applycharge):
     L_f       = lambda _k: sqrt(tree.vx[_k]**2.0+tree.vy[_k]**2.0)
     R_f       = lambda _k: sqrt(tree.vx[_k]**2.0+tree.vy[_k]**2.0+tree.vz[_k]**2.0)
     nentries = tree.getentries()
-    leading_kaons = {}    
+    leading_kaons = {}
+    ## count the particle multiplicity per quark
+    nM = []
     msg = "Evaluating {0}...".format(tree._rootfiles[0])
     if len(msg) > 100:
         shorten_name = "{0}.../{1}".format(tree._rootfiles[0][:50],
@@ -67,6 +69,8 @@ def get_leading_kaons(tree,applycharge):
         _dummy=tree.getentry(i)
         ## obtain just higgs daughters
         kaons_pm = []
+        ## multiplicity
+        _nM_evt = {}
         for k in xrange(tree.catchall.size()):
             if tree.catchall[k] != 25:
                 continue
@@ -80,6 +84,12 @@ def get_leading_kaons(tree,applycharge):
                                 R  = R_f(k),
                                 index = k,
                                 ) )
+            # count how many hadrons proceed from the same quark
+            try:
+                _nM_evt[tree.motherindex] += 1
+            except KeyError:
+                _nM_evt[tree.motherindex] = 1
+
         # sort in decrease order, the first is the highest p in
         # the top hemisphere, and last one, the highest p in the
         # bottom hemisphere
@@ -109,8 +119,16 @@ def get_leading_kaons(tree,applycharge):
                     pass
         else:
             leading_kaons[i] = (u_h[0],d_h[0])
+
+        # multiplicity: added to the general counter
+        if len(nM) < 2:
+            # just taking into account cases with no charge particles
+            nM.append(0)
+            if nM < 1:
+                nM.append(0)
+        _dummy = map(lambda x: nM.append(x),_nM_evt.values())
     print
-    return leading_kaons
+    return leading_kaons,nM
 
 def init_tree(filename):
     """
@@ -135,6 +153,9 @@ def create_histos(suffix,description,hc=None):
      * h_d0_suffix  : the impact parameter of the leading 
                       and subleading hadrons (extrapolated as
                       straight lines) in the same histogram (1D)
+
+     * h_nM_suffix  : the quark multiplicity (related with the number
+                      of constituents of a jet)
 
 
     Parameters
@@ -225,6 +246,12 @@ def create_histos(suffix,description,hc=None):
             xtitle="leading-kaon R [mm]",
             ytitle='subleading-kaon R [mm]',
             color=COLOR[suffix])
+    
+    hc.create_and_book_histo("h_nM_{0}".format(suffix),\
+            "charge particle multiplicity (per quark)",\
+            17,0,16,description=description,
+            xtitle="N_{part}", ytitle='A.U.',
+            color=COLOR[suffix])
 
     return hc
 
@@ -273,7 +300,7 @@ def plot_combined(hc,varname,option=''):
     hc.associated(histonames)
     hc.plot(histonames[0],'comb_{0}.png'.format(varname),log=True)
 
-def main(args,suffixout,hadrons,is_charge_considered):
+def main(args,suffixout,hadrons,is_charge_considered,outfilename):
     """
     """
     import os
@@ -292,7 +319,11 @@ def main(args,suffixout,hadrons,is_charge_considered):
         # -- initialize file
         t = init_tree(fname)
         # get the leading kaons dict { event#: ((up_pm,k),(down,k)), ... } 
-        leading_kaons = get_leading_kaons(t,is_charge_considered)
+        # and multiplicity of hadrons per quark
+        leading_kaons,nM = get_leading_kaons(t,is_charge_considered)
+        # filling mulitiplicity
+        for _n in nM:
+            _dummy = hc.fill('h_nM_{0}'.format(sname),_n)
         # put always higher pL in position 0
         ordered_lk = map(lambda x: sorted(x, reverse=True),leading_kaons.values())
         # and filling the histos
@@ -314,19 +345,26 @@ def main(args,suffixout,hadrons,is_charge_considered):
     # FIXME-- a function: plot those histos with a reg_expr 
     for k,h in filter(lambda (_k,_h): _k.find('h2_pL')==0,hc._histos.iteritems()):
         plot(h,k,option='COLZ')
-    for k,h in filter(lambda (_k,_h): _k.find('h2_d0')==0,hc._histos.iteritems()):
-        plot(h,k,option='COLZ')
-    for k,h in filter(lambda (_k,_h): _k.find('h2_z0')==0,hc._histos.iteritems()):
-        plot(h,k,option='COLZ')
-    for k,h in filter(lambda (_k,_h): _k.find('h2_Lxy')==0,hc._histos.iteritems()):
-        plot(h,k,option='COLZ')
-    for k,h in filter(lambda (_k,_h): _k.find('h2_R')==0,hc._histos.iteritems()):
-        plot(h,k,option='COLZ')
+    # DEPRECATING ---
+    #for k,h in filter(lambda (_k,_h): _k.find('h2_d0')==0,hc._histos.iteritems()):
+    #    plot(h,k,option='COLZ')
+    #for k,h in filter(lambda (_k,_h): _k.find('h2_z0')==0,hc._histos.iteritems()):
+    #    plot(h,k,option='COLZ')
+    #for k,h in filter(lambda (_k,_h): _k.find('h2_Lxy')==0,hc._histos.iteritems()):
+    #    plot(h,k,option='COLZ')
+    #for k,h in filter(lambda (_k,_h): _k.find('h2_R')==0,hc._histos.iteritems()):
+    #    plot(h,k,option='COLZ')
+    ## DEPRECATING ---|^|
+    
     # plot the combined histograms
     plot_combined(hc,'h_d0')
     plot_combined(hc,'h_z0')
     plot_combined(hc,'h_Lxy')
     plot_combined(hc,'h_R')
+    plot_combined(hc,'h_nM')
+
+    # persistency
+    hc.write_to(outfilename)
 
 if __name__ == '__main__':
     from optparse import OptionParser,OptionGroup
@@ -334,7 +372,9 @@ if __name__ == '__main__':
     #Opciones de entrada
     usage = "usage: kinplots INPUTFILE1 [INPUTFILE2 ...] [options]"
     parser = OptionParser(usage=usage)
-    parser.set_defaults(hadrons='kaons',notcharge=False)    
+    parser.set_defaults(hadrons='kaons',notcharge=False,outfname='processed.root')    
+    parser.add_option( '-o', '--outfile', action='store', type='string', dest='outfname',\
+            help="output filename to persistify the created histograms [processed.root]")
     parser.add_option( '-s', '--suffix', action='store', type='string', dest='suffixout',\
             help="output suffix for the plots [.pdf]")
     parser.add_option( '--no-charge', action='store_true',  dest='notcharge',\
@@ -349,5 +389,5 @@ if __name__ == '__main__':
         message = "\033[31mkinplots ERROR\033[m Missing input file(s)"
         raise RuntimeError(message)
     
-    main(args,opt.suffixout,opt.hadrons,(not opt.notcharge))
+    main(args,opt.suffixout,opt.hadrons,(not opt.notcharge),opt.outfname)
 

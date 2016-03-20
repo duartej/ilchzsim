@@ -186,6 +186,8 @@ def create_histos(suffix,description,res_int,hc=None):
     RES = { 23: 'Z', 25: 'H' }
 
     resonance = RES[res_int]
+
+    color = filter(lambda (name,c): suffix.find(name) != -1,COLOR.iteritems())[0][1]
     
     # -- create histo container, if there is no one
     if not hc:
@@ -196,67 +198,67 @@ def create_histos(suffix,description,res_int,hc=None):
             "leading kaons parallel momentum",\
             100,0,65,npoints_y=100,ylow=0,yhigh=65,description=description,
             xtitle="leading-p_{||} [GeV]",ytitle='subleading-p_{||} [GeV]',
-            color=COLOR[suffix])
+            color=color)
     hc.create_and_book_histo("{0}_h_d0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",100,-5,5,\
             description=description,
             xtitle="d_{0} [mm]",
             ytitle="A.U.",
-            color=COLOR[suffix])
+            color=color)
     # TO BE DEPRECATED
     hc.create_and_book_histo("{0}_h2_d0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",\
             100,-5,5,npoints_y=100,ylow=-5,yhigh=5,description=description,
             xtitle="leading-kaon d_{0} [mm]",
             ytitle='subleading-kaon d_{0} [mm]',
-            color=COLOR[suffix])
+            color=color)
     
     hc.create_and_book_histo("{0}_h_z0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",100,-10,10,\
             description=description,
             xtitle="z_{0} [mm]",
             ytitle="A.U.",
-            color=COLOR[suffix])
+            color=color)
     # TO BE DEPRECATED
     hc.create_and_book_histo("{0}_h2_z0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",\
             100,-10,10,npoints_y=100,ylow=-10,yhigh=10,description=description,
             xtitle="leading-kaon z_{0} [mm]",
             ytitle='subleading-kaon z_{0} [mm]',
-            color=COLOR[suffix])
+            color=color)
     
     hc.create_and_book_histo("{0}_h_Lxy_{1}".format(resonance,suffix),\
             "leading kaons production vertex (transverse plane)",\
             100,0,5,
             description=description,
             xtitle="L_{xy} [mm]",ytitle='A.U.',
-            color=COLOR[suffix])
+            color=color)
     # TO BE DEPRECATED
     hc.create_and_book_histo("{0}_h2_Lxy_{1}".format(resonance,suffix),\
             "leading kaons production vertex (transverse plane)",\
             100,0,5,npoints_y=100,ylow=0,yhigh=5,description=description,
             xtitle="leading-kaon L_{xy} [mm]",
             ytitle='subleading-kaon L_{xy} [mm]',
-            color=COLOR[suffix])
+            color=color)
     
     hc.create_and_book_histo("{0}_h_R_{1}".format(resonance,suffix),\
             "leading kaons production vertex",\
             100,0,5,description=description,
             xtitle="R [mm]", ytitle='A.U.',
-            color=COLOR[suffix])
+            color=color)
     # TO BE DEPRECATED
     hc.create_and_book_histo("{0}_h2_R_{1}".format(resonance,suffix),\
             "leading kaons production vertex",\
             100,0,5,npoints_y=100,ylow=0,yhigh=5,description=description,
             xtitle="leading-kaon R [mm]",
             ytitle='subleading-kaon R [mm]',
-            color=COLOR[suffix])
+            color=color)
     
     hc.create_and_book_histo("{0}_h_nM_{1}".format(resonance,suffix),\
             "charge particle multiplicity (per quark)",\
             17,0,16,description=description,
             xtitle="N_{part}", ytitle='A.U.',
-            color=COLOR[suffix])
+            color=color)
 
     return hc
 
@@ -318,7 +320,7 @@ def main(args,suffixout,hadrons,is_charge_considered,outfilename):
     hc = None
     for fname in absfilenames:
         sname = os.path.basename(fname).replace(".root","").\
-                replace("hz","").replace("_PID_","").replace('kaons_only','')
+                replace("hz","")#.replace("_PID_","").replace('kaons_only','')
         # create the histos
         hc = create_histos(sname,sname,25,hc)
         # -- initialize file

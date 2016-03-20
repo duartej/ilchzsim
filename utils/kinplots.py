@@ -138,7 +138,7 @@ def init_tree(filename):
 
     return plaintree(filename,'mctrue')
 
-def create_histos(suffix,description,hc=None):
+def create_histos(suffix,description,res_int,hc=None):
     """Function gathering all the histograms we are interested
     to plot. So far the histograms defined are:
      * h2_pL_suffix : the parallel momentum of the leading 
@@ -165,6 +165,8 @@ def create_histos(suffix,description,hc=None):
     description: str
         the legend to be used when several samples are plotted in 
         the same canvas
+    res_int: int
+        the considered resonance: 25:=higgs, 23:=Z
     hc: PyAnUtils.histocontainer.HistoContainer instance
         the histogram container gathering all the available histograms
     """
@@ -181,73 +183,76 @@ def create_histos(suffix,description,hc=None):
     COLOR = { 'ssbar': 46, 'bbbar': 12,
             'ccbar': 14, 'uubar': 16,
             'ddbar': 18}
+    RES = { 23: 'Z', 25: 'H' }
+
+    resonance = RES[res_int]
     
     # -- create histo container, if there is no one
     if not hc:
         hc = HistoContainer()
     # -- some cosmethics
     # -- populate the hc with the histograms
-    hc.create_and_book_histo("h2_pL_{0}".format(suffix),\
+    hc.create_and_book_histo("{0}_h2_pL_{1}".format(resonance,suffix),\
             "leading kaons parallel momentum",\
             100,0,65,npoints_y=100,ylow=0,yhigh=65,description=description,
             xtitle="leading-p_{||} [GeV]",ytitle='subleading-p_{||} [GeV]',
             color=COLOR[suffix])
-    hc.create_and_book_histo("h_d0_{0}".format(suffix),\
+    hc.create_and_book_histo("{0}_h_d0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",100,-5,5,\
             description=description,
             xtitle="d_{0} [mm]",
             ytitle="A.U.",
             color=COLOR[suffix])
     # TO BE DEPRECATED
-    hc.create_and_book_histo("h2_d0_{0}".format(suffix),\
+    hc.create_and_book_histo("{0}_h2_d0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",\
             100,-5,5,npoints_y=100,ylow=-5,yhigh=5,description=description,
             xtitle="leading-kaon d_{0} [mm]",
             ytitle='subleading-kaon d_{0} [mm]',
             color=COLOR[suffix])
     
-    hc.create_and_book_histo("h_z0_{0}".format(suffix),\
+    hc.create_and_book_histo("{0}_h_z0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",100,-10,10,\
             description=description,
             xtitle="z_{0} [mm]",
             ytitle="A.U.",
             color=COLOR[suffix])
     # TO BE DEPRECATED
-    hc.create_and_book_histo("h2_z0_{0}".format(suffix),\
+    hc.create_and_book_histo("{0}_h2_z0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",\
             100,-10,10,npoints_y=100,ylow=-10,yhigh=10,description=description,
             xtitle="leading-kaon z_{0} [mm]",
             ytitle='subleading-kaon z_{0} [mm]',
             color=COLOR[suffix])
     
-    hc.create_and_book_histo("h_Lxy_{0}".format(suffix),\
+    hc.create_and_book_histo("{0}_h_Lxy_{1}".format(resonance,suffix),\
             "leading kaons production vertex (transverse plane)",\
             100,0,5,
             description=description,
             xtitle="L_{xy} [mm]",ytitle='A.U.',
             color=COLOR[suffix])
     # TO BE DEPRECATED
-    hc.create_and_book_histo("h2_Lxy_{0}".format(suffix),\
+    hc.create_and_book_histo("{0}_h2_Lxy_{1}".format(resonance,suffix),\
             "leading kaons production vertex (transverse plane)",\
             100,0,5,npoints_y=100,ylow=0,yhigh=5,description=description,
             xtitle="leading-kaon L_{xy} [mm]",
             ytitle='subleading-kaon L_{xy} [mm]',
             color=COLOR[suffix])
     
-    hc.create_and_book_histo("h_R_{0}".format(suffix),\
+    hc.create_and_book_histo("{0}_h_R_{1}".format(resonance,suffix),\
             "leading kaons production vertex",\
             100,0,5,description=description,
             xtitle="R [mm]", ytitle='A.U.',
             color=COLOR[suffix])
     # TO BE DEPRECATED
-    hc.create_and_book_histo("h2_R_{0}".format(suffix),\
+    hc.create_and_book_histo("{0}_h2_R_{1}".format(resonance,suffix),\
             "leading kaons production vertex",\
             100,0,5,npoints_y=100,ylow=0,yhigh=5,description=description,
             xtitle="leading-kaon R [mm]",
             ytitle='subleading-kaon R [mm]',
             color=COLOR[suffix])
     
-    hc.create_and_book_histo("h_nM_{0}".format(suffix),\
+    hc.create_and_book_histo("{0}_h_nM_{1}".format(resonance,suffix),\
             "charge particle multiplicity (per quark)",\
             17,0,16,description=description,
             xtitle="N_{part}", ytitle='A.U.',
@@ -315,7 +320,7 @@ def main(args,suffixout,hadrons,is_charge_considered,outfilename):
         sname = os.path.basename(fname).replace(".root","").\
                 replace("hz","").replace("_PID_","").replace('kaons_only','')
         # create the histos
-        hc = create_histos(sname,sname,hc)
+        hc = create_histos(sname,sname,25,hc)
         # -- initialize file
         t = init_tree(fname)
         # get the leading kaons dict { event#: ((up_pm,k),(down,k)), ... } 
@@ -323,45 +328,45 @@ def main(args,suffixout,hadrons,is_charge_considered,outfilename):
         leading_kaons,nM = get_leading_kaons(t,is_charge_considered)
         # filling mulitiplicity
         for _n in nM:
-            _dummy = hc.fill('h_nM_{0}'.format(sname),_n)
+            _dummy = hc.fill('H_h_nM_{0}'.format(sname),_n)
         # put always higher pL in position 0
         ordered_lk = map(lambda x: sorted(x, reverse=True),leading_kaons.values())
         # and filling the histos
         for (x_h,x_l) in ordered_lk:
-            _dummy = hc.fill("h2_pL_{0}".format(sname),x_h.p,x_l.p)
-            _dummy = hc.fill("h2_d0_{0}".format(sname),x_h.d0,x_l.d0)
-            _dummy = hc.fill("h_d0_{0}".format(sname),x_h.d0)
-            _dummy = hc.fill("h_d0_{0}".format(sname),x_l.d0)
-            _dummy = hc.fill("h2_z0_{0}".format(sname),x_h.z0,x_l.z0)
-            _dummy = hc.fill("h_z0_{0}".format(sname),x_h.z0)
-            _dummy = hc.fill("h_z0_{0}".format(sname),x_l.z0)
-            _dummy = hc.fill("h2_Lxy_{0}".format(sname),x_h.L,x_l.L)
-            _dummy = hc.fill("h_Lxy_{0}".format(sname),x_h.L)
-            _dummy = hc.fill("h_Lxy_{0}".format(sname),x_l.L)
-            _dummy = hc.fill("h2_R_{0}".format(sname),x_h.R,x_l.R)
-            _dummy = hc.fill("h_R_{0}".format(sname),x_h.R)
-            _dummy = hc.fill("h_R_{0}".format(sname),x_l.R)
+            _dummy = hc.fill("H_h2_pL_{0}".format(sname),x_h.p,x_l.p)
+            _dummy = hc.fill("H_h2_d0_{0}".format(sname),x_h.d0,x_l.d0)
+            _dummy = hc.fill("H_h_d0_{0}".format(sname),x_h.d0)
+            _dummy = hc.fill("H_h_d0_{0}".format(sname),x_l.d0)
+            _dummy = hc.fill("H_h2_z0_{0}".format(sname),x_h.z0,x_l.z0)
+            _dummy = hc.fill("H_h_z0_{0}".format(sname),x_h.z0)
+            _dummy = hc.fill("H_h_z0_{0}".format(sname),x_l.z0)
+            _dummy = hc.fill("H_h2_Lxy_{0}".format(sname),x_h.L,x_l.L)
+            _dummy = hc.fill("H_h_Lxy_{0}".format(sname),x_h.L)
+            _dummy = hc.fill("H_h_Lxy_{0}".format(sname),x_l.L)
+            _dummy = hc.fill("H_h2_R_{0}".format(sname),x_h.R,x_l.R)
+            _dummy = hc.fill("H_h_R_{0}".format(sname),x_h.R)
+            _dummy = hc.fill("H_h_R_{0}".format(sname),x_l.R)
     # plotting 
     # FIXME-- a function: plot those histos with a reg_expr 
-    for k,h in filter(lambda (_k,_h): _k.find('h2_pL')==0,hc._histos.iteritems()):
+    for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL')==0,hc._histos.iteritems()):
         plot(h,k,option='COLZ')
     # DEPRECATING ---
-    #for k,h in filter(lambda (_k,_h): _k.find('h2_d0')==0,hc._histos.iteritems()):
+    #for k,h in filter(lambda (_k,_h): _k.find('H_h2_d0')==0,hc._histos.iteritems()):
     #    plot(h,k,option='COLZ')
-    #for k,h in filter(lambda (_k,_h): _k.find('h2_z0')==0,hc._histos.iteritems()):
+    #for k,h in filter(lambda (_k,_h): _k.find('H_h2_z0')==0,hc._histos.iteritems()):
     #    plot(h,k,option='COLZ')
-    #for k,h in filter(lambda (_k,_h): _k.find('h2_Lxy')==0,hc._histos.iteritems()):
+    #for k,h in filter(lambda (_k,_h): _k.find('H_h2_Lxy')==0,hc._histos.iteritems()):
     #    plot(h,k,option='COLZ')
-    #for k,h in filter(lambda (_k,_h): _k.find('h2_R')==0,hc._histos.iteritems()):
+    #for k,h in filter(lambda (_k,_h): _k.find('H_h2_R')==0,hc._histos.iteritems()):
     #    plot(h,k,option='COLZ')
     ## DEPRECATING ---|^|
     
     # plot the combined histograms
-    plot_combined(hc,'h_d0')
-    plot_combined(hc,'h_z0')
-    plot_combined(hc,'h_Lxy')
-    plot_combined(hc,'h_R')
-    plot_combined(hc,'h_nM')
+    plot_combined(hc,'H_h_d0')
+    plot_combined(hc,'H_h_z0')
+    plot_combined(hc,'H_h_Lxy')
+    plot_combined(hc,'H_h_R')
+    plot_combined(hc,'H_h_nM')
 
     # persistency
     hc.write_to(outfilename)

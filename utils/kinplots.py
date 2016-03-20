@@ -37,6 +37,9 @@ class kaon(object):
         return self.p > other.p
 
 SUFFIXPLOTS='.pdf'
+KAON_ID = 321
+PION_ID = 211
+
 def get_leading_kaons(tree,applycharge):
     """
     """
@@ -83,6 +86,7 @@ def get_leading_kaons(tree,applycharge):
                                 L  = L_f(k),
                                 R  = R_f(k),
                                 cosTheta = cos(tree.theta[k]),
+                                pdgId = tree.pdgId[k],
                                 index = k,
                                 ) )
             # count how many hadrons proceed from the same quark
@@ -157,7 +161,6 @@ def create_histos(suffix,description,res_int,hc=None):
 
      * h_nM_suffix  : the quark multiplicity (related with the number
                       of constituents of a jet)
-
 
     Parameters
     ----------
@@ -273,9 +276,21 @@ def create_histos(suffix,description,res_int,hc=None):
             ytitle='subleading-kaon R [mm]',
             color=color)
     
-
+    NBINS = 100
+    D0MAX = 5.0
     # --- The th3 histograms to be used for efficiency calculations
-
+    typenames = ['h3_pL_d0_d0_KK','h3_pL_d0_d0_KP','h3_pL_d0_d0_PP']
+    for s in map(lambda x: '{0}_{1}_{2}'.format(resonance,x,suffix),typenames):
+        hc.create_and_book_histo(s, 'p_{||} circular cut and d_{0}; p_{||} cut [GeV];'\
+                'd_{0}^{1} [mm];  d_{0}^{2} [mm]',\
+                NBINS,0,65,
+                npoints_y=NBINS,ylow=-D0MAX,yhigh=D0MAX,
+                npoints_z=NBINS,zlow=-D0MAX,zhigh=D0MAX,
+                xtitle = '#sqrt{p_{||,L}^{2}+p_{||,sL}^{2}}',\
+                ytitle = 'd_{0}^{lead} [mm]',\
+                ztitle = 'd_{0}^{sublead} [mm]',
+                description=description,
+                color=color)
     return hc
 
 def plot(histo,varname,xtitle='',ytitle='',option=''):
@@ -323,6 +338,13 @@ def plot_combined(hc,varname,option=''):
     hc.associated(histonames)
     hc.plot(histonames[0],'comb_{0}.png'.format(varname),log=True)
 
+def momentum_1d(p1,p2):
+    """ momentum_1d: R x R --> R
+    """
+    from math import sqrt
+    return sqrt(p1*p1+p2*p2)
+        
+
 def main(args,suffixout,hadrons,is_charge_considered,outfilename):
     """
     """
@@ -368,12 +390,23 @@ def main(args,suffixout,hadrons,is_charge_considered,outfilename):
             _dummy = hc.fill("H_h2_z0_{0}".format(sname),x_h.z0,x_l.z0)
             _dummy = hc.fill("H_h2_Lxy_{0}".format(sname),x_h.L,x_l.L)
             _dummy = hc.fill("H_h2_R_{0}".format(sname),x_h.R,x_l.R)
+            # 3-dim plots
+            hadronstype = None
+            if abs(x_h.pdgId) == KAON_ID and abs(x_l.pdgId) == KAON_ID:
+                hadronstype = 'KK'
+            elif abs(x_h.pdgId) == PION_ID and abs(x_l.pdgId) == PION_ID:
+                hadronstype = 'PP'
+            else:
+                hadronstype = 'KP'
+
+            _dummy = hc.fill("H_h3_pL_d0_d0_{0}_{1}".format(hadronstype,sname),momentum_1d(x_h.p,x_l.R),
+                    x_h.d0,x_l.d0)
+
     # plotting 
     # FIXME-- a function: plot those histos with a reg_expr 
     for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL')==0,hc._histos.iteritems()):
         plot(h,k,option='COLZ')
     for k,h in filter(lambda (_k,_h): _k.find('cosTheta')!=-1,hc._histos.iteritems()):
-        plot(h,k,option='COLZ')
         plot(h,k,option='COLZ')
     # DEPRECATING ---
     #for k,h in filter(lambda (_k,_h): _k.find('H_h2_d0')==0,hc._histos.iteritems()):
@@ -392,6 +425,25 @@ def main(args,suffixout,hadrons,is_charge_considered,outfilename):
     plot_combined(hc,'H_h_Lxy')
     plot_combined(hc,'H_h_R')
     plot_combined(hc,'H_h_nM')
+    # FIXME:: -- UGLY.. should I create directly a 1d histo?
+    # extra plots from TH3 (create them and remove them later)
+    typenames = ['h3_pL_d0_d0_KK','h3_pL_d0_d0_KP','h3_pL_d0_d0_PP']
+    h2remove = []
+    for prefix in map(lambda x: 'H_{0}'.format(x),typenames):
+        for k,h in filter(lambda (_k,_h): _k.find(prefix)!=-1,hc._histos.iteritems()):
+            hname = prefix+"_1D_"+hc._description[k]
+            hc.book_histo(h.Project3D('x').Clone(hname), 
+                    title = 'parallel momentum 1D',\
+                    ytitle = 'A.U',
+                    description=hc._description[k],
+                    color=h.GetLineColor())
+            h2remove.append(hname)
+        try:
+            plot_combined(hc,prefix+"_1D")
+        except ZeroDivisionError:
+            # Not filled histograms
+            pass
+    _dummy = map(lambda x: hc.remove_histo(x),h2remove)
 
     # persistency
     hc.write_to(outfilename)

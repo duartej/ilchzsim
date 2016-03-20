@@ -239,7 +239,8 @@ def plot(histo,varname,xtitle='',ytitle='',option=''):
     ROOT.gROOT.ForceStyle()
     ROOT.gStyle.SetOptStat(0)
     ROOT.gROOT.SetBatch()
-    setpalette("forest")
+    #setpalette("forest")
+    setpalette("darkbody")
     
     # plotting it
     #histo.GetXaxis().SetTitle(xtitle)

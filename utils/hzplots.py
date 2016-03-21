@@ -168,11 +168,10 @@ def get_histo_name(th3names,decay_channel,hadron_state):
     """
     try:
         histo_name = filter(lambda x: 
-                x.find('H_th3_hz{0}'.format(decay_channel)) ==0 and 
-                    x.find('{0}_PLd0s'.format(hadron_state)) != -1,
-                th3names)[0]
+                x.find('H_h3_pL_d0_d0_{0}'.format(hadron_state)) ==0 and  
+                    x.find(decay_channel) != -1,th3names)[0]
     except IndexError:
-        raise RuntimeError('Not found the histogram "H_th3_hz{0}_*_{1}_PLd0s"'\
+        raise RuntimeError('Not found the histogram "H_h3_pL_d0_d0_{1}_*_{0}"'\
                 ' in the root file'.format(decay_channel,hadron_state))
     return histo_name
 
@@ -202,7 +201,8 @@ def get_final_state_pr(_obj,decay_channel,hadrons):
 
     # get the list of TH3 histos related to this decay_channel
     histos = filter(lambda h: 
-            h.GetName().find('H_th3_hz{0}'.format(decay_channel)) == 0, \
+            h.GetName().find('H_h3_pL_d0_d0_') == 0 and \
+                    h.GetName().find(decay_channel) == -1, \
                     _obj.values())
     
     n_total_decay = sum(map(lambda x: x.GetEntries(), histos))
@@ -684,7 +684,7 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated,doTH2Plots):
     _preobj = dict(map(lambda x:(x.GetName(), f.Get(x.GetName())),
          filter(lambda x: x.GetClassName().find('TH3') == 0,f.GetListOfKeys())))
 
-    if doTH2Plots:
+    if False and doTH2Plots:
         print "\033[1;34mhzplots INFO\033[1;m "
         make_extra_plots(f)
     

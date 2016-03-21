@@ -8,44 +8,37 @@
                  to obtain histogram and efficiency objects
 
      .. moduleauthor:: Jordi Duarte-Campderros <jorge.duarte.campderros@cern.ch>
+FIXME: MISSING DOCUMENTATION
 """
-NBINS = 50
-XMIN  = 0
-XMAX  = 60
+import functools
 
+@functools.total_ordering
+class kaon(object):
+    """Encapsulating the hadron
+    """
+    def __init__(self,**kwd):
+        """
+        """
+        for key,val in kwd.iteritems():
+            setattr(self,key,val)
+        if self.p < 0:
+            self.hemisphere = -1
+            self.p = abs(self.p)
+        else:
+            self.hemisphere = 1
+
+    def __eq__(self,other):
+        return self.p == other.p
+    
+    def __lt__(self,other):
+        return self.p < other.p
+    
+    def __gt__(self,other):
+        return self.p > other.p
+
+SUFFIXPLOTS='.pdf'
 KAON_ID = 321
 PION_ID = 211
-
-#FIXME: NEED TO ADD A WAY TO USE ONLY KAONS, PIONS OR BOTH (a new option)
-
-
-def gethadronsind(iEvent):
-    """.. function:: gethadronsind(iEvent) -> { resPDGID: [ i1, i2, ... ], .. }
-
-    return the local indices of all the particles which are
-    hadrons (in practical, because of 
-         *  motherindex: -1           for H,Z
-                         local index  remaining
-    
-         *  catchall   : 0            for H,Z  
-                         0,1          q,qbar
-                         PDGID        hadron
-    )
-
-    :param iEvent: current tree-entry
-    :type  iEvent: TTree
-    
-    :return: local indices list corresponding to hadrons (per resonance)
-    :rtype : dict(list(int))
-    """
-    hadronsind = {}
-    for i,pdgid in enumerate(iEvent.catchall):
-        if pdgid > 1:
-            try:
-                hadronsind[pdgid].append(i)
-            except KeyError:
-                hadronsind[pdgid] = [i]
-    return hadronsind
 
 def evalefficiency(h,cutlist,name):
     """.. function:: evalefficiency(h,cutlist,name) -> ROOT.TEfficiency
@@ -91,264 +84,436 @@ def evalefficiency(h,cutlist,name):
         eff.SetPassedEvents(ibin,int(npassed))
     return eff
 
-def settitles(h,totalmomentum):
-    """.. function:: settitles(h,ztotalmomentum) 
-    
-    put the titles in the histograms. The totalmomentum
-    flag is indicating to use the total momentum instead
-    the paralel to the quark axis
+def get_leading_kaons(tree,applycharge):
     """
-    h.SetTitle('')
-    if totalmomentum:
-        h.SetXTitle('p^{1} [GeV]')
-        h.SetYTitle('p^{2} [GeV]')
-    else:
-        h.SetXTitle('p_{||}^{1} [GeV]')
-        h.SetYTitle('p_{||}^{2} [GeV]')
-
-
-def process(inputfile,outputfile,d0cut,trackHF):
-    """..function:: process(inputfile) 
-
-    Process the 'inputfile' ROOT (obtained from the ilchz executable)
-    in order to obtain several ROOT objects:
-      * TH2F: Paralel momentum of the leading hadrons (one per resonance)
-      * TEfficiency: efficiency (radial) cut in p1 vs. p2
-      * TH2F: Number of events vs. d0. pL circular cut
-    These objects are written to the ROOT file: 'processed.root'. If
-    any object already exists in the ROOT file will be overwritten.
-
-    Note that the name of these objects are highly dependent of the name
-    of the input file. It is assumed that the input file name contains the 
-    process (quark-antiquark) and the type of the analysed hadrons (kaons,
-    pions,...)
-
-    :param inputfile: name of the input file (should be processed by ilchz)
-    :type inputfile : str
-                    
     """
+    from math import cos,sqrt
+    import os
     import sys
-    import ROOT
-    from math import pi,cos,sqrt
 
-    # ROOT File
-    f = ROOT.TFile(inputfile)
-    if f.IsZombie():
-        mes= "ROOT file %s not found" % inputfile
-        raise IOError(mes)
-    t = f.Get('mctrue')
-
-    # Histogram definitions
-    namehistos = '_th2_'+inputfile.split('/')[-1].replace('.root','')
-    hleading ={ 25: ROOT.TH2F('H'+namehistos,'paralel momentum leading hadrons',NBINS,XMIN,XMAX,NBINS,XMIN,XMAX),
-            23: ROOT.TH2F('Z'+namehistos,'paralel momentum leading hadrons',NBINS,XMIN,XMAX,NBINS,XMIN,XMAX) }
-    # More histograms if the user wants to keep track of the heavy flavour decays
-    histodictslist = [hleading] 
-    if trackHF:
-        hleadingHF = { 25: ROOT.TH2F('H'+namehistos+'_HF','paralel momentum leading hadrons',NBINS,XMIN,XMAX,NBINS,XMIN,XMAX),
-            23: ROOT.TH2F('Z'+namehistos+'_HF','paralel momentum leading hadrons',NBINS,XMIN,XMAX,NBINS,XMIN,XMAX) }
-        histodictslist.append(hleadingHF)
-    # Some cosmethics
-    for histodict in histodictslist:
-        for res,h in histodict.iteritems():
-            dototalmomentum = False
-            if res == 23:
-                dototalmomentum=True
-            settitles(h,dototalmomentum)
-    
-    # sqrt(d0_1^2+d0^2_2), d0_1,d0^2
-    # for 3 different cases: kaons_kaons, kaons_pions and pions_pions
-    # title
-    TITLE = 'p_{||} circular cut and d_{0}; p_{||} cut [GeV];'\
-            'd_{0}^{1} [mm];  d_{0}^{2} [mm]'
-    D0MAX = 1.0
-    # quick way to initialize the histograms: hd0PL_kk, hd0PL_kp and hd0PL_pp
-    _prehists = {}
-    for dictname,suffix in  [('hd0PL_kk','_KK_PLd0s'),('hd0PL_kp','_KP_PLd0s'),('hd0PL_pp','_PP_PLd0s')]:      
-        _prehists[dictname] = \
-                {25:  ROOT.TH3F('H'+namehistos.replace('th2','th3')+suffix,
-                    TITLE,NBINS,XMIN,XMAX,
-                    NBINS*2,-1.*D0MAX,D0MAX,NBINS*2,-1.*D0MAX,D0MAX),
-                 23: ROOT.TH3F('Z'+namehistos.replace('th2','th3')+suffix,
-                    TITLE,NBINS,XMIN,XMAX,
-                    NBINS*2,-1.*D0MAX,D0MAX,NBINS*2,-1.*D0MAX,D0MAX)
-                 }
-    hd0PL_kk = _prehists['hd0PL_kk']
-    hd0PL_kp = _prehists['hd0PL_kp']
-    hd0PL_pp = _prehists['hd0PL_pp']
-
-    histodictslist.append(hd0PL_kk)
-    histodictslist.append(hd0PL_kp)
-    histodictslist.append(hd0PL_pp)
-
-    # d0-histograms : -->  TO BE DEPRECATED, ioncluded in the TH3
-    extrahist = { 25: ROOT.TH2F('H'+namehistos+'_d0','',NBINS*2,-5,5,NBINS*2,-5.,5.),
-            23: ROOT.TH2F('Z'+namehistos+'_d0','',NBINS*2,-5,5,NBINS*2,-5.,5.) 
-            }
-    th1list = extrahist.values()
-    if trackHF:
-        extrahistHF = { 25: ROOT.TH1F('H'+namehistos+'_d0_HF','',NBINS*2,-5,5,NBINS*2,-5.,5),
-                23: ROOT.TH1F('Z'+namehistos+'_d0_HF','',NBINS*2,-5,5,NBINS*2,-5.,5) 
-                }
-        th1list += extrahistHF.values()
-    # cosmethics
-    for h in th1list:
-        h.SetXTitle('d_{0}^{1} [mm]')
-        h.SetYTitle('d_{0}^{2} [mm]')
-
-
-    # Event loop
-    noOpposite = { 23: 0, 25: 0 }; noOppositeHF = {23: 0, 25: 0} ;
-    nOpposite = {23: 0, 25: 0 } ; nOppositeHF = {23: 0, 25: 0};
-    msg = "Evaluating {0}...".format(inputfile)
+    # auxiliar function to obtain the signed (+1 top hemisphere, 
+    # -1 bottom hemispher) parallel momentum
+    signed_pm = lambda _k: tree.p[_k]*cos(tree.theta[_k])
+    d0_f      = lambda _k: (tree.vy[_k]-tree.vx[_k]*tree.phi_lab[_k])*cos(tree.phi_lab[_k])
+    z0_f      = lambda _k: (tree.vy[_k]-tree.vz[_k]*tree.theta_lab[_k])*cos(tree.theta_lab[_k])
+    L_f       = lambda _k: sqrt(tree.vx[_k]**2.0+tree.vy[_k]**2.0)
+    R_f       = lambda _k: sqrt(tree.vx[_k]**2.0+tree.vy[_k]**2.0+tree.vz[_k]**2.0)
+    nentries = tree.getentries()
+    leading_kaons = {}
+    ## count the particle multiplicity per quark
+    nM = []
+    msg = "Evaluating {0}...".format(tree._rootfiles[0])
     if len(msg) > 100:
-        shorten_name = "{0}.../{1}".format(inputfile[:50],
-                os.path.basename(inputfile))
+        shorten_name = "{0}.../{1}".format(tree._rootfiles[0][:50],
+                os.path.basename(tree._rootfiles[0]))
         msg = "Evaluating {0}...".format(shorten_name)
-    pointpb = float(t.GetEntries())/100.0
-    for _i,iEvent in enumerate(t):
+    pointpb = float(nentries)/100.0
+    for i in xrange(nentries):
         # Progress bar
         sys.stdout.write("\r\033[1;34m+-- \033[1;m"+msg+\
-                "[ " +"\b"+str(int(float(_i)/pointpb)+1).rjust(3)+"%]")
+                "[ " +"\b"+str(int(float(i)/pointpb)+1).rjust(3)+"%]")
         sys.stdout.flush()
-        # Get the local indices of the leading kaons
-        # -- store histograms of p (paralel component with respect the quark mother)
-        #    for leading kaons in both hemispheres (in the CM-quark-antiquark system
-        #    of reference)
-        hadronsind    = gethadronsind(iEvent)
-        for res,hadlist in hadronsind.iteritems():
-            # One line: order hadrons by paralel momentum (or should I do it by momentum?)
-            #           and return the local index (just for the hadrons coming from the
-            #           resonance 'res'
-            if res == 23:
-                fcos = lambda k: 1.0
-            else:
-                fcos = lambda k: abs(cos(iEvent.theta[k]))
-                
-            keycmp = lambda (x,y): y
-            sortedhadrind = filter(lambda x: x in hadronsind[res], 
-                    map(lambda (x,y): x, sorted(enumerate(iEvent.p),reverse=True,\
-                            key=lambda (x,y): y*fcos(x) ) 
-                       )
-                    )
-            # Get the leading kaons in the opposite hemispheres (in the CM q-qbar 
-            # reference system):
-            # Fill a list and take first elements of the list
-            up_List   = []
-            down_List = []
-            upHF_List   = []
-            downHF_List = []
-            upPDGID_List   = []
-            downPDGID_List = []
-
-            for k in sortedhadrind:
-                # Check the impact parameter if the cut is activated
-                if d0cut:
-                    ## See below [1]
-                    d0 = (iEvent.vy[k]-iEvent.vx[k]*iEvent.phi_lab[k])*cos(iEvent.phi_lab[k])
-                    #d0 = sqrt(iEvent.vx[k]**2.+iEvent.vy[k]**2.)
-                    if d0 > float(d0cut):
-                        continue
-                momentum = iEvent.p[k]*fcos(k)
-                # [1] --> this is not d0, is radius on the transverse plane !!
-                # d0       = sqrt(iEvent.vx[k]**2.0+iEvent.vy[k]**2.0)
-                # A rough estimation assuming straight line trajectory: use 
-                # the phi angle at the lab frame (define the vector director 
-                # of a straight line) and the minimum distance of the line 
-                # with respect the IP 
-                d0 = (iEvent.vy[k]-iEvent.vx[k]*iEvent.phi_lab[k])*cos(iEvent.phi_lab[k])
-                if iEvent.theta[k] < pi/2.0:
-                    if trackHF and iEvent.isBCdaughter[k]:
-                        upHF_List.append( (momentum,d0) )
-                    else:
-                        up_List.append((momentum,d0))
-                        upPDGID_List.append(iEvent.pdgId[k])
-                else:
-                    if trackHF and iEvent.isBCdaughter[k]:
-                        downHF_List.append((momentum,d0))
-                    else:
-                        down_List.append((momentum,d0))
-                        downPDGID_List.append(iEvent.pdgId[k]) 
-                # Check if already filled, so break the loop
-                if len(up_List) > 0 and len(down_List) > 0:
-                    if trackHF:
-                        if len(up_List) > 0 and len(down_List) > 0:
-                            break
-                    else: 
-                        break
-            # Just getting the highest momentum particles: index 0 of the lists
+        _dummy=tree.getentry(i)
+        ## obtain just higgs daughters
+        kaons_pm = []
+        ## multiplicity
+        _nM_evt = {}
+        for k in xrange(tree.catchall.size()):
+            if tree.catchall[k] != 25:
+                continue
+            # parallel momentum with sign, and charge
+            ###kaons_pm.append((signed_pm(k),abs(tree.pdgId[k])/tree.pdgId[k],k))
+            kaons_pm.append(  kaon(p=signed_pm(k),
+                                charge=abs(tree.pdgId[k])/tree.pdgId[k],
+                                d0 = d0_f(k),
+                                z0 = z0_f(k),
+                                L  = L_f(k),
+                                R  = R_f(k),
+                                cosTheta = cos(tree.theta[k]),
+                                pdgId = tree.pdgId[k],
+                                index = k,
+                                ) )
+            # count how many hadrons proceed from the same quark
             try:
-                # --- the 
-                pSqrt  = sqrt(up_List[0][0]**2.0+down_List[0][0]**2.0)
+                _nM_evt[tree.motherindex] += 1
+            except KeyError:
+                _nM_evt[tree.motherindex] = 1
 
-                hleading[res].Fill(up_List[0][0],down_List[0][0])
-                extrahist[res].Fill(up_List[0][1],down_List[0][1])
-                nOpposite[res] += 1
-
-                # keeping info regarding the hadron content
-                if abs(int(upPDGID_List[0]*downPDGID_List[0])) == KAON_ID*KAON_ID:
-                    hd0PL_kk[res].Fill(pSqrt,up_List[0][1],down_List[0][1])
-                elif abs(int(upPDGID_List[0]*downPDGID_List[0])) == KAON_ID*PION_ID :
-                    hd0PL_kp[res].Fill(pSqrt,up_List[0][1],down_List[0][1])
-                elif abs(int(upPDGID_List[0]*downPDGID_List[0])) == PION_ID*PION_ID :
-                    hd0PL_pp[res].Fill(pSqrt,up_List[0][1],down_List[0][1])
-            except IndexError:
-                noOpposite[res] =+ 1
-            if trackHF:
+        # sort in decrease order, the first is the highest p in
+        # the top hemisphere, and last one, the highest p in the
+        # bottom hemisphere
+        sorted_kaons= sorted(kaons_pm,reverse=True)
+        # separate between both hemispheres (using the 
+        # sign of the parallel momentum)
+        ###u_h = filter(lambda x: x[0] > 0,sorted_kaons)
+        # Re-order again because we're recovering the positive
+        # sign for the parallel momentum
+        ###d_h = sorted(map(lambda y: (abs(y[0]),y[1],y[2]),\
+        ###        filter(lambda x: x[0] < 0,sorted_kaons)),reverse=True)
+        u_h = filter(lambda x: x.hemisphere == 1, sorted_kaons)
+        d_h = filter(lambda x: x.hemisphere == -1, sorted_kaons)
+        # -- continue if none was found
+        if len(u_h) < 1 or len(d_h) < 1:
+            #leading_kaons[i] = ()
+            continue
+        # -- check charge if needed
+        if applycharge:
+            for ku in u_h:
                 try:
-                    hleadingHF[res].Fill(upHF_List[0][0],downHF_List[0][0])
-                    extrahistHF[res].Fill(upHF_List[0][1],downHF_List[0][1])
-                    nOppositeHF[res] += 1
+                    #opposite_down = filter(lambda kd: ku[1]*kd[1] < 1,d_h)[0]
+                    opposite_down = filter(lambda kd: ku.charge*kd.charge < 1,d_h)[0]
+                    leading_kaons[i] = (ku, opposite_down)
+                    break
                 except IndexError:
-                    noOppositeHF[res] += 1
-    for res,opp in nOpposite.iteritems():
-        print "\n[%i] Not found opposite hadrons in %i (of a total of %i) events" % \
-                (res,noOpposite[res],(noOpposite[res]+opp))
-        if trackHF:
-            print "[%i] Not found opposite hadrons (decaying from heavy flavour mesons) "\
-                    "in %i (of a total of %i) events" % \
-                    (res,noOppositeHF[res],(noOppositeHF[res]+nOppositeHF[res]))
+                    pass
+        else:
+            leading_kaons[i] = (u_h[0],d_h[0])
+
+        # multiplicity: added to the general counter
+        if len(nM) < 2:
+            # just taking into account cases with no charge particles
+            nM.append(0)
+            if nM < 1:
+                nM.append(0)
+        _dummy = map(lambda x: nM.append(x),_nM_evt.values())
+    print
+    return leading_kaons,nM
+
+def init_tree(filename):
+    """
+    """
+    from PyAnUtils.retrievetrees import plaintree
+    # dummy class inheriting from stored tree
+
+    return plaintree(filename,'mctrue')
+
+def create_histos(suffix,description,res_int,hc=None):
+    """Function gathering all the histograms we are interested
+    to plot. So far the histograms defined are:
+     * h2_pL_suffix : the parallel momentum of the leading 
+                      and subleading hadrons
+     * h2_d0_suffix : the impact parameter of the leading 
+                      and subleading hadrons (extrapolated as
+                      straight lines)
+     * h2_Lxy_suffix: the vertex kaon production in the transverse
+                      plane
+     * h2_R_suffix  : the vertex kaon production
+
+     * h_d0_suffix  : the impact parameter of the leading 
+                      and subleading hadrons (extrapolated as
+                      straight lines) in the same histogram (1D)
+
+     * h_nM_suffix  : the quark multiplicity (related with the number
+                      of constituents of a jet)
+
+    Parameters
+    ----------
+    suffix: str
+        used to distinguish the histograms of different samples
+    description: str
+        the legend to be used when several samples are plotted in 
+        the same canvas
+    res_int: int
+        the considered resonance: 25:=higgs, 23:=Z
+    hc: PyAnUtils.histocontainer.HistoContainer instance
+        the histogram container gathering all the available histograms
+    """
+    from PyAnUtils.histocontainer import HistoContainer
+    from PyAnUtils.plotstyles import squaredStyle
+    import ROOT
+    lstyle = squaredStyle()
+    lstyle.cd()
+    ROOT.gROOT.ForceStyle()
+    ROOT.gStyle.SetOptStat(0)
+    ROOT.gStyle.SetLegendBorderSize(0)
+    ROOT.gROOT.SetBatch()
+
+    COLOR = { 'ssbar': 46, 'bbbar': 12,
+            'ccbar': 14, 'uubar': 16,
+            'ddbar': 18}
+    RES = { 23: 'Z', 25: 'H' }
+
+    resonance = RES[res_int]
+
+    color = filter(lambda (name,c): suffix.find(name) != -1,COLOR.iteritems())[0][1]
     
-    # Persistency
-    # Evaluate efficiency of a simple (radial) cut
-    efile = ROOT.TFile(outputfile,'UPDATE')
-    eff = {}
-    resn = { 23: 'Z', 25: 'H'}
-    for res in resn.keys():
-        name = resn[res]+'_eff_'+inputfile.split('/')[-1].replace('.root','')
-        eff[res] = evalefficiency(hleading[res],xrange(0,60,1),name)
-        if trackHF:
-            eff[str(res)+"_HF"] = evalefficiency(hleadingHF[res],xrange(0,60,1),name+'_HF')
-            eff[str(res)+"_HF"].Write("",ROOT.TObject.kOverwrite)
-        # and storing it
-        eff[res].Write("",ROOT.TObject.kOverwrite)
-        # also store the TH2F
-        for histodict in histodictslist:
-            histodict[res].Write("",ROOT.TObject.kOverwrite)
-        # and the TH1F
-        for _hth1 in th1list:
-            _hth1.Write("",ROOT.TObject.kOverwrite)
-    efile.Close()
-    del efile
+    # -- create histo container, if there is no one
+    if not hc:
+        hc = HistoContainer()
+    # -- some cosmethics
+    # -- populate the hc with the histograms
+    hc.create_and_book_histo("{0}_h2_pL_{1}".format(resonance,suffix),\
+            "leading kaons parallel momentum",\
+            100,0,65,npoints_y=100,ylow=0,yhigh=65,description=description,
+            xtitle="leading-p_{||} [GeV]",ytitle='subleading-p_{||} [GeV]',
+            color=color)
+    hc.create_and_book_histo("{0}_h_d0_{1}".format(resonance,suffix),\
+            "leading kaons impact parameter",100,-5,5,\
+            description=description,
+            xtitle="d_{0} [mm]",
+            ytitle="A.U.",
+            color=color)
+    hc.create_and_book_histo("{0}_h_z0_{1}".format(resonance,suffix),\
+            "leading kaons impact parameter",100,-10,10,\
+            description=description,
+            xtitle="z_{0} [mm]",
+            ytitle="A.U.",
+            color=color)    
+    hc.create_and_book_histo("{0}_h_Lxy_{1}".format(resonance,suffix),\
+            "leading kaons production vertex (transverse plane)",\
+            100,0,5,
+            description=description,
+            xtitle="L_{xy} [mm]",ytitle='A.U.',
+            color=color)
+    hc.create_and_book_histo("{0}_h_R_{1}".format(resonance,suffix),\
+            "leading kaons production vertex",\
+            100,0,5,description=description,
+            xtitle="R [mm]", ytitle='A.U.',
+            color=color)
     
+    hc.create_and_book_histo("{0}_h_nM_{1}".format(resonance,suffix),\
+            "charge particle multiplicity (per quark)",\
+            17,0,16,description=description,
+            xtitle="N_{part}", ytitle='A.U.',
+            color=color)
+    
+    hc.create_and_book_histo("{0}_h2_cosTheta_{1}".format(resonance,suffix),\
+            "leading kaons angle (q#bar{q} system)",\
+            100,-1,1,npoints_y=100,ylow=-1,yhigh=1,description=description,
+            xtitle="leading-kaon cos(#theta_{q#bar{q}})",
+            ytitle='subleading-kaon cos(#theta_{q#bar{q}})',
+            color=color)
+    
+    hc.create_and_book_histo("{0}_h2_pL_cosTheta_{1}".format(resonance,suffix),\
+            "leading kaons angle (q#bar{q} system)",\
+            100,-1,1,npoints_y=100,ylow=-64,yhigh=64,description=description,
+            xtitle="cos(#theta_{q#bar{q}})",
+            ytitle='p_{||} [GeV])',
+            color=color)
+    
+    # TO BE DEPRECATED -- 
+    hc.create_and_book_histo("{0}_h2_d0_{1}".format(resonance,suffix),\
+            "leading kaons impact parameter",\
+            100,-5,5,npoints_y=100,ylow=-5,yhigh=5,description=description,
+            xtitle="leading-kaon d_{0} [mm]",
+            ytitle='subleading-kaon d_{0} [mm]',
+            color=color)
+    
+    hc.create_and_book_histo("{0}_h2_z0_{1}".format(resonance,suffix),\
+            "leading kaons impact parameter",\
+            100,-10,10,npoints_y=100,ylow=-10,yhigh=10,description=description,
+            xtitle="leading-kaon z_{0} [mm]",
+            ytitle='subleading-kaon z_{0} [mm]',
+            color=color)
+    
+    hc.create_and_book_histo("{0}_h2_Lxy_{1}".format(resonance,suffix),\
+            "leading kaons production vertex (transverse plane)",\
+            100,0,5,npoints_y=100,ylow=0,yhigh=5,description=description,
+            xtitle="leading-kaon L_{xy} [mm]",
+            ytitle='subleading-kaon L_{xy} [mm]',
+            color=color)
+    
+    hc.create_and_book_histo("{0}_h2_R_{1}".format(resonance,suffix),\
+            "leading kaons production vertex",\
+            100,0,5,npoints_y=100,ylow=0,yhigh=5,description=description,
+            xtitle="leading-kaon R [mm]",
+            ytitle='subleading-kaon R [mm]',
+            color=color)
+    
+    NBINS = 100
+    D0MAX = 5.0
+    # --- The th3 histograms to be used for efficiency calculations
+    typenames = ['h3_pL_d0_d0_KK','h3_pL_d0_d0_KP','h3_pL_d0_d0_PP']
+    for s in map(lambda x: '{0}_{1}_{2}'.format(resonance,x,suffix),typenames):
+        hc.create_and_book_histo(s, 'p_{||} circular cut and d_{0}; p_{||} cut [GeV];'\
+                'd_{0}^{1} [mm];  d_{0}^{2} [mm]',\
+                NBINS,0,65,
+                npoints_y=NBINS,ylow=-D0MAX,yhigh=D0MAX,
+                npoints_z=NBINS,zlow=-D0MAX,zhigh=D0MAX,
+                xtitle = '#sqrt{p_{||,L}^{2}+p_{||,sL}^{2}}',\
+                ytitle = 'd_{0}^{lead} [mm]',\
+                ztitle = 'd_{0}^{sublead} [mm]',
+                description=description,
+                color=color)
+    return hc
+
+def plot(histo,varname,xtitle='',ytitle='',option=''):
+    """
+    """
+    from PyAnUtils.plotstyles import squaredStyle,setpalette
+    import ROOT
+    import os
+    lstyle = squaredStyle()
+    lstyle.cd()
+    ROOT.gROOT.ForceStyle()
+    ROOT.gStyle.SetOptStat(0)
+    ROOT.gROOT.SetBatch()
+    #setpalette("forest")
+    setpalette("darkbody")
+    
+    # plotting it
+    #histo.GetXaxis().SetTitle(xtitle)
+    #histo.GetYaxis().SetTitle(ytitle)
+    
+    c = ROOT.TCanvas()
+    histo.Draw(option)
+    c.SaveAs("{0}.{1}".format(histo.GetName(),'png'))
+
+    c.Close()
+    del c
+
+def plot_combined(hc,varname,option=''):
+    """
+    """
+    from PyAnUtils.plotstyles import squaredStyle
+    import ROOT
+    import os
+    lstyle = squaredStyle()
+    lstyle.cd()
+    ROOT.gROOT.ForceStyle()
+    ROOT.gStyle.SetOptStat(0)
+    ROOT.gStyle.SetLegendBorderSize(0)
+    ROOT.gROOT.SetBatch()
+    
+    # plotting it
+    # --- FIXME:: USE A function
+    histonames = filter(lambda _k: _k.find(varname) == 0,\
+            hc._histos.keys())
+    hc.associated(histonames)
+    hc.plot(histonames[0],'comb_{0}.png'.format(varname),log=True)
+
+def momentum_1d(p1,p2):
+    """ momentum_1d: R x R --> R
+    """
+    from math import sqrt
+    return sqrt(p1*p1+p2*p2)
+        
+
+def main(args,suffixout,hadrons,is_charge_considered,outfilename):
+    """
+    """
+    import os
+
+    if suffixout:
+        suff = suffixout.replace('.','')
+        globals()['SUFFIXPLOTS'] ='.'+suff
+    # evaluating a list of files
+    absfilenames = map(lambda fname: os.path.abspath(fname),args)
+    hc = None
+    for fname in absfilenames:
+        sname = os.path.basename(fname).replace(".root","").\
+                replace("hz","")#.replace("_PID_","").replace('kaons_only','')
+        # create the histos
+        hc = create_histos(sname,sname,25,hc)
+        # -- initialize file
+        t = init_tree(fname)
+        # get the leading kaons dict { event#: ((up_pm,k),(down,k)), ... } 
+        # and multiplicity of hadrons per quark
+        leading_kaons,nM = get_leading_kaons(t,is_charge_considered)
+        # filling mulitiplicity
+        for _n in nM:
+            _dummy = hc.fill('H_h_nM_{0}'.format(sname),_n)
+        # put always higher pL in position 0
+        ordered_lk = map(lambda x: sorted(x, reverse=True),leading_kaons.values())
+        # and filling the histos
+        for (x_h,x_l) in ordered_lk:
+            _dummy = hc.fill("H_h_d0_{0}".format(sname),x_h.d0)
+            _dummy = hc.fill("H_h_d0_{0}".format(sname),x_l.d0)
+            _dummy = hc.fill("H_h_z0_{0}".format(sname),x_h.z0)
+            _dummy = hc.fill("H_h_z0_{0}".format(sname),x_l.z0)
+            _dummy = hc.fill("H_h_Lxy_{0}".format(sname),x_h.L)
+            _dummy = hc.fill("H_h_Lxy_{0}".format(sname),x_l.L)
+            _dummy = hc.fill("H_h_R_{0}".format(sname),x_h.R)
+            _dummy = hc.fill("H_h_R_{0}".format(sname),x_l.R)
+            # 2-dim plots
+            _dummy = hc.fill("H_h2_pL_{0}".format(sname),x_h.p,x_l.p)
+            _dummy = hc.fill("H_h2_cosTheta_{0}".format(sname),x_h.cosTheta,x_l.cosTheta)
+            _dummy = hc.fill("H_h2_pL_cosTheta_{0}".format(sname),x_h.cosTheta,x_h.hemisphere*x_h.p)
+            _dummy = hc.fill("H_h2_pL_cosTheta_{0}".format(sname),x_l.cosTheta,x_l.hemisphere*x_l.p)
+            _dummy = hc.fill("H_h2_d0_{0}".format(sname),x_h.d0,x_l.d0)
+            _dummy = hc.fill("H_h2_z0_{0}".format(sname),x_h.z0,x_l.z0)
+            _dummy = hc.fill("H_h2_Lxy_{0}".format(sname),x_h.L,x_l.L)
+            _dummy = hc.fill("H_h2_R_{0}".format(sname),x_h.R,x_l.R)
+            # 3-dim plots
+            hadronstype = None
+            if abs(x_h.pdgId) == KAON_ID and abs(x_l.pdgId) == KAON_ID:
+                hadronstype = 'KK'
+            elif abs(x_h.pdgId) == PION_ID and abs(x_l.pdgId) == PION_ID:
+                hadronstype = 'PP'
+            else:
+                hadronstype = 'KP'
+
+            _dummy = hc.fill("H_h3_pL_d0_d0_{0}_{1}".format(hadronstype,sname),momentum_1d(x_h.p,x_l.R),
+                    x_h.d0,x_l.d0)
+
+    # plotting 
+    # FIXME-- a function: plot those histos with a reg_expr 
+    for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL')==0,hc._histos.iteritems()):
+        plot(h,k,option='COLZ')
+    for k,h in filter(lambda (_k,_h): _k.find('cosTheta')!=-1,hc._histos.iteritems()):
+        plot(h,k,option='COLZ')
+    # DEPRECATING ---
+    #for k,h in filter(lambda (_k,_h): _k.find('H_h2_d0')==0,hc._histos.iteritems()):
+    #    plot(h,k,option='COLZ')
+    #for k,h in filter(lambda (_k,_h): _k.find('H_h2_z0')==0,hc._histos.iteritems()):
+    #    plot(h,k,option='COLZ')
+    #for k,h in filter(lambda (_k,_h): _k.find('H_h2_Lxy')==0,hc._histos.iteritems()):
+    #    plot(h,k,option='COLZ')
+    #for k,h in filter(lambda (_k,_h): _k.find('H_h2_R')==0,hc._histos.iteritems()):
+    #    plot(h,k,option='COLZ')
+    ## DEPRECATING ---|^|
+    
+    # plot the combined histograms
+    plot_combined(hc,'H_h_d0')
+    plot_combined(hc,'H_h_z0')
+    plot_combined(hc,'H_h_Lxy')
+    plot_combined(hc,'H_h_R')
+    plot_combined(hc,'H_h_nM')
+    # FIXME:: -- UGLY.. should I create directly a 1d histo?
+    # extra plots from TH3 (create them and remove them later)
+    typenames = ['h3_pL_d0_d0_KK','h3_pL_d0_d0_KP','h3_pL_d0_d0_PP']
+    h2remove = []
+    for prefix in map(lambda x: 'H_{0}'.format(x),typenames):
+        for k,h in filter(lambda (_k,_h): _k.find(prefix)!=-1,hc._histos.iteritems()):
+            hname = prefix+"_1D_"+hc._description[k]
+            hc.book_histo(h.Project3D('x').Clone(hname), 
+                    title = 'parallel momentum 1D',\
+                    ytitle = 'A.U',
+                    description=hc._description[k],
+                    color=h.GetLineColor())
+            h2remove.append(hname)
+        try:
+            plot_combined(hc,prefix+"_1D")
+        except ZeroDivisionError:
+            # Not filled histograms
+            pass
+    _dummy = map(lambda x: hc.remove_histo(x),h2remove)
+
+    # persistency
+    hc.write_to(outfilename)
+
 if __name__ == '__main__':
     from optparse import OptionParser,OptionGroup
-    import os
-    
+
     #Opciones de entrada
-    parser = OptionParser()
-    parser.set_defaults(inputfile='hzkin.root',outputfile='processed.root',d0cut=False,hf=False)  
-    parser.add_option( '-i', '--inputfile', action='store', type='string', dest='inputfile',\
-            help="input root filename [hzkin.root]")
-    parser.add_option( '-o', '--outputfile', action='store', type='string', dest='outputfile',\
-            help="output root filename [processed.root]")
-    parser.add_option( '-t', '--trackHF', action='store_true', dest='trackhf',\
-            help="do the plots split the final hadrons depending whether their provenance"\
-            " are heavy flavoured mesons")
-    parser.add_option( '-d', '--d0cut', metavar="D0CUT",action='store', dest='d0cut',\
-            help="activate the d0 cut (d0<D0CUT) for the hadrons to be considered")
+    usage = "usage: kinplots INPUTFILE1 [INPUTFILE2 ...] [options]"
+    parser = OptionParser(usage=usage)
+    parser.set_defaults(hadrons='kaons',notcharge=False,outfname='processed.root')    
+    parser.add_option( '-o', '--outfile', action='store', type='string', dest='outfname',\
+            help="output filename to persistify the created histograms [processed.root]")
+    parser.add_option( '-s', '--suffix', action='store', type='string', dest='suffixout',\
+            help="output suffix for the plots [.pdf]")
+    parser.add_option( '--no-charge', action='store_true',  dest='notcharge',\
+            help="not applying the opposite charge requirement"\
+            "between leading kaons")
+    parser.add_option( '--hadron', action='store', type='string', dest='hadrons',\
+            help="final state hadron type [kaons]")
     
     (opt,args) = parser.parse_args()
 
-    process(os.path.abspath(opt.inputfile),os.path.abspath(opt.outputfile),opt.d0cut,opt.trackhf)
+    if len(args) < 1:
+        message = "\033[31mkinplots ERROR\033[m Missing input file(s)"
+        raise RuntimeError(message)
+    
+    main(args,opt.suffixout,opt.hadrons,(not opt.notcharge),opt.outfname)
 

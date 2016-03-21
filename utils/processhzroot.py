@@ -496,7 +496,7 @@ if __name__ == '__main__':
     from optparse import OptionParser,OptionGroup
 
     #Opciones de entrada
-    usage = "usage: kinplots INPUTFILE1 [INPUTFILE2 ...] [options]"
+    usage = "usage: processhzroot INPUTFILE1 [INPUTFILE2 ...] [options]"
     parser = OptionParser(usage=usage)
     parser.set_defaults(hadrons='kaons',notcharge=False,outfname='processed.root')    
     parser.add_option( '-o', '--outfile', action='store', type='string', dest='outfname',\
@@ -512,7 +512,7 @@ if __name__ == '__main__':
     (opt,args) = parser.parse_args()
 
     if len(args) < 1:
-        message = "\033[31mkinplots ERROR\033[m Missing input file(s)"
+        message = "\033[31mprocesshzroot ERROR\033[m Missing input file(s)"
         raise RuntimeError(message)
     
     main(args,opt.suffixout,opt.hadrons,(not opt.notcharge),opt.outfname)

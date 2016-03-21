@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-""":script:`kinplots` -- Plotting stuff created with processhzroot script
-=========================================================================
+""":script:`processhzroot` -- Process the ROOT files obtained from ilchz executable                                                            
+===================================================================================
 
-.. script:: doplots [OPTIONS]    
+.. script:: processhzroot     
       :platform: Unix
-      :synopsis: Do some plots of the objects previously obtained by the 
-                 processhzroot script
-.. moduleauthor:: Jordi Duarte-Campderros <jorge.duarte.campderros@cern.ch>
+      :synopsis: Process the root files created by the ilchz executable in order
+                 to obtain histogram and efficiency objects
 
-FIXME:: MISSING DOCUMENTATION
+     .. moduleauthor:: Jordi Duarte-Campderros <jorge.duarte.campderros@cern.ch>
+FIXME: MISSING DOCUMENTATION
 """
 import functools
 
@@ -39,6 +39,50 @@ class kaon(object):
 SUFFIXPLOTS='.pdf'
 KAON_ID = 321
 PION_ID = 211
+
+def evalefficiency(h,cutlist,name):
+    """.. function:: evalefficiency(h,cutlist,name) -> ROOT.TEfficiency
+
+    Obtain the efficiency object given a simple momentum (radial) cut
+    in the p_{||}^1 vs. p_{||}^2 space
+
+    :param h: histogram with the number of entries for the paralel momentum
+              (with respect the quark-antiquark system) of the leading hadrons
+    :type  h: ROOT.TH2F
+    :param cutlist: list of the momentum cut [GeV]
+    :type  cutlist: list(float)
+    :param name: Name of the inputfile root used to extract h
+    :type  name: str
+    """
+    import ROOT
+    from math import sqrt
+
+    # Count how many events where selected above the
+    # radial cut (which are inside the cutlist), 
+    # i.e. how many events fulfil:  sqrt(p**2+p**2) > cut
+    integral = dict([(x,0) for x in cutlist])
+    for ibin in xrange(1,h.GetNbinsX()+1):
+        p1 = h.GetXaxis().GetBinCenter(ibin)
+        for jbin in xrange(1,h.GetNbinsY()+1):
+            p2 = h.GetYaxis().GetBinCenter(jbin)
+            content=h.GetBinContent(ibin,jbin)
+            r = sqrt(p1**2.0+p2**2.0)
+            for cut in cutlist:
+                if r > cut:
+                    integral[cut]+=content
+    total = h.Integral()
+    
+    # Build the efficiency object (efficiency vs. cut) 
+    # and fill it the Npass/Ntotal
+    n = len(integral)
+    eff = ROOT.TEfficiency(name,"Efficiency simple cut (r > cut);\
+                cut (< #sqrt{p_{||1}^{2}+p_{||}^{2}}) [GeV];#varepsilon",50,0,60)
+    for (i,(p,npassed)) in enumerate(integral.iteritems()):
+        #e = float(npassed)/float(total)
+        ibin=eff.FindFixBin(p)
+        eff.SetTotalEvents(ibin,int(total))
+        eff.SetPassedEvents(ibin,int(npassed))
+    return eff
 
 def get_leading_kaons(tree,applycharge):
     """

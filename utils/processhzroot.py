@@ -7,13 +7,17 @@
       :synopsis: Process the root files created by the ilchz executable in order
                  to obtain histogram and efficiency objects
 
-     .. moduleauthor:: Jordi Duarte-Campderros <jorge.duarte.campderros@cern.ch>
+.. moduleauthor:: Jordi Duarte-Campderros <jorge.duarte.campderros@cern.ch>
 FIXME: MISSING DOCUMENTATION
 """
+SUFFIXPLOTS='.pdf'
+KAON_ID = 321
+PION_ID = 211
+
 import functools
 
 @functools.total_ordering
-class kaon(object):
+class hadron(object):
     """Encapsulating the hadron
     """
     def __init__(self,**kwd):
@@ -35,10 +39,6 @@ class kaon(object):
     
     def __gt__(self,other):
         return self.p > other.p
-
-SUFFIXPLOTS='.pdf'
-KAON_ID = 321
-PION_ID = 211
 
 def evalefficiency(h,cutlist,name):
     """.. function:: evalefficiency(h,cutlist,name) -> ROOT.TEfficiency
@@ -123,7 +123,7 @@ def get_leading_kaons(tree,applycharge):
                 continue
             # parallel momentum with sign, and charge
             ###kaons_pm.append((signed_pm(k),abs(tree.pdgId[k])/tree.pdgId[k],k))
-            kaons_pm.append(  kaon(p=signed_pm(k),
+            kaons_pm.append(  hadron(p=signed_pm(k),
                                 charge=abs(tree.pdgId[k])/tree.pdgId[k],
                                 d0 = d0_f(k),
                                 z0 = z0_f(k),
@@ -132,6 +132,7 @@ def get_leading_kaons(tree,applycharge):
                                 cosTheta = cos(tree.theta[k]),
                                 pdgId = tree.pdgId[k],
                                 index = k,
+                                evt   = i,
                                 ) )
             # count how many hadrons proceed from the same quark
             try:
@@ -387,6 +388,62 @@ def momentum_1d(p1,p2):
     """
     from math import sqrt
     return sqrt(p1*p1+p2*p2)
+
+def pythonize(x):
+    import ROOT
+    
+    return eval('ROOT.std.'+x.replace('<','(').replace('>',')')+'()')
+
+def store_hadrons(outname,hadronlist,old_tree,treename):
+    """
+    """
+    import ROOT
+    import sys
+
+    f = ROOT.TFile.Open(outname,'UPDATE')
+    if f.IsZombie():
+        raise IOError('Problems opening ROOT file {0}'.format(outname))
+
+    # Tree creation
+    tree = ROOT.TTree(treename,'leading and subleading hadrons')
+    #tree = old_tree.CloneTree(0)
+    # -- initialize the containers to be filled
+    #pythonize = lambda x:  eval('ROOT.std.'+x.replace('<','(').replace('>',')')+'()')
+    containers = dict(map(lambda x: (x.GetName(),pythonize(x.GetClassName())),old_tree.GetListOfBranches()))
+    # -- setting branch addresses
+    _dumm = map(lambda (bname,vobject): tree.Branch(bname,vobject),sorted(containers.iteritems()))
+
+    # -- old tree, set containers
+    oldcont = dict(map(lambda x: (x.GetName(),pythonize(x.GetClassName())),old_tree.GetListOfBranches()))
+    _dumm = map(lambda (bname,vobject): old_tree.SetBranchAddress(bname,vobject),oldcont.iteritems())
+    #_dumm = map(lambda (bname,vobject): tree.SetBranchAddress(bname,vobject),containers.iteritems())
+
+
+    msg = "Copying leading hadrons ..."
+    pointpb = float(len(hadronlist))/100.0
+
+    for (_ip,(h_l,h_sl)) in enumerate(hadronlist):
+        # Progress bar
+        sys.stdout.write("\r\033[1;34m+-- \033[1;m"+msg+\
+                "[ " +"\b"+str(int(float(_ip)/pointpb)+1).rjust(3)+"%]")
+        sys.stdout.flush()
+        # get the indices of the elements
+        k_l,k_sl = h_l.index,h_sl.index
+        # ordered
+        ind_keep = sorted([k_l,k_sl])
+        # fill the containers with the event entries
+        _dumm = old_tree.GetEntry(h_l.evt)
+        # fill the branches, removing all the others items 
+        # but the selected hadrons
+        for (branch_name, vobject) in containers.iteritems():
+            vobject.clear()
+            vobject.reserve(2)
+            # using the two leading hadrons (index) and filling it
+            _dumm = map(lambda k: vobject.push_back(oldcont[branch_name][k]),[k_l,k_sl])
+        tree.Fill()
+    print
+    f.Write()
+    f.Close()
         
 
 def main(args,suffixout,hadrons,is_charge_considered,outfilename):
@@ -445,6 +502,10 @@ def main(args,suffixout,hadrons,is_charge_considered,outfilename):
 
             _dummy = hc.fill("H_h3_pL_d0_d0_{0}_{1}".format(hadronstype,sname),momentum_1d(x_h.p,x_l.R),
                     x_h.d0,x_l.d0)
+        # persistency, copy of the original tree but keeping 
+        #  only the leading hadrons
+        store_hadrons(outfilename,ordered_lk,t._tree,"mctrue_"+sname)
+
 
     # plotting 
     # FIXME-- a function: plot those histos with a reg_expr 
@@ -491,6 +552,7 @@ def main(args,suffixout,hadrons,is_charge_considered,outfilename):
 
     # persistency
     hc.write_to(outfilename)
+    
 
 if __name__ == '__main__':
     from optparse import OptionParser,OptionGroup

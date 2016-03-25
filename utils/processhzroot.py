@@ -134,6 +134,9 @@ def get_leading_kaons(tree,applycharge):
                                 index = k,
                                 evt   = i,
                                 ) )
+            # FIXME: WRONG! this is considering only the hadrons we decide to 
+            #        keep at the ilchz exec. (kaons or kaons-pions), this 
+            #        variable should be included in the c++ code
             # count how many hadrons proceed from the same quark
             try:
                 _nM_evt[tree.motherindex] += 1

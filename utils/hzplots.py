@@ -7,6 +7,33 @@
       :synopsis: Evaluate pion misid...
 	  .. moduleauthor:: Jordi Duarte-Campderros <jorge.duarte.campderros@cern.ch>
 """
+KAON = 321
+PION = 211
+def isKaon(index):
+    """check if the gen particle is kaon
+
+    Parameters
+    ----------
+    index: int
+        the index of the gen-particle in the tree
+    """
+    return "abs(pdgId[{0}]) == {1}".format(index,KAON)
+
+def isPion(index):
+    """check if the gen particle is kaon
+
+    Parameters
+    ----------
+    index: int
+        the index of the gen-particle in the tree
+    """
+    return "abs(pdgId[{0}]) == {1}".format(index,PION)
+
+FS_CONDITION = { 'KK': '{0} && {1}'.format(isKaon(0),isKaon(1)), \
+        'KP': '({0} && {1} || {2} && {3})'.format(isKaon(0),isPion(1),isPion(0),isKaon(1)),
+                'PP': '{0} && {1}'.format(isPion(0),isPion(1)) 
+                }
+
 #_COLOR = [ ROOT.kCyan+2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen+2,ROOT.kRed-2, ROOT.kBlue-3,
 #        ROOT.kBlack, ROOT.kRed+4]
 def getcolor():
@@ -50,7 +77,7 @@ class higgsinputs:
     # Branching ratios: https://twiki.cern.ch/twiki/bin/view/LHCPhysics/CERNYellowReportPageBR3
     # Cross section   : 
     def __init__(self):
-        self.mH         = 125.7 # (GeV)
+        self.mH         = 125.09 # (GeV)
         self.eeToHat250 = 2.5e2 # (fb) (at 250 GeV center of mass, is almost equivalent to ee->HZ)
         # Generic, only dependent of the higgs mass
         # therefore, following values at self.mH higgs
@@ -148,6 +175,33 @@ def parseprocess(name):
       
     return process
 
+def get_tree_name(tree_names,decay_channel,hadron_state):
+    """Given a standarized (TTree) tree list of names (obtained from the 
+    processedhzroot.py script), it returns the name of the histogram matching
+    the final state
+
+    Parameters
+    ----------
+    three_names: list(str)
+        the names of all the trees found in a root processed file by the
+        processedhzroot script
+    hadron_state: str
+        the two opposite-hemisphere final state hadrons: KK, KP, PP (K-kaon,
+        P-pion)
+
+    Return
+    ------
+    str, the name of the input list matching the final state
+    """
+    try:
+        tree_name = filter(lambda x: 
+                x.find('mctree_{0}'.format(hadron_state)) ==0 and  
+                    x.find(decay_channel) != -1,tree_names)[0]
+    except IndexError:
+        raise RuntimeError('Not found the tree "mctree_{0}_*_{1}"'\
+                ' in the root file'.format(decay_channel,hadron_state))
+    return tree_name
+
 def get_histo_name(th3names,decay_channel,hadron_state):
     """Given a standarized (TH3) histogram list of names (obtained from the 
     processedhzroot.py script), it returns the name of the histogram matching
@@ -175,7 +229,7 @@ def get_histo_name(th3names,decay_channel,hadron_state):
                 ' in the root file'.format(decay_channel,hadron_state))
     return histo_name
 
-def get_final_state_pr(_obj,decay_channel,hadrons):
+def get_final_state_pr(tree,decay_channel,hadrons):
     """Extract the probabiliy of having two hadrons of the asked type in each 
     hemisphere given a decay channel
 
@@ -183,29 +237,18 @@ def get_final_state_pr(_obj,decay_channel,hadrons):
 
     Parameters
     ----------
-    _obj : dict(str,TH3F)
-        the histograms with the proper names containing the decay channel and the
-        hadrons involved
+    tree : ROOT.TTree
+        the tree
     decay_channel: str
-    hadrons: str, 
+    hadrons: str
         the hadrons to look at, which can be the: KK, KP, PP (K-kaon, P-pion)
 
     Returns
     -------
     efficiency: float
     """
-    
-    # Get the final state hadron histo
-    histo_name = get_histo_name(_obj.keys(),decay_channel,hadrons)
-    n_current_hadrons = _obj[histo_name].GetEntries()
-
-    # get the list of TH3 histos related to this decay_channel
-    histos = filter(lambda h: 
-            h.GetName().find('H_h3_pL_d0_d0_') == 0 and \
-                    h.GetName().find(decay_channel) == -1, \
-                    _obj.values())
-    
-    n_total_decay = sum(map(lambda x: x.GetEntries(), histos))
+    n_current_hadrons = tree.GetEntries(FS_CONDITION[hadrons])
+    n_total_decay = tree.GetEntries()
 
     return float(n_current_hadrons)/float(n_total_decay)
 
@@ -293,29 +336,88 @@ def get_cuts_eff(_obj,decay_channel,hadrons,\
 
     # Entries takes into account overflow bin
     return float(evts)/float(h.GetEntries())
-    
 
-class eff_cut_hadron(object):
+def d0(index):
+    """Impact parameter extrapolation considering a straight line
+
+    Parameters
+    ----------
+    index: int
+        the index of the gen-particle in the tree
     """
+    return  "(vy[{0}]-vx[{0}]*phi_lab[{0}])*cos(phi_lab[{0}])".format(index)
+
+def get_common_entries(entrylist_list):
+    """Return the common entries found in the list of TEntryList
+
+    Parameters
+    ----------
+    entrylist_list: list(ROOT.TEntryList)
+
+    Returns
+    -------
+    common_el: ROOT.TEntryList
+    """
+    import ROOT
+
+    # convert in sets, then is easy to obtain the intersection of entries
+    entries_sets = []
+    for _oel in entrylist_list[1:]:
+        entries_sets.append( set(map(lambda i: _oel.GetEntry(i),xrange(_oel.GetN()))) )
+    # intersecting the entries
+    common_evt = entries_sets[0].intersection( *(entries_sets[1:]) )
+    # and building a new TEntryList --> need the tree...
+    #ROOT.TEntryList()
+    return len(common_evt)
+    
+class eff_cut_hadron(object):
+    """ Encapsulates the efficiency cut of an hadron-hadron event. 
+    Incorporates the cut in impact parameter and in parallel momentum
+
     .. math::\varepsilon_{AB}^{q\bar{q}} = P( d0^{c} p_{||}^c L_{AB} | 
                 (ee\rightarrow HZ\rightarrow q\bar{q}) I_0 )
     """
     def __init__(self,decay_channel):
-        """
+        """Encapsulates the efficieny cut of a Hadron-hadron event
+        Incorporates the cut in impact parameter and in parallel momentum
+
+        Parameters
+        ----------
+        decay_channel: str
+            the Higgs hadronic decay (bbbar,ccbar,ssbar, ddbar, uubar)
         """
         self.decay_channel = decay_channel
-        self.final_state_hadrons = ['KK','KP','PP']
         self.initialized = False
         self.current_d0cut = None
         self.current_pLcut = None
+        
+        self.final_state_hadrons = ['KK','KP','PP']
+        self.__entrylist_hadrons = dict(map(lambda i: (i,None),self.final_state_hadrons))
+        
+        self.pLcut_function="sqrt( (p[0]*cos(theta[0]))**2. + (p[1]*cos(theta[1]))**2.)"
+        self.d0cut_function="sqrt( {0}**2.0 + {1}**2.0)".format(d0(0),d0(1))
 
+        # optimization data-members
+        self.__tree = None
+        self.__entrylist_d0cut = None
+        self.__entrylist_pLcut = None
+        self.__finalhadrons_entries = { 'KK': None, 'KP': None, 'PP': None }
+
+    
     def __str__(self):
+        """string representation
+
+        Returns
+        -------
+        out: str
+        """
         out = 'eff_cut_hadron instance: \n'
         out+= '  decay channel: {0} \n'.format(self.decay_channel)
         
-        eff = '  d0,pL cut eff:            '.format(self.decay_channel)
-        p   = '  H1_H2 final states prob:  '.format(self.decay_channel)
+        eff = '  d0,pL cut eff:            '
+        p   = '  H1_H2 final states prob:  '
         if self.initialized:
+            out+= '  d0cut: {0:.1f} [mm];  pLcut:{1:.0f} [GeV]\n'.format(self.current_d0cut,self.current_pLcut)
             for i in self.final_state_hadrons:
                 eff+= '{0}={1:.4f} '.format(i,getattr(self,'eff_cut_{0}'.format(i)))
                 p  += '{0}={1:.4f} '.format(i,getattr(self,'p_{0}'.format(i)))
@@ -324,19 +426,91 @@ class eff_cut_hadron(object):
         return out
 
 
-    def set_total_eff(self,histodict,pLcut=None,d0cut=None,pLbin=None,d0binL=None,d0binH=None):
+    def set_total_eff(self,treedict,pLcut,d0cut,verbose=False):
+        """builds the total efficiency and evaluates it for the different 
+        final state cases KK, KP and PP (if exist)
+
+        Parameters
+        ----------
+        treedict: ROOT.TTree
+            the tree where to extract the info
+        pLcut: float
+            the parallel momentum cut
+        d0cut: float
+            the impact parameter cut
         """
-        """
-        self.current_d0cut = d0cut
-        self.current_pLcut = pLcut
+        import ROOT 
+        #ROOT.gROOT.SetBatch()
+
+        try:
+            treename = filter(lambda x: x.find("mctrue_{0}".format(self.decay_channel)) != -1,\
+                    treedict.keys())[0]
+        except IndexError:
+            raise AttributeError("\033[1;31mERROR:\033[1;m not found "\
+                    "decay channel '{0}' tree".format(self.decay_channel))
+        # get the tree and check if it was used before
+        tree = treedict[treename]
+        is_new_tree = False
+        if self.__tree != tree:
+            self.__tree = tree
+            self.__tree_entries = self.__tree.GetEntries()
+            # create the entrylist for final state hadrons final state
+            for i in self.final_state_hadrons:
+                self.__tree.Draw(">>entrylist_hadrons_{0}".format(i),FS_CONDITION[i],"entrylist")
+                self.__entrylist_hadrons[i] = ROOT.gDirectory.Get("entrylist_hadrons_{0}".format(i))
+                self.__finalhadrons_entries[i] = self.__entrylist_hadrons[i].GetN()
+            is_new_tree = True
+
+        is_new_d0cut = False
+        ## allow optimize loop
+        if not self.current_d0cut or self.current_d0cut != d0cut:
+            self.current_d0cut = d0cut
+            is_new_d0cut = True
+        elif is_new_tree:
+            is_new_d0cut = True
+
+        if is_new_d0cut:
+            # create the entrylist 
+            self.__tree.Draw(">>entrylist_d0cut","{0} < {1}".format(\
+                    self.d0cut_function,self.current_d0cut),"entrylist")
+            self.__entrylist_d0cut = ROOT.gDirectory.Get("entrylist_d0cut")
+
+        is_new_pLcut = False
+        if not self.current_pLcut or self.current_pLcut != pLcut:
+            self.current_pLcut = pLcut
+            is_new_pLcut = True
+        elif is_new_tree:
+            is_new_pLcut = True
+        
+        if is_new_pLcut:
+            # create the entrylist 
+            self.__tree.Draw(">>entrylist_pLcut","{0} > {1}".format(\
+                    self.pLcut_function,self.current_pLcut),"entrylist")
+            self.__entrylist_pLcut = ROOT.gDirectory.Get("entrylist_pLcut")
+
+        # return if everything is done
+        ### NEW if not is_new_tree and not is_new_d0cut and not is_new_pLcut:
+        ### NEW   return
+        
+        # main loop
         for i in self.final_state_hadrons:
+            cut_entries = tree.GetEntries(\
+                    "{0} > {1} && {2} < {3} && {4}".format(\
+                    self.pLcut_function,pLcut,\
+                    self.d0cut_function,d0cut,\
+                    FS_CONDITION[i]))
+            n_hadrons_entries = tree.GetEntries(FS_CONDITION[i])
+            ### NEW cut_entries = get_common_entries( [self.__entrylist_d0cut,\
+            ### NEW       self.__entrylist_pLcut, self.__entrylist_hadrons[i]] )
+            _eff  = 0.0
+            _prob = 0.0
+            if self.__tree_entries != 0:
+                _eff = float(cut_entries)/float(self.__tree_entries)
+                _prob= float(self.__finalhadrons_entries[i])/float(self.__tree_entries)
             # p ( d0 pL | L_AB decay_channel I0 )
-            self.__setattr__('eff_cut_{0}'.format(i),
-                    get_cuts_eff(histodict,self.decay_channel,i,\
-                            pLcut=pLcut,d0cut=d0cut,pLbin=pLbin,d0binL=d0binL,d0binH=d0binH))
+            self.__setattr__('eff_cut_{0}'.format(i),_eff)
             # p ( L_AB | decay_channel I0 )
-            self.__setattr__('p_{0}'.format(i),
-                    get_final_state_pr(histodict,self.decay_channel,i))
+            self.__setattr__('p_{0}'.format(i),_prob)
         self.initialized=True
 
     def get_total_eff(self,hadrons):
@@ -369,51 +543,6 @@ class eff_cut_hadron(object):
                 getattr(self,'eff_cut_{0}'.format(hadrons))*\
                 getattr(self,'p_{0}'.format(hadrons))
         return N
-
-
-class eff_final_state_hadrons(object):
-    """
-    .. math::\varepsilon_{AB}^{q\bar{q}} = P( d0^{c} p_{||}^c |
-                   L_{AB} (ee\rightarrow HZ\rightarrow q\bar{q}) I_0 )
-    """
-    def __init__(self,decay_channel):
-        """
-        """
-        self.decay_channel = decay_channel
-        self.final_state_hadrons = ['KK','KP','PP']
-
-    def set_total_eff(self,histodict,pLcut=None,d0cut=None,pLbin=None,d0binL=None,d0binH=None):
-        """
-        """
-        for i in self.final_state_hadrons:
-            self.__setattr__('eff_cut_{0}'.format(i),
-                    get_cuts_eff(histodict,self.decay_channel,i,\
-                            pLcut=pLcut,d0cut=d0cut,pLbin=pLbin,d0binL=d0binL,d0binH=d0binH))
-            self.__setattr__('p_{0}'.format(i),
-                    get_final_state_pr(histodict,self.decay_channel,i))
-
-    def get_total_fraction(self):
-        """
-        """
-        if not hasattr(self,'eff_cut_{0}'.format(self.final_state_hadrons[0])):
-            raise AttributeError('eff_total ERROR: You need to call the '\
-                    'set_total_eff method before try to calculate the total fraction')
-        
-        denominator = sum(map(lambda x: 
-            self.__getattribute__('eff_cut_{0}'.format(x))*
-                         self.__getattribute__('p_{0}'.format(x)), 
-            self.final_state_hadrons))
-
-        return ((self.eff_cut_KK)*self.p_KK)/denominator
-
-#def print_events(eff,decay_channel):
-#    print 'Total events:',
-#    for h in eff[decay_channel].final_state_hadrons:
-#        current_n =eff[decay_channel].get_events(h)        
-#        print ' {0}: {1:.4f}'.format(h,current_n),
-#        print ' Total: {0:.4f}'.format(eff[decay_channel].get_total_events())
-#        print float(eff[signal].get_total_events())/sqrt(float(sum(map(lambda (x,y): y.get_total_events(),\
-#                filter(lambda (x,y): x != signal, eff.iteritems() )))))
 
 def update_limits(d0_pLlist_dict,(x_ind,y_ind),pl_attr_inst):
     """
@@ -467,40 +596,6 @@ class plot_attributes(object):
         self.opt      = ''
         for key,val in kwd.iteritems():
             setattr(self,key,val)
-
-def make_extra_plots(rootfile):
-    """Plot all the TH2 histograms found and other plots:
-
-    """
-    import ROOT
-
-    suffixplots = globals()['SUFFIXPLOTS']
-    
-    try:
-        from PyAnUtils.plotstyles import squaredStyle,setpalette
-        lstyle = squaredStyle()
-        lstyle.cd()
-        ROOT.gROOT.ForceStyle()
-        ROOT.gStyle.SetOptStat(0)
-
-        setpalette("darkbody")
-    except ImportError:
-        pass
-
-    ROOT.gROOT.SetBatch()
-
-    _obj = dict(((x.GetName(),x.GetClassName()), \
-            rootfile.Get(x.GetName())) for x in rootfile.GetListOfKeys())
-
-    # Plotting TH2F (p1 vs. p2 of the leading hadrons)
-    for ((name,k),h) in filter(lambda ((x,classname),y): \
-            classname.find('TH2') == 0 and x.find('d0') == -1, _obj.iteritems()):
-        c = ROOT.TCanvas()
-        h.Draw("COLZ")    
-        c.SaveAs(name.replace('_th2_','_')+suffixplots)
-
-    # Extra plots: d0 distributions, profiles, P distributions,...
-    # 
 
 def get_point_graphs(points_dict,obs_indices,wp_index,working_points_list,leg_entry_format):
     """
@@ -666,39 +761,52 @@ def get_latex_table(obsList):
 
     return latex
 
-def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated,doTH2Plots):
-    """Main function gathering all the plots to be performed:
-     * Plot of all the efficiencies vs. momentum cut in the
+def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
+    """Main function steering the efficiency calculation and
+    the plots creation.
+    
+    TO BE FILLED
+
+    * Plot of all the efficiencies vs. momentum cut in the
      same canvas (including the total background efficiency
      which is calculated in the function gettotalbkgeff)
      * Significance plots (eff_S/sqrt(e_totalbkg))
      * ROC curves (signal efficiency vs. total bkg efficiency)
     The significance plots show as well some working points
     where the signal eff. and total bck. efficiency are shown
-    
+
+    Parameters
+    ----------
+    rootfile: str
+    channels: list(str)
+        the name of the Higgs' decay channels to consider
+    tables: bool
+        whether or not print-out the latex tables
+    pLMax: float
+        the parallel momentum cut considered
+    d0cuts: list(float)
+        the list of d0-cuts to consider
+    wp_activated: bool
+        whether or not to plot on the working points...
     """
     import ROOT
     import sys
     from math import sqrt
 
     
-    # Get the root file with and the TH3 object (only)
+    # Get the root file with and the TTree object
     f = ROOT.TFile(rootfile)
     if f.IsZombie():
         raise IOError("ROOT file '{0}' doesn\'t exist".format(rootfile))
     _preobj = dict(map(lambda x:(x.GetName(), f.Get(x.GetName())),
-         filter(lambda x: x.GetClassName().find('TH3') == 0,f.GetListOfKeys())))
+         filter(lambda x: x.GetClassName().find('TTree') == 0,f.GetListOfKeys())))
 
-    if False and doTH2Plots:
-        print "\033[1;34mhzplots INFO\033[1;m "
-        make_extra_plots(f)
-    
-    # Split by resonance
-    _obj = { 'H' : dict(filter(lambda (x,y): x.find('H') == 0,_preobj.iteritems())),
-            'Z' : dict(filter(lambda (x,y): x.find('Z') == 0,_preobj.iteritems()))
-            }
+    # Split by resonance: FIXME-- lost right now, to be re-incorporated
+    #_obj = { 'H' : dict(filter(lambda (x,y): x.find('H') == 0,_preobj.iteritems())),
+    #        'Z' : dict(filter(lambda (x,y): x.find('Z') == 0,_preobj.iteritems()))
+    #        }
+    _obj = { 'H': _preobj }
 
-    #signal=filter(lambda x: x.find('ssbar') != -1,channels)[0]
     signal_PID   = filter(lambda x: x.find('ssbar_PID') != -1,channels)[0]
     signal_noPID = filter(lambda x: x.find('ssbar_noPID') != -1,channels)[0]
 
@@ -715,10 +823,8 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated,doTH2Plots):
         # and remove the signal_noPID from the channels list
         channels.remove(signal_noPID)
     
-    # just take care in the H-ressonance...
-
-    #d0cuts = [0.1,0.3, 0.5]
-    pLcuts = xrange(1,pLMax+1)
+    # -- just take care in the H-ressonance...
+    pLcuts = xrange(0,pLMax+1)
 
     # the eff. classes 
     eff = dict(map(lambda x: (x,eff_cut_hadron(x)), channels))
@@ -733,17 +839,12 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated,doTH2Plots):
         d0str = '{0:.1f}'.format(d0)
         observables[d0str] = []
         i = 0
-        # assuming the same binning for all histograms, also only TH3F in the 
-        # _obj['H'] dictionary
-        d0binH = get_bin(_obj['H'].values()[0],1,d0)
-        d0binL = get_bin(_obj['H'].values()[0],1,-1*d0)
         for pL in pLcuts:
             sys.stdout.write( "{0} {1}".format(message,SPINNING[i % len(SPINNING)]))
             sys.stdout.flush()
 
-            pLbin = get_bin(_obj['H'].values()[0],0,pL)
             # setting the current cuts to all the efficienciesa
-            _dummy = map( lambda e: e.set_total_eff(_obj['H'],pLbin=pLbin,d0binL=d0binL,d0binH=d0binH), eff.values())
+            _dummy = map(lambda e: e.set_total_eff(_obj['H'],pLcut=pL,d0cut=d0), eff.values())
             
             # Some needed values
             eff_sig = eff['ssbar_PID'].get_total_eff('KK')
@@ -826,10 +927,9 @@ if __name__ == '__main__':
     import os
 
     #Opciones de entrada
-    parser = OptionParser()
-    parser.set_defaults(inputfile='processed.root',pLMax=30,d0="0.1,0.3,0.5")    
-    parser.add_option( '-i', '--inputfile', action='store', type='string', dest='inputfile',\
-            help="input root filename [processed.root]")
+    usage = "usage: hzplots INPUTFILE [options]"
+    parser = OptionParser(usage=usage)
+    parser.set_defaults(pLMax=30,d0="0.1,0.3,0.5")    
     parser.add_option( '-s', '--suffix', action='store', type='string', dest='suffixout',\
             help="output suffix for the plots [.pdf]")
     parser.add_option( '-d', '--d0', action='store', type='string', dest='d0',\
@@ -845,6 +945,10 @@ if __name__ == '__main__':
             " leading hadrons")
     
     (opt,args) = parser.parse_args()
+    
+    if len(args) < 1:
+        message = "\033[31;1mhzroot ERROR\033[1;m Missing input file(s)"
+        raise RuntimeError(message)
 
     if opt.suffixout:
         suff = opt.suffixout.replace('.','')
@@ -855,10 +959,8 @@ if __name__ == '__main__':
     for d0cut in sorted(opt.d0.split(','),key=lambda x: float(x)):
         d0cuts.append(float(d0cut))
 
-    main(os.path.abspath(opt.inputfile),channels,
+    main(os.path.abspath(args[0]),channels,
             opt.tables,
             int(opt.pLMax),
             d0cuts,
-            opt.wp_activate,
-            opt.doTH2Plots
-            )
+            opt.wp_activate)

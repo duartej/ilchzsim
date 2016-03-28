@@ -358,15 +358,16 @@ def get_common_entries(entrylist_list):
     -------
     common_el: ROOT.TEntryList
     """
-    import ROOT
+    #import ROOT
 
     # convert in sets, then is easy to obtain the intersection of entries
     entries_sets = []
-    for _oel in entrylist_list[1:]:
+    for _oel in entrylist_list:
+        # is it possible to speed up this?
         entries_sets.append( set(map(lambda i: _oel.GetEntry(i),xrange(_oel.GetN()))) )
-    # intersecting the entries
-    common_evt = entries_sets[0].intersection( *(entries_sets[1:]) )
-    # and building a new TEntryList --> need the tree...
+    common_evt = set.intersection( *entries_sets )
+    # and building a new TEntryList --> need the tree..., so promote this function
+    # to the eff class
     #ROOT.TEntryList()
     return len(common_evt)
     
@@ -438,6 +439,12 @@ class eff_cut_hadron(object):
             the parallel momentum cut
         d0cut: float
             the impact parameter cut
+
+        Implementation Notes
+        --------------------
+        Note that the ROOT.TEntryList should have one unique name, otherwise
+        the ROOt.gDirectory.Get method retrieve the first object in memory, 
+        obtaining wrong results
         """
         import ROOT 
         #ROOT.gROOT.SetBatch()
@@ -456,8 +463,9 @@ class eff_cut_hadron(object):
             self.__tree_entries = self.__tree.GetEntries()
             # create the entrylist for final state hadrons final state
             for i in self.final_state_hadrons:
-                self.__tree.Draw(">>entrylist_hadrons_{0}".format(i),FS_CONDITION[i],"entrylist")
-                self.__entrylist_hadrons[i] = ROOT.gDirectory.Get("entrylist_hadrons_{0}".format(i))
+                el_HSname = "{0}_entrylist_hadrons_{1}".format(treename,i)
+                self.__tree.Draw(">>{0}".format(el_HSname),FS_CONDITION[i],"entrylist")
+                self.__entrylist_hadrons[i] = ROOT.gDirectory.Get("{0}".format(el_HSname))
                 self.__finalhadrons_entries[i] = self.__entrylist_hadrons[i].GetN()
             is_new_tree = True
 
@@ -470,10 +478,11 @@ class eff_cut_hadron(object):
             is_new_d0cut = True
 
         if is_new_d0cut:
+            el_d0name = "{0}_entrylist_d0cut_{1:.1f}".format(treename,self.current_d0cut)
             # create the entrylist 
-            self.__tree.Draw(">>entrylist_d0cut","{0} < {1}".format(\
+            self.__tree.Draw(">>{0}".format(el_d0name),"{0} < {1}".format(\
                     self.d0cut_function,self.current_d0cut),"entrylist")
-            self.__entrylist_d0cut = ROOT.gDirectory.Get("entrylist_d0cut")
+            self.__entrylist_d0cut = ROOT.gDirectory.Get("{0}".format(el_d0name))
 
         is_new_pLcut = False
         if not self.current_pLcut or self.current_pLcut != pLcut:
@@ -483,10 +492,14 @@ class eff_cut_hadron(object):
             is_new_pLcut = True
         
         if is_new_pLcut:
-            # create the entrylist 
-            self.__tree.Draw(">>entrylist_pLcut","{0} > {1}".format(\
+            el_pLname = "{0}_entrylist_pLcut_{1:.1f}".format(treename,self.current_pLcut)
+            # create the entrylist (or extracted from memory if is already there)
+            #self.__entrylist_pLcut = ROOT.gDirectory.Get("{0}".format(el_pLname))
+            #if isinstance(k,ROOT.TObject):
+                # there wasn't there, so build it
+            self.__tree.Draw(">>{0}".format(el_pLname),"{0} > {1}".format(\
                     self.pLcut_function,self.current_pLcut),"entrylist")
-            self.__entrylist_pLcut = ROOT.gDirectory.Get("entrylist_pLcut")
+            self.__entrylist_pLcut = ROOT.gDirectory.Get("{0}".format(el_pLname))
 
         # return if everything is done
         ### NEW if not is_new_tree and not is_new_d0cut and not is_new_pLcut:
@@ -494,14 +507,20 @@ class eff_cut_hadron(object):
         
         # main loop
         for i in self.final_state_hadrons:
-            cut_entries = tree.GetEntries(\
-                    "{0} > {1} && {2} < {3} && {4}".format(\
-                    self.pLcut_function,pLcut,\
-                    self.d0cut_function,d0cut,\
-                    FS_CONDITION[i]))
-            n_hadrons_entries = tree.GetEntries(FS_CONDITION[i])
-            ### NEW cut_entries = get_common_entries( [self.__entrylist_d0cut,\
-            ### NEW       self.__entrylist_pLcut, self.__entrylist_hadrons[i]] )
+            #cut_entries_OLD = tree.GetEntries(\
+            #        "{0} > {1} && {2} < {3} && {4}".format(\
+            #        self.pLcut_function,pLcut,\
+            #        self.d0cut_function,d0cut,\
+            #        FS_CONDITION[i]))
+            #n_hadrons_entries = tree.GetEntries(FS_CONDITION[i])
+            cut_entries = get_common_entries( [self.__entrylist_d0cut,\
+                  self.__entrylist_pLcut, self.__entrylist_hadrons[i]] )
+            #if cut_entries != cut_entries_OLD:
+            #    print 
+            #    print "\033[1;33mWARNING\033[1;m"
+            #    print self.__tree.GetName(),self.current_d0cut,self.current_pLcut
+            #    print cut_entries,cut_entries_OLD,"+"*20
+            #    print self
             _eff  = 0.0
             _prob = 0.0
             if self.__tree_entries != 0:
@@ -876,6 +895,8 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
             i+=1
     # plotting
     print
+    import ROOT
+    print ROOT.gDirectory.Print()
     print "\033[1;34mhzplots INFO\033[1;m Plotting..."
     # --- Some extra points (WP)
     if wp_activated:

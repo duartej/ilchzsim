@@ -494,9 +494,6 @@ class eff_cut_hadron(object):
         if is_new_pLcut:
             el_pLname = "{0}_entrylist_pLcut_{1:.1f}".format(treename,self.current_pLcut)
             # create the entrylist (or extracted from memory if is already there)
-            #self.__entrylist_pLcut = ROOT.gDirectory.Get("{0}".format(el_pLname))
-            #if isinstance(k,ROOT.TObject):
-                # there wasn't there, so build it
             self.__tree.Draw(">>{0}".format(el_pLname),"{0} > {1}".format(\
                     self.pLcut_function,self.current_pLcut),"entrylist")
             self.__entrylist_pLcut = ROOT.gDirectory.Get("{0}".format(el_pLname))

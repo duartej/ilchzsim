@@ -892,8 +892,6 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
             i+=1
     # plotting
     print
-    import ROOT
-    print ROOT.gDirectory.Print()
     print "\033[1;34mhzplots INFO\033[1;m Plotting..."
     # --- Some extra points (WP)
     if wp_activated:

@@ -219,6 +219,8 @@ def get_histo_name(th3names,decay_channel,hadron_state):
     Return
     ------
     str, the name of the input list matching the final state
+
+    TO BE DEPRECATED
     """
     try:
         histo_name = filter(lambda x: 
@@ -246,6 +248,8 @@ def get_final_state_pr(tree,decay_channel,hadrons):
     Returns
     -------
     efficiency: float
+
+    TO BE DEPRECATED
     """
     n_current_hadrons = tree.GetEntries(FS_CONDITION[hadrons])
     n_total_decay = tree.GetEntries()
@@ -267,6 +271,8 @@ def get_bin(h,order,value):
     Return
     ------
     int, the bin corresponding to the `value`
+
+    NOT NEEDED??
     """
     # TH1 histos to obtain bin numbers and other manipulations
     if order == 0:
@@ -305,6 +311,8 @@ def get_cuts_eff(_obj,decay_channel,hadrons,\
     Returns
     -------
     efficiency: float
+
+    TO BE DEPRECATED
     """
     histo_name = get_histo_name(_obj.keys(),decay_channel,hadrons)
     h = _obj[histo_name]
@@ -405,14 +413,18 @@ class eff_cut_hadron(object):
         self.final_state_hadrons = ['KK','KP','PP']
         self.__entrylist_hadrons = dict(map(lambda i: (i,None),self.final_state_hadrons))
         
-        self.pLcut_function="sqrt( (p[0]*cos(theta[0]))**2. + (p[1]*cos(theta[1]))**2.)"
-        self.d0cut_function="sqrt( {0}**2.0 + {1}**2.0)".format(d0(0),d0(1))
-
         # optimization data-members
         self.__tree = None
         self.__entrylist_d0cut = None
         self.__entrylist_pLcut = None
+        # { treename: { 'pLcut': { 'actual cut' : ROOT.TEntryList, ...
+        self.__entrylists_reservoir = {}
         self.__finalhadrons_entries = { 'KK': None, 'KP': None, 'PP': None }
+        
+        # behaviour members
+        self.pLcut_function="sqrt( (p[0]*cos(theta[0]))**2. + (p[1]*cos(theta[1]))**2.)"
+        self.d0cut_function="sqrt( {0}**2.0 + {1}**2.0)".format(d0(0),d0(1))
+
 
     def get_tree(self):
         """Returns the tree associated with this efficiency
@@ -476,6 +488,9 @@ class eff_cut_hadron(object):
         if self.__tree != tree:
             self.__tree = tree
             self.__tree_entries = self.__tree.GetEntries()
+            # new EntryList reservoir
+            if not self.__entrylists_reservoir.has_key(treename):
+                self.__entrylists_reservoir[treename] = {}
             # create the entrylist for final state hadrons final state
             for i in self.final_state_hadrons:
                 el_HSname = "{0}_entrylist_hadrons_{1}".format(treename,i)
@@ -494,10 +509,14 @@ class eff_cut_hadron(object):
 
         if is_new_d0cut:
             el_d0name = "{0}_entrylist_d0cut_{1:.1f}".format(treename,self.current_d0cut)
-            # create the entrylist 
-            self.__tree.Draw(">>{0}".format(el_d0name),"{0} < {1}".format(\
-                    self.d0cut_function,self.current_d0cut),"entrylist")
-            self.__entrylist_d0cut = ROOT.gDirectory.Get("{0}".format(el_d0name))
+            try:
+                self.__entrylist_d0cut = self.__entrylists_reservoir[treename][el_d0name]
+            except KeyError:
+                # create the entrylist 
+                self.__tree.Draw(">>{0}".format(el_d0name),"{0} < {1}".format(\
+                        self.d0cut_function,self.current_d0cut),"entrylist")
+                self.__entrylists_reservoir[treename][el_d0name]= ROOT.gDirectory.Get("{0}".format(el_d0name))
+                self.__entrylist_d0cut = self.__entrylists_reservoir[treename][el_d0name]
 
         is_new_pLcut = False
         if not self.current_pLcut or self.current_pLcut != pLcut:
@@ -508,14 +527,14 @@ class eff_cut_hadron(object):
         
         if is_new_pLcut:
             el_pLname = "{0}_entrylist_pLcut_{1:.1f}".format(treename,self.current_pLcut)
-            # create the entrylist (or extracted from memory if is already there)
-            self.__tree.Draw(">>{0}".format(el_pLname),"{0} > {1}".format(\
-                    self.pLcut_function,self.current_pLcut),"entrylist")
-            self.__entrylist_pLcut = ROOT.gDirectory.Get("{0}".format(el_pLname))
-
-        # return if everything is done
-        ### NEW if not is_new_tree and not is_new_d0cut and not is_new_pLcut:
-        ### NEW   return
+            try: 
+                self.__entrylist_pLcut = self.__entrylists_reservoir[treename][el_pLname]
+            except KeyError:
+                # create the entrylist (or extracted from memory if is already there)
+                self.__tree.Draw(">>{0}".format(el_pLname),"{0} > {1}".format(\
+                        self.pLcut_function,self.current_pLcut),"entrylist")
+                self.__entrylists_reservoir[treename][el_pLname]=ROOT.gDirectory.Get("{0}".format(el_pLname))
+                self.__entrylist_pLcut = self.__entrylists_reservoir[treename][el_pLname]
         
         # main loop
         for i in self.final_state_hadrons:

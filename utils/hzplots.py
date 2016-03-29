@@ -414,6 +414,11 @@ class eff_cut_hadron(object):
         self.__entrylist_pLcut = None
         self.__finalhadrons_entries = { 'KK': None, 'KP': None, 'PP': None }
 
+    def get_tree(self):
+        """Returns the tree associated with this efficiency
+        """
+        return self.__tree
+
     
     def __str__(self):
         """string representation
@@ -787,6 +792,201 @@ def get_latex_table(obsList):
 
     return latex
 
+def create_histos(suffix,description,res_int,hc=None):
+    """Function gathering all the histograms we are interested
+    to plot. So far the histograms defined are:
+     * h2_pL_suffix : the parallel momentum of the leading 
+                      and subleading hadrons
+     * h2_d0_suffix : the impact parameter of the leading 
+                      and subleading hadrons (extrapolated as
+                      straight lines)
+     * h2_Lxy_suffix: the vertex kaon production in the transverse
+                      plane
+     * h2_R_suffix  : the vertex kaon production
+
+     * h_d0_suffix  : the impact parameter of the leading 
+                      and subleading hadrons (extrapolated as
+                      straight lines) in the same histogram (1D)
+
+     * h_nM_suffix  : the quark multiplicity (related with the number
+                      of constituents of a jet)
+
+    Parameters
+    ----------
+    suffix: str
+        used to distinguish the histograms of different samples
+    description: str
+        the legend to be used when several samples are plotted in 
+        the same canvas
+    res_int: int
+        the considered resonance: 25:=higgs, 23:=Z
+    hc: PyAnUtils.histocontainer.HistoContainer instance
+        the histogram container gathering all the available histograms
+    """
+    from PyAnUtils.histocontainer import HistoContainer
+    from PyAnUtils.plotstyles import squaredStyle
+    import ROOT
+    lstyle = squaredStyle()
+    lstyle.cd()
+    ROOT.gROOT.ForceStyle()
+    ROOT.gStyle.SetOptStat(0)
+    ROOT.gStyle.SetLegendBorderSize(0)
+    ROOT.gROOT.SetBatch()
+
+    COLOR = { 'ssbar': 46, 'bbbar': 12,
+            'ccbar': 14, 'uubar': 16,
+            'ddbar': 18}
+    RES = { 23: 'Z', 25: 'H' }
+
+    resonance = RES[res_int]
+
+    color = filter(lambda (name,c): suffix.find(name) != -1,COLOR.iteritems())[0][1]
+    
+    # -- create histo container, if there is no one
+    if not hc:
+        hc = HistoContainer()
+    # -- some cosmethics
+    # -- populate the hc with the histograms
+    hc.create_and_book_histo("{0}_h2_pL_{1}".format(resonance,suffix),\
+            "leading kaons parallel momentum",\
+            100,0,65,npoints_y=100,ylow=0,yhigh=65,description=description,
+            xtitle="leading-p_{||} [GeV]",ytitle='subleading-p_{||} [GeV]',
+            color=color)
+    hc.create_and_book_histo("{0}_h_d0_{1}".format(resonance,suffix),\
+            "leading kaons impact parameter",100,-5,5,\
+            description=description,
+            xtitle="d_{0} [mm]",
+            ytitle="A.U.",
+            color=color)
+    hc.create_and_book_histo("{0}_h_z0_{1}".format(resonance,suffix),\
+            "leading kaons impact parameter",100,-10,10,\
+            description=description,
+            xtitle="z_{0} [mm]",
+            ytitle="A.U.",
+            color=color)    
+    hc.create_and_book_histo("{0}_h_Lxy_{1}".format(resonance,suffix),\
+            "leading kaons production vertex (transverse plane)",\
+            100,0,5,
+            description=description,
+            xtitle="L_{xy} [mm]",ytitle='A.U.',
+            color=color)
+    hc.create_and_book_histo("{0}_h_R_{1}".format(resonance,suffix),\
+            "leading kaons production vertex",\
+            100,0,5,description=description,
+            xtitle="R [mm]", ytitle='A.U.',
+            color=color)
+    
+    hc.create_and_book_histo("{0}_h_nM_{1}".format(resonance,suffix),\
+            "charge particle multiplicity (per quark)",\
+            17,0,16,description=description,
+            xtitle="N_{part}", ytitle='A.U.',
+            color=color)
+    
+    hc.create_and_book_histo("{0}_h2_cosTheta_{1}".format(resonance,suffix),\
+            "leading kaons angle (q#bar{q} system)",\
+            100,-1,1,npoints_y=100,ylow=-1,yhigh=1,description=description,
+            xtitle="leading-kaon cos(#theta_{q#bar{q}})",
+            ytitle='subleading-kaon cos(#theta_{q#bar{q}})',
+            color=color)
+    
+    hc.create_and_book_histo("{0}_h2_pL_cosTheta_{1}".format(resonance,suffix),\
+            "leading kaons angle (q#bar{q} system)",\
+            100,-1,1,npoints_y=100,ylow=-64,yhigh=64,description=description,
+            xtitle="cos(#theta_{q#bar{q}})",
+            ytitle='p_{||} [GeV])',
+            color=color)
+    
+    # TO BE DEPRECATED -- 
+    hc.create_and_book_histo("{0}_h2_d0_{1}".format(resonance,suffix),\
+            "leading kaons impact parameter",\
+            100,-5,5,npoints_y=100,ylow=-5,yhigh=5,description=description,
+            xtitle="leading-kaon d_{0} [mm]",
+            ytitle='subleading-kaon d_{0} [mm]',
+            color=color)
+    
+    hc.create_and_book_histo("{0}_h2_z0_{1}".format(resonance,suffix),\
+            "leading kaons impact parameter",\
+            100,-10,10,npoints_y=100,ylow=-10,yhigh=10,description=description,
+            xtitle="leading-kaon z_{0} [mm]",
+            ytitle='subleading-kaon z_{0} [mm]',
+            color=color)
+    
+    hc.create_and_book_histo("{0}_h2_Lxy_{1}".format(resonance,suffix),\
+            "leading kaons production vertex (transverse plane)",\
+            100,0,5,npoints_y=100,ylow=0,yhigh=5,description=description,
+            xtitle="leading-kaon L_{xy} [mm]",
+            ytitle='subleading-kaon L_{xy} [mm]',
+            color=color)
+    
+    hc.create_and_book_histo("{0}_h2_R_{1}".format(resonance,suffix),\
+            "leading kaons production vertex",\
+            100,0,5,npoints_y=100,ylow=0,yhigh=5,description=description,
+            xtitle="leading-kaon R [mm]",
+            ytitle='subleading-kaon R [mm]',
+            color=color)
+    
+    NBINS = 100
+    D0MAX = 5.0
+    # --- The th3 histograms to be used for efficiency calculations
+    typenames = ['h3_pL_d0_d0_KK','h3_pL_d0_d0_KP','h3_pL_d0_d0_PP']
+    for s in map(lambda x: '{0}_{1}_{2}'.format(resonance,x,suffix),typenames):
+        hc.create_and_book_histo(s, 'p_{||} circular cut and d_{0}; p_{||} cut [GeV];'\
+                'd_{0}^{1} [mm];  d_{0}^{2} [mm]',\
+                NBINS,0,65,
+                npoints_y=NBINS,ylow=-D0MAX,yhigh=D0MAX,
+                npoints_z=NBINS,zlow=-D0MAX,zhigh=D0MAX,
+                xtitle = '#sqrt{p_{||,L}^{2}+p_{||,sL}^{2}}',\
+                ytitle = 'd_{0}^{lead} [mm]',\
+                ztitle = 'd_{0}^{sublead} [mm]',
+                description=description,
+                color=color)
+    return hc
+
+def plot(histo,varname,xtitle='',ytitle='',option=''):
+    """
+    """
+    from PyAnUtils.plotstyles import squaredStyle,setpalette
+    import ROOT
+    import os
+    lstyle = squaredStyle()
+    lstyle.cd()
+    ROOT.gROOT.ForceStyle()
+    ROOT.gStyle.SetOptStat(0)
+    ROOT.gROOT.SetBatch()
+    #setpalette("forest")
+    setpalette("darkbody")
+    
+    # plotting it
+    #histo.GetXaxis().SetTitle(xtitle)
+    #histo.GetYaxis().SetTitle(ytitle)
+    
+    c = ROOT.TCanvas()
+    histo.Draw(option)
+    c.SaveAs("{0}.{1}".format(histo.GetName(),'png'))
+
+    c.Close()
+    del c
+
+def plot_combined(hc,varname,option=''):
+    """
+    """
+    from PyAnUtils.plotstyles import squaredStyle
+    import ROOT
+    import os
+    lstyle = squaredStyle()
+    lstyle.cd()
+    ROOT.gROOT.ForceStyle()
+    ROOT.gStyle.SetOptStat(0)
+    ROOT.gStyle.SetLegendBorderSize(0)
+    ROOT.gROOT.SetBatch()
+    
+    # plotting it
+    # --- FIXME:: USE A function
+    histonames = filter(lambda _k: _k.find(varname) == 0,\
+            hc._histos.keys())
+    hc.associated(histonames)
+    hc.plot(histonames[0],'comb_{0}.png'.format(varname),log=True)
+
 def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
     """Main function steering the efficiency calculation and
     the plots creation.
@@ -821,6 +1021,8 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
 
     
     # Get the root file with and the TTree object
+    # the root file should contain the tree with the leading hadrons (just two hadrons
+    # per hemisphere) ordered by p_parallel
     f = ROOT.TFile(rootfile)
     if f.IsZombie():
         raise IOError("ROOT file '{0}' doesn\'t exist".format(rootfile))
@@ -851,18 +1053,19 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
     
     # -- just take care in the H-ressonance...
     pLcuts = xrange(0,pLMax+1)
-
+    
+    # --- Ready to extract efficiencies
     # the eff. classes 
     eff = dict(map(lambda x: (x,eff_cut_hadron(x)), channels))
     
-    message = "\r\033[1;34mhzplots INFO\033[1;m Obtaining the data"
+    message = "\r\033[1;34mhzplots INFO\033[1;m Obtaining efficiencies"
     # { 'docut1': [ (pLcut1, eff_sig, significance, pion_rejection, purity, N_sig, N_bkg), ... ],  }
     observables = {}
     # Indices
     I_PL = 0; I_EFF_SIG = 1; I_SIGN=2; I_PION_REJEC = 3; I_PURITY = 4; I_N_SIGNAL = 5; I_N_BKG=6;
 
-    for d0 in d0cuts:
-        d0str = '{0:.1f}'.format(d0)
+    for _d0 in d0cuts:
+        d0str = '{0:.2f}'.format(_d0)
         observables[d0str] = []
         i = 0
         for pL in pLcuts:
@@ -870,7 +1073,7 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
             sys.stdout.flush()
 
             # setting the current cuts to all the efficienciesa
-            _dummy = map(lambda e: e.set_total_eff(_obj['H'],pLcut=pL,d0cut=d0), eff.values())
+            _dummy = map(lambda e: e.set_total_eff(_obj['H'],pLcut=pL,d0cut=_d0), eff.values())
             
             # Some needed values
             eff_sig = eff['ssbar_PID'].get_total_eff('KK')
@@ -903,6 +1106,30 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
     # plotting
     print
     print "\033[1;34mhzplots INFO\033[1;m Plotting..."
+    # --- filling uncutted observables
+    hc = None
+    for effname,e in eff.iteritems():
+        hc = create_histos(e.decay_channel,e.decay_channel,25,hc)
+        e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"(vy-vx*tan(phi_lab))*cos(phi_lab)")
+        e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"-(vy-vz*tan(theta_lab))/tan(theta_lab)")
+        e.get_tree().Project("H_h_Lxy_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy)")
+        e.get_tree().Project("H_h_R_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy+vz*vz)")
+        # two-dim
+        e.get_tree().Project("H_h2_pL_{0}".format(e.decay_channel),"p[0]*cos(theta[0]):p[1]*cos(theta[1])")
+    # -- plotting ...
+    for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL')==0,hc._histos.iteritems()):
+        plot(h,k,option='COLZ')
+    #for k,h in filter(lambda (_k,_h): _k.find('cosTheta')!=-1,hc._histos.iteritems()):
+    #    plot(h,k,option='COLZ')
+    
+    # and the combined histograms
+    plot_combined(hc,'H_h_d0')
+    plot_combined(hc,'H_h_z0')
+    plot_combined(hc,'H_h_Lxy')
+    plot_combined(hc,'H_h_R')
+    #plot_combined(hc,'H_h_nM')
+
+
     # --- Some extra points (WP)
     if wp_activated:
         leg_format_pion_rej = ( 'S/#sqrt{B}=%.1f @ p_{||}^{c}=%.0f GeV',(I_SIGN,I_PL) )
@@ -942,8 +1169,8 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
 
     # Tables
     if tables:
-        for d0,obsList in observables.iteritems():
-            print "Table for d0: {0} mm".format(d0)
+        for _d0,obsList in observables.iteritems():
+            print "Table for d0: {0} mm".format(_d0)
             print "----------------------"
             print get_latex_table(obsList)
 

@@ -394,7 +394,7 @@ class eff_cut_hadron(object):
     .. math::\varepsilon_{AB}^{q\bar{q}} = P( d0^{c} p_{||}^c L_{AB} | 
                 (ee\rightarrow HZ\rightarrow q\bar{q}) I_0 )
     """
-    def __init__(self,decay_channel):
+    def __init__(self,decay_channel,d0cut_type="circular",pLcut_type="circular"):
         """Encapsulates the efficieny cut of a Hadron-hadron event
         Incorporates the cut in impact parameter and in parallel momentum
 
@@ -402,6 +402,12 @@ class eff_cut_hadron(object):
         ----------
         decay_channel: str
             the Higgs hadronic decay (bbbar,ccbar,ssbar, ddbar, uubar)
+        d0cut_type: str, [default: circular]
+            defines the function to be used to cut in d0, valid values are
+            circular, square
+        pLcut_type: str, [default: circular]
+            defines the function to be used to cut in parallel momentum, 
+            valid values are circular, square and line
 
         FIXME: The class should be associated to a tree!
         """
@@ -422,8 +428,26 @@ class eff_cut_hadron(object):
         self.__finalhadrons_entries = { 'KK': None, 'KP': None, 'PP': None }
         
         # behaviour members
-        self.pLcut_function="sqrt( (p[0]*cos(theta[0]))**2. + (p[1]*cos(theta[1]))**2.)"
-        self.d0cut_function="sqrt( {0}**2.0 + {1}**2.0)".format(d0(0),d0(1))
+        if pLcut_type == "circular":
+            self.pLcut_function="sqrt( (p[0]*cos(theta[0]))**2. + (p[1]*cos(theta[1]))**2.) > {0}"
+        elif pLcut_type == "square":
+            self.pLcut_function="abs(p[0]*cos(theta[0])) > {0} && abs(p[1]*cos(theta[1])) > {0}"
+        elif pLcut_type == "line":
+            self.pLcut_function = "p[1]*cos(theta[1]) > (-{0}/40.0)*p[0]*cos(theta[0])+{0}"
+        else:
+            raise RuntimeError("Not a valid pL-cut functional: valid values:"\
+                    " circular, square and line")
+        if d0cut_type == "circular":
+            self.d0cut_function="sqrt( {0}**2.0 + {1}**2.0) < {2}".format(d0(0),d0(1),"{0}")
+        elif d0cut_type == "square":
+            self.d0cut_function="abs({0}) < {2} && abs({1}) < {2}".format(d0(0),d0(1),"{0}")
+        else:
+            raise RuntimeError("Not a valid d0-cut functional: valid values:"\
+                    " circular and square ")
+
+        print "\033[1;34mhzplots INFO\033[1;m Using the following functional cuts:"
+        print "   + pL: {0}".format(self.pLcut_function)
+        print "   + d0: {0}".format(self.d0cut_function)
 
 
     def get_tree(self):
@@ -454,6 +478,8 @@ class eff_cut_hadron(object):
 
         FIXME: JUST one TEntryList per time, do not intersects it
         """
+        print "\033[1;33mWARNING activate_cuts\033[1;m function is"\
+                " still not allowing more than one entrylist!".format(pLcut)
         treename = self.__tree.GetName()
         # search the TEntryList to be activatead
         if pLcut:
@@ -563,8 +589,8 @@ class eff_cut_hadron(object):
                 self.__entrylist_d0cut = self.__entrylists_reservoir[treename][el_d0name]
             except KeyError:
                 # create the entrylist 
-                self.__tree.Draw(">>{0}".format(el_d0name),"{0} < {1}".format(\
-                        self.d0cut_function,self.current_d0cut),"entrylist")
+                self.__tree.Draw(">>{0}".format(el_d0name),\
+                        self.d0cut_function.format(self.current_d0cut),"entrylist")
                 self.__entrylists_reservoir[treename][el_d0name]= ROOT.gDirectory.Get("{0}".format(el_d0name))
                 self.__entrylist_d0cut = self.__entrylists_reservoir[treename][el_d0name]
 
@@ -581,8 +607,8 @@ class eff_cut_hadron(object):
                 self.__entrylist_pLcut = self.__entrylists_reservoir[treename][el_pLname]
             except KeyError:
                 # create the entrylist (or extracted from memory if is already there)
-                self.__tree.Draw(">>{0}".format(el_pLname),"{0} > {1}".format(\
-                        self.pLcut_function,self.current_pLcut),"entrylist")
+                self.__tree.Draw(">>{0}".format(el_pLname),\
+                        self.pLcut_function.format(self.current_pLcut),"entrylist")
                 self.__entrylists_reservoir[treename][el_pLname]=ROOT.gDirectory.Get("{0}".format(el_pLname))
                 self.__entrylist_pLcut = self.__entrylists_reservoir[treename][el_pLname]
         
@@ -844,9 +870,9 @@ def get_latex_table(obsList):
     [ (pLcut1, eff_sig, significance, pion_rejection, purity, N_SIG, N_BKG) ]
     """
     columns = ( 'p_{||}^{c}\;[GeV]','\\varepsilon_{ss}', 'S/\\sqrt{B}', 'N_{bkg}/N_{s\\bar{s}}', \
-            'Kaon Purity', 'N_{s\\bar{s}}', 'N_{bkg}')
+            'Kaon Purity', 'N_{s\\bar{s}}', 'N_{bkg}', '\\varepsilon_{bkg}')
     colformat = map(lambda x: ' ${0:'+str(x)+'}$ &' , \
-            ( '.0f','.3f','.2f','.0f','.3f', '.0f', '.0f' ))
+            ( '.0f','.3f','.2f','.0f','.3f', '.0f', '.0f' , '.3f'))
     ncols = len(obsList[0])
     # Consistency
     if len(columns) != ncols: 
@@ -967,7 +993,7 @@ def create_histos(suffix,description,res_int,hc=None):
             "#theta angle in lab. frame for hadrons with |p| > 20 GeV",
             100,0,91,\
             description=description,
-            xtitle="|#theta_{lab}|", ytitle="A.U.",
+            xtitle="|#theta_{lab}| [^{o}]", ytitle="A.U.",
             color=color)
     
     hc.create_and_book_histo("{0}_h2_cosTheta_{1}".format(resonance,suffix),\
@@ -988,14 +1014,14 @@ def create_histos(suffix,description,res_int,hc=None):
             "leading kaons: #sigma_{d_{0}} vs. #theta_{lab}",\
             100,0,91,npoints_y=100,ylow=0,yhigh=100.,description=description,
             ytitle="#sigma_{d_{0}} [#mu m]",
-            xtitle='|#theta_{lab}^{o}|',
+            xtitle='|#theta_{lab}| [^{o}]',
             color=color)
 
     hc.create_and_book_histo("{0}_h2_pLcut20_Resd0_theta_{1}".format(resonance,suffix),\
             "leading kaons: #sigma_{d_{0}} vs. #theta_{lab}",\
             100,0,91.,npoints_y=100,ylow=0,yhigh=100.,description=description,
             ytitle="#sigma_{d_{0}} [#mu m]",
-            xtitle='|#theta_{lab}^{o}|',
+            xtitle='|#theta_{lab}| [^{o}]',
             color=color)
     # TO BE DEPRECATED -- 
     hc.create_and_book_histo("{0}_h2_d0_{1}".format(resonance,suffix),\
@@ -1129,7 +1155,7 @@ def plot_profile_combined(hc,varname,axis,options='',legposition="RIGHT"):
             options=options,log=True,legposition=legposition,\
             normalize=False)
 
-def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
+def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,wp_activated):
     """Main function steering the efficiency calculation and
     the plots creation.
     
@@ -1198,7 +1224,7 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
     
     # --- Ready to extract efficiencies
     # the eff. classes 
-    eff = dict(map(lambda x: (x,eff_cut_hadron(x)), channels))
+    eff = dict(map(lambda x: (x,eff_cut_hadron(x,d0cut_type=d0cut_type,pLcut_type=pLcut_type)), channels))
     
     message = "\r\033[1;34mhzplots INFO\033[1;m Obtaining efficiencies"
     # { 'docut1': [ (pLcut1, eff_sig, significance, pion_rejection, purity, N_sig, N_bkg), ... ],  }
@@ -1257,13 +1283,13 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
         # two-dim
         e.get_tree().Project("H_h2_pL_{0}".format(e.decay_channel),"abs(p[1]*cos(theta[1])):abs(p[0]*cos(theta[0]))")
         e.get_tree().Project("H_h2_Resd0_theta_{0}".format(e.decay_channel),\
-                "5.+(15/(p*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
+                "5.+(10/(p*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
         # cut-dependent
         e.activate_cuts(pLcut=20)
         e.get_tree().Project("H_h_theta_lab_{0}".format(e.decay_channel),\
                 "acos(abs(cos(theta_lab)))*180.0/{0}".format(pi))
         e.get_tree().Project("H_h2_pLcut20_Resd0_theta_{0}".format(e.decay_channel),\
-                "5.+(15/(p*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
+                "5.+(10/(p*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
         e.deactivate_cuts()
     # -- plotting ...
     for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL')==0 and \
@@ -1277,7 +1303,11 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
     plot_combined(hc,'H_h_z0')
     plot_combined(hc,'H_h_Lxy')
     plot_combined(hc,'H_h_R')
-    plot_combined(hc,'H_h_theta_lab',legposition="LEFT")
+    try:
+        plot_combined(hc,'H_h_theta_lab',legposition="LEFT")
+    except ZeroDivisionError:
+        # Some histos are empty
+        pass
     plot_profile_combined(hc,"H_h2_Resd0_theta","X",options="PE")
     plot_profile_combined(hc,"H_h2_pLcut20_Resd0_theta","X",options="PE")
     #plot_combined(hc,'H_h_nM')
@@ -1343,13 +1373,17 @@ if __name__ == '__main__':
     #Opciones de entrada
     usage = "usage: hzplots INPUTFILE [options]"
     parser = OptionParser(usage=usage)
-    parser.set_defaults(pLMax=30,d0="0.1,0.3,0.5")    
+    parser.set_defaults(pLMax=30,d0="0.1,0.3,0.5",pLcut_type='circular',d0cut_type='circular')    
     parser.add_option( '-s', '--suffix', action='store', type='string', dest='suffixout',\
             help="output suffix for the plots [.pdf]")
     parser.add_option( '-d', '--d0', action='store', type='string', dest='d0',\
             metavar='d01[,d02,...]',help="Impact parameters cuts [0.1,0.3,0.5]")
+    parser.add_option( '--d0cut-type', action='store', type='string', dest='d0cut_type',\
+            metavar='circular|square',help="functional of the d0 cut [circular]")
     parser.add_option( '-p', '--pL-cut', action='store', type='string', dest='pLMax',\
             help="Circular momentum maximum cut [30 GeV]")
+    parser.add_option( '--pLcut-type', action='store', type='string', dest='pLcut_type',\
+            metavar="circular|square|line",help="functional of the pL cut [circular]")
     parser.add_option( '-t', '--tables', action='store_true', dest='tables',\
             help="whether or not print the latex tables")
     parser.add_option( '-w','--working-points', action='store_true', dest='wp_activate',\
@@ -1376,5 +1410,7 @@ if __name__ == '__main__':
     main(os.path.abspath(args[0]),channels,
             opt.tables,
             int(opt.pLMax),
+            opt.pLcut_type,
             d0cuts,
+            opt.d0cut_type,
             opt.wp_activate)

@@ -561,9 +561,17 @@ class eff_cut_hadron(object):
             self.__setattr__('p_{0}'.format(i),_prob)
         self.initialized=True
 
-    def get_total_eff(self,hadrons):
+    def _get_total_eff(self):
+        """FIXME: USE THE WHOLE FORMULAE (sum of probabilities ?)
+        FIXME
+        """
+        return sum(map(lambda x: self.get_total_eff(x),self.final_state_hadrons))
+
+    def get_total_eff(self,hadrons=None):
         """
         """
+        if not hadrons:
+            return self._get_total_eff()
         return getattr(self,'eff_cut_{0}'.format(hadrons))*\
                 getattr(self,'p_{0}'.format(hadrons))
 
@@ -825,8 +833,12 @@ def create_histos(suffix,description,res_int,hc=None):
                       and subleading hadrons (extrapolated as
                       straight lines) in the same histogram (1D)
 
+     * h_z0_suffix  : the longitudinal parameter of the leading 
+                      and subleading hadrons (extrapolated as
+                      straight lines) in the same histogram (1D)
+
      * h_nM_suffix  : the quark multiplicity (related with the number
-                      of constituents of a jet)
+                      of constituents of a jet) [FIXME: not well defined]
 
     Parameters
     ----------
@@ -942,21 +954,21 @@ def create_histos(suffix,description,res_int,hc=None):
             ytitle='subleading-kaon R [mm]',
             color=color)
     
-    NBINS = 100
-    D0MAX = 5.0
-    # --- The th3 histograms to be used for efficiency calculations
-    typenames = ['h3_pL_d0_d0_KK','h3_pL_d0_d0_KP','h3_pL_d0_d0_PP']
-    for s in map(lambda x: '{0}_{1}_{2}'.format(resonance,x,suffix),typenames):
-        hc.create_and_book_histo(s, 'p_{||} circular cut and d_{0}; p_{||} cut [GeV];'\
-                'd_{0}^{1} [mm];  d_{0}^{2} [mm]',\
-                NBINS,0,65,
-                npoints_y=NBINS,ylow=-D0MAX,yhigh=D0MAX,
-                npoints_z=NBINS,zlow=-D0MAX,zhigh=D0MAX,
-                xtitle = '#sqrt{p_{||,L}^{2}+p_{||,sL}^{2}}',\
-                ytitle = 'd_{0}^{lead} [mm]',\
-                ztitle = 'd_{0}^{sublead} [mm]',
-                description=description,
-                color=color)
+    #NBINS = 100
+    #D0MAX = 5.0
+    ## --- The th3 histograms to be used for efficiency calculations
+    #typenames = ['h3_pL_d0_d0_KK','h3_pL_d0_d0_KP','h3_pL_d0_d0_PP']
+    #for s in map(lambda x: '{0}_{1}_{2}'.format(resonance,x,suffix),typenames):
+    #    hc.create_and_book_histo(s, 'p_{||} circular cut and d_{0}; p_{||} cut [GeV];'\
+    #            'd_{0}^{1} [mm];  d_{0}^{2} [mm]',\
+    #            NBINS,0,65,
+    #            npoints_y=NBINS,ylow=-D0MAX,yhigh=D0MAX,
+    #            npoints_z=NBINS,zlow=-D0MAX,zhigh=D0MAX,
+    #            xtitle = '#sqrt{p_{||,L}^{2}+p_{||,sL}^{2}}',\
+    #            ytitle = 'd_{0}^{lead} [mm]',\
+    #            ztitle = 'd_{0}^{sublead} [mm]',
+    #            description=description,
+    #            color=color)
     return hc
 
 def plot(histo,varname,xtitle='',ytitle='',option=''):
@@ -1079,7 +1091,7 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
     # { 'docut1': [ (pLcut1, eff_sig, significance, pion_rejection, purity, N_sig, N_bkg), ... ],  }
     observables = {}
     # Indices
-    I_PL = 0; I_EFF_SIG = 1; I_SIGN=2; I_PION_REJEC = 3; I_PURITY = 4; I_N_SIGNAL = 5; I_N_BKG=6;
+    I_PL = 0; I_EFF_SIG = 1; I_SIGN=2; I_PION_REJEC = 3; I_PURITY = 4; I_N_SIGNAL = 5; I_N_BKG=6; I_EFF_BKG=7;
 
     for _d0 in d0cuts:
         d0str = '{0}'.format(_d0)
@@ -1097,10 +1109,8 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
             n_KK    = eff['ssbar_PID'].get_total_events()
             bkg_tot_evts = sum(map(lambda (x,y): y.get_total_events(),\
                     filter(lambda (x,y): x != signal_PID or x != signal_noPID, eff.iteritems() )))
-            # --- > probably interesting also...
-            #bkg_eff = sum(map(lambda (x,y): y.get_total_eff(),\
-            #        filter(lambda (x,y): x != signal_PID or x != signal_noPID, eff.iteritems() )))
-            
+            bkg_tot_eff = sum(map(lambda (x,y): y.get_total_eff(),\
+                    filter(lambda (x,y): x != signal_PID or x != signal_noPID, eff.iteritems() )))
             # Signal efficiency calculation: assuming 100% p-K separation with the PID 
             # effsig := eff['ssbar_PID']
             # purity := 2*N_KK/(2*N_KK+2*N_KP+2*N_KK) = N_KK/(N_KK+NKP+N_PP)
@@ -1118,7 +1128,7 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
             significance   = float(n_KK)/sqrt(float(bkg_tot_evts))
 
             # store it
-            observables[d0str].append( (pL,eff_sig,significance,pion_rejection,purity,n_KK,bkg_tot_evts) )
+            observables[d0str].append( (pL,eff_sig,significance,pion_rejection,purity,n_KK,bkg_tot_evts,bkg_tot_eff) )
             i+=1
     # plotting
     print
@@ -1134,7 +1144,8 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
         # two-dim
         e.get_tree().Project("H_h2_pL_{0}".format(e.decay_channel),"abs(p[1]*cos(theta[1])):abs(p[0]*cos(theta[0]))")
     # -- plotting ...
-    for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL')==0,hc._histos.iteritems()):
+    for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL')==0 and \
+            _k.find("cosTheta") == -1,hc._histos.iteritems()):
         plot(h,k,option='COLZ')
     #for k,h in filter(lambda (_k,_h): _k.find('cosTheta')!=-1,hc._histos.iteritems()):
     #    plot(h,k,option='COLZ')
@@ -1160,10 +1171,14 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
         
         leg_format_sig = ( '#varepsilon_{signal}=%.2f, #pi-rej.factor=%.0f',(I_EFF_SIG,I_PION_REJEC) )
         graphs_leg_sig = get_point_graphs(observables,(I_PL,I_SIGN),I_EFF_SIG,[0.4,0.8],leg_format_sig)
+        
+        leg_format_roc = ( 'S/#sqrt{B}=%.2f, p_{||}^{cut}=%.1f',(I_SIG,I_PL) )
+        graphs_leg_roc = get_point_graphs(observables,(I_EFF_BKG,I_EFF_SIG),I_PL,[10,20],leg_format_roc)
     else:
         graphs_leg_pion_rej = None
         graphs_leg_pur      = None
         graphs_leg_sig      = None
+        graphs_leg_roc      = None
 
     pr_attr = plot_attributes('pion_rejection',
             xtitle='#varepsilon_{S}', 
@@ -1183,6 +1198,11 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
             ytitle='N_{S}/#sqrt{N_{B}}',
             x0 = 0.0, y0 = 0.0 )
     make_plot(observables,(I_PL,I_SIGN),significance_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    # ROC curve
+    roc_attr = plot_attributes("roc",ytitle='#varepsilon_{S}',xtitle='#varepsilon_{B}',
+            x0=0.0,x1=1.0,y0=0.0,y1=1.0)
+    make_plot(observables,(I_EFF_BKG,I_EFF_SIG),roc_attr,g_points_dict=graphs_leg_roc)
 
     # Tables
     if tables:

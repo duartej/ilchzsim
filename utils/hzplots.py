@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-""":script:`doplots` -- Plotting stuff created with processhzroot script
-======================================================================
+""":script:`hzevaleff_and_plots` -- Plotting stuff created with processhzroot script
+====================================================================================
 
-.. script:: pion_misid [OPTIONS]    
+.. script:: hzevaleff_and_plots [OPTIONS]    
       :platform: Unix
       :synopsis: Evaluate pion misid...
-	  .. moduleauthor:: Jordi Duarte-Campderros <jorge.duarte.campderros@cern.ch>
+.. moduleauthor:: Jordi Duarte-Campderros <jorge.duarte.campderros@cern.ch>
 """
 KAON = 321
 PION = 211
@@ -33,16 +33,14 @@ FS_CONDITION = { 'KK': '{0} && {1}'.format(isKaon(0),isKaon(1)), \
         'KP': '({0} && {1} || {2} && {3})'.format(isKaon(0),isPion(1),isPion(0),isKaon(1)),
                 'PP': '{0} && {1}'.format(isPion(0),isPion(1)) 
                 }
+SUFFIXPLOTS='.pdf'
+SPINNING = [ "-","\\","|","/"]
 
-#_COLOR = [ ROOT.kCyan+2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen+2,ROOT.kRed-2, ROOT.kBlue-3,
-#        ROOT.kBlack, ROOT.kRed+4]
+
 def getcolor():
     import ROOT
     return [ ROOT.kRed+4, ROOT.kAzure+3, ROOT.kOrange-2, ROOT.kGreen-5, ROOT.kYellow+2, \
         ROOT.kCyan-2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen-2,ROOT.kRed-4, ROOT.kGray-3 ]
-
-SUFFIXPLOTS='.pdf'
-SPINNING = [ "-","\\","|","/"]
 
 def getleg(**kwd):
     """.. function:: getleg(**kwd) -> ROOT.TLegend()
@@ -508,7 +506,7 @@ class eff_cut_hadron(object):
             is_new_d0cut = True
 
         if is_new_d0cut:
-            el_d0name = "{0}_entrylist_d0cut_{1:.1f}".format(treename,self.current_d0cut)
+            el_d0name = "{0}_entrylist_d0cut_{1}".format(treename,self.current_d0cut)
             try:
                 self.__entrylist_d0cut = self.__entrylists_reservoir[treename][el_d0name]
             except KeyError:
@@ -526,7 +524,7 @@ class eff_cut_hadron(object):
             is_new_pLcut = True
         
         if is_new_pLcut:
-            el_pLname = "{0}_entrylist_pLcut_{1:.1f}".format(treename,self.current_pLcut)
+            el_pLname = "{0}_entrylist_pLcut_{1}".format(treename,self.current_pLcut)
             try: 
                 self.__entrylist_pLcut = self.__entrylists_reservoir[treename][el_pLname]
             except KeyError:
@@ -667,7 +665,7 @@ def get_point_graphs(points_dict,obs_indices,wp_index,working_points_list,leg_en
     leg    = {}
     # legend coordinates
     y0 = 0.8; y1 = 0.94; x0 = 0.01; x1= 0.25;
-    for d0cut,val_list in points_dict.iteritems():
+    for d0cut,val_list in sorted(points_dict.iteritems(),key=lambda (x,y): float(x)):
         selected_points = []
         TOLERANCE = 1e-10
         # Extract the working points from the val_list list, assuming
@@ -705,7 +703,7 @@ def get_point_graphs(points_dict,obs_indices,wp_index,working_points_list,leg_en
             graphs[d0cut][-1].SetMarkerColor(getcolor()[k])
             graphs[d0cut][-1].SetPoint(0,ntuple[xI],ntuple[yI])
             text = leg_entry_format[0] % (ntuple[wpX_I],ntuple[wpY_I])
-            leg[d0cut].AddEntry(graphs[d0cut][-1],'d0={0} mm:  {1}'.format(d0cut,text),'P')
+            leg[d0cut].AddEntry(graphs[d0cut][-1],'d0={0:.0f} #mum:  {1}'.format(float(d0cut)*1e3,text),'P')
             k+=1
 
     return graphs,leg
@@ -752,7 +750,7 @@ def make_plot(points_dict,(xindex,yindex),plot_attr,g_points_dict=None,leg_posit
     frame.SetYTitle(plot_attr.ytitle+' '+plot_attr.yunit)
     k = 0
     d_graphs = []
-    for d0cut,pL_list in points_dict.iteritems():
+    for d0cut,pL_list in sorted(points_dict.iteritems(),key=lambda (x,y): float(x)):
         g = ROOT.TGraph(len(pL_list))
         d_graphs.append(g)
         g.SetLineWidth(2)
@@ -760,7 +758,7 @@ def make_plot(points_dict,(xindex,yindex),plot_attr,g_points_dict=None,leg_posit
         g.SetLineStyle(3*k)
         g.SetMarkerColor(getcolor()[k])
         g.SetMarkerStyle(20+k)
-        leg.AddEntry(g,'d_{0}={1} mm'.format('{0}',d0cut),'PL')
+        leg.AddEntry(g,'d_{0}={1:.0f} #mum'.format('{0}',(float(d0cut)*1e3)),'PL')
         for i,val in enumerate(pL_list):
             g.SetPoint(i,val[xindex],val[yindex])
         g.Draw("LSAME {0}".format(plot_attr.opt))
@@ -1084,7 +1082,7 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
     I_PL = 0; I_EFF_SIG = 1; I_SIGN=2; I_PION_REJEC = 3; I_PURITY = 4; I_N_SIGNAL = 5; I_N_BKG=6;
 
     for _d0 in d0cuts:
-        d0str = '{0:.2f}'.format(_d0)
+        d0str = '{0}'.format(_d0)
         observables[d0str] = []
         i = 0
         for pL in pLcuts:

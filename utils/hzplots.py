@@ -402,6 +402,8 @@ class eff_cut_hadron(object):
         ----------
         decay_channel: str
             the Higgs hadronic decay (bbbar,ccbar,ssbar, ddbar, uubar)
+
+        FIXME: The class should be associated to a tree!
         """
         self.decay_channel = decay_channel
         self.initialized = False
@@ -428,6 +430,56 @@ class eff_cut_hadron(object):
         """Returns the tree associated with this efficiency
         """
         return self.__tree
+
+    def deactivate_cuts(self):
+        """De-activate cuts, the Tree has access to the whole number of 
+        entries
+        """
+        self.__tree.SetEntryList(0)
+
+    def activate_cuts(self,pLcut=None,d0cut=None,hadron_pairs=None,**future_cuts):
+        """Activate cuts in the associated TTree, having access only to those
+        entries fulfilling the cuts
+
+        Parameters
+        ----------
+        pLcut: float, optional
+            the value of the parallel momentum cut
+        d0cut: float, optional
+            the value of the impact parameter cut
+        hadron_pairs: str
+            the leading hadrons final states: KK, KP or PP
+        future_cuts: dict()
+            not used now, but will allow to incorporate extra cuts
+
+        FIXME: JUST one TEntryList per time, do not intersects it
+        """
+        treename = self.__tree.GetName()
+        # search the TEntryList to be activatead
+        if pLcut:
+            el_pLname = "{0}_entrylist_pLcut_{1}".format(treename,pLcut)
+            try:
+                entrylist = self.__entrylists_reservoir[treename][el_pLname]
+                self.__tree.SetEntryList(entrylist)
+            except KeyError:
+                print "\033[1;33mWARNING\033[1;m the pL={0} [GeV]"\
+                        " was not used as cut, the TTree remains as it was".format(pLcut)
+        if d0cut:
+            el_d0name = "{0}_entrylist_d0cut_{1}".format(treename,d0cut)
+            try:
+                entrylist = self.__entrylists_reservoir[treename][el_d0name]
+            except KeyError:
+                print "\033[1;33mWARNING\033[1;m the d0={0} [mm]"\
+                        " was not used as cut, the TTree remains as it was".format(d0cut)
+
+        if hadron_pairs:
+            try:
+                entrylist = self.__entrylist_hadrons[hadron_pair]
+            except KeyError:
+                print "\033[1;33mWARNING\033[1;m the '{0}"\
+                        " was not used as cut, the TTree remains as it was".format(hadron_pair)
+
+        self.__tree.SetEntryList(entrylist)
 
     
     def __str__(self):
@@ -911,6 +963,13 @@ def create_histos(suffix,description,res_int,hc=None):
             xtitle="N_{part}", ytitle='A.U.',
             color=color)
     
+    hc.create_and_book_histo("{0}_h_theta_lab_{1}".format(resonance,suffix),\
+            "#theta angle in lab. frame for hadrons with |p| > 20 GeV",
+            100,0,91,\
+            description=description,
+            xtitle="|#theta_{lab}|", ytitle="A.U.",
+            color=color)
+    
     hc.create_and_book_histo("{0}_h2_cosTheta_{1}".format(resonance,suffix),\
             "leading kaons angle (q#bar{q} system)",\
             100,-1,1,npoints_y=100,ylow=-1,yhigh=1,description=description,
@@ -925,6 +984,19 @@ def create_histos(suffix,description,res_int,hc=None):
             ytitle='p_{||} [GeV])',
             color=color)
     
+    hc.create_and_book_histo("{0}_h2_Resd0_theta_{1}".format(resonance,suffix),\
+            "leading kaons: #sigma_{d_{0}} vs. #theta_{lab}",\
+            100,0,91,npoints_y=100,ylow=0,yhigh=100.,description=description,
+            ytitle="#sigma_{d_{0}} [#mu m]",
+            xtitle='|#theta_{lab}^{o}|',
+            color=color)
+
+    hc.create_and_book_histo("{0}_h2_pLcut20_Resd0_theta_{1}".format(resonance,suffix),\
+            "leading kaons: #sigma_{d_{0}} vs. #theta_{lab}",\
+            100,0,91.,npoints_y=100,ylow=0,yhigh=100.,description=description,
+            ytitle="#sigma_{d_{0}} [#mu m]",
+            xtitle='|#theta_{lab}^{o}|',
+            color=color)
     # TO BE DEPRECATED -- 
     hc.create_and_book_histo("{0}_h2_d0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",\
@@ -996,7 +1068,7 @@ def plot(histo,varname,xtitle='',ytitle='',option=''):
     c.Close()
     del c
 
-def plot_combined(hc,varname,option=''):
+def plot_combined(hc,varname,option='',legposition="RIGHT"):
     """
     """
     from PyAnUtils.plotstyles import squaredStyle
@@ -1014,7 +1086,48 @@ def plot_combined(hc,varname,option=''):
     histonames = filter(lambda _k: _k.find(varname) == 0,\
             hc._histos.keys())
     hc.associated(histonames)
-    hc.plot(histonames[0],'comb_{0}.png'.format(varname),log=True)
+    hc.plot(histonames[0],'comb_{0}.png'.format(varname),log=True,legposition=legposition)
+
+def plot_profile_combined(hc,varname,axis,options='',legposition="RIGHT"):
+    """Plot in the same canvas the plots with the common name 
+    """
+    from PyAnUtils.plotstyles import squaredStyle
+    import ROOT
+    import os
+    import random
+    lstyle = squaredStyle()
+    lstyle.cd()
+    ROOT.gROOT.ForceStyle()
+    ROOT.gStyle.SetOptStat(0)
+    ROOT.gStyle.SetLegendBorderSize(0)
+    ROOT.gROOT.SetBatch()
+    
+    
+    # plotting it
+    # --- FIXME:: USE A function
+    histonames = filter(lambda _k: _k.find(varname) == 0,\
+            hc._histos.keys())
+    # create the profiles and include it in hc
+    profile_names = []
+    for hname in histonames:
+        _h = hc._histos[hname]
+        # Note that given the exact name for several cases (with/without) cuts
+        # a random number is needed
+        _profile_name = "{0}_pf_{1}_{2}".format(hname,axis,hash(random.uniform(0,1e5)))
+        hc.book_histo(_h.ProfileX().Clone(_profile_name),\
+                description=hc._description[hname],\
+                color=_h.GetLineColor())
+        profile_names.append( _profile_name )
+        #hc.create_and_book_histo("{0}_prf_{1}".format(hname,axis),\
+        #    _h.GetTitle(),_h.GetNbinsX(),_h.GetBinLowEdge(1),_h.GetBinLowEdge(_h.GetNbinsX()),\
+        #    description=hc._description[hname],
+        #    xtitle=_h.GetXaxis().GetTitle(),
+        #    ytitle=_h.GetYaxis().GetTitle())
+        #    #color=color)
+    hc.associated(profile_names)
+    hc.plot(profile_names[0],'comb_{0}.png'.format(varname),\
+            options=options,log=True,legposition=legposition,\
+            normalize=False)
 
 def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
     """Main function steering the efficiency calculation and
@@ -1046,7 +1159,7 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
     """
     import ROOT
     import sys
-    from math import sqrt
+    from math import sqrt,pi
 
     
     # Get the root file with and the TTree object
@@ -1143,6 +1256,15 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
         e.get_tree().Project("H_h_R_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy+vz*vz)")
         # two-dim
         e.get_tree().Project("H_h2_pL_{0}".format(e.decay_channel),"abs(p[1]*cos(theta[1])):abs(p[0]*cos(theta[0]))")
+        e.get_tree().Project("H_h2_Resd0_theta_{0}".format(e.decay_channel),\
+                "5.+(15/(p*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
+        # cut-dependent
+        e.activate_cuts(pLcut=20)
+        e.get_tree().Project("H_h_theta_lab_{0}".format(e.decay_channel),\
+                "acos(abs(cos(theta_lab)))*180.0/{0}".format(pi))
+        e.get_tree().Project("H_h2_pLcut20_Resd0_theta_{0}".format(e.decay_channel),\
+                "5.+(15/(p*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
+        e.deactivate_cuts()
     # -- plotting ...
     for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL')==0 and \
             _k.find("cosTheta") == -1,hc._histos.iteritems()):
@@ -1155,8 +1277,10 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
     plot_combined(hc,'H_h_z0')
     plot_combined(hc,'H_h_Lxy')
     plot_combined(hc,'H_h_R')
+    plot_combined(hc,'H_h_theta_lab',legposition="LEFT")
+    plot_profile_combined(hc,"H_h2_Resd0_theta","X",options="PE")
+    plot_profile_combined(hc,"H_h2_pLcut20_Resd0_theta","X",options="PE")
     #plot_combined(hc,'H_h_nM')
-
 
     # --- Some extra points (WP)
     if wp_activated:

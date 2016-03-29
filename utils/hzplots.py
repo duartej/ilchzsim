@@ -1132,7 +1132,7 @@ def main(rootfile,channels,tables,pLMax,d0cuts,wp_activated):
         e.get_tree().Project("H_h_Lxy_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy)")
         e.get_tree().Project("H_h_R_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy+vz*vz)")
         # two-dim
-        e.get_tree().Project("H_h2_pL_{0}".format(e.decay_channel),"p[0]*cos(theta[0]):p[1]*cos(theta[1])")
+        e.get_tree().Project("H_h2_pL_{0}".format(e.decay_channel),"abs(p[1]*cos(theta[1])):abs(p[0]*cos(theta[0]))")
     # -- plotting ...
     for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL')==0,hc._histos.iteritems()):
         plot(h,k,option='COLZ')

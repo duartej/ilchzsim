@@ -345,7 +345,17 @@ def d0(index):
     index: int
         the index of the gen-particle in the tree
     """
-    return  "(vy[{0}]-vx[{0}]*phi_lab[{0}])*cos(phi_lab[{0}])".format(index)
+    return  "(vy[{0}]-vx[{0}]*tan(phi_lab[{0}]))*cos(phi_lab[{0}])".format(index)
+
+def z0(index):
+    """Impact parameter extrapolation considering a straight line
+
+    Parameters
+    ----------
+    index: int
+        the index of the gen-particle in the tree
+    """
+    return  "-(vy[{0}]-vz[{0}]*tan(theta_lab[{0}]))/tan(theta_lab[{0}])".format(index)
 
 def get_common_entries(entrylist_list):
     """Return the common entries found in the list of TEntryList
@@ -443,7 +453,7 @@ class eff_cut_hadron(object):
         Implementation Notes
         --------------------
         Note that the ROOT.TEntryList should have one unique name, otherwise
-        the ROOt.gDirectory.Get method retrieve the first object in memory, 
+        the ROOT.gDirectory.Get method retrieve the first object in memory, 
         obtaining wrong results
         """
         import ROOT 

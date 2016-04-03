@@ -1283,13 +1283,13 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,wp_activate
         # two-dim
         e.get_tree().Project("H_h2_pL_{0}".format(e.decay_channel),"abs(p[1]*cos(theta[1])):abs(p[0]*cos(theta[0]))")
         e.get_tree().Project("H_h2_Resd0_theta_{0}".format(e.decay_channel),\
-                "5.+(10/(p*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
+                "5.+(10/(p_lab*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
         # cut-dependent
         e.activate_cuts(pLcut=20)
         e.get_tree().Project("H_h_theta_lab_{0}".format(e.decay_channel),\
                 "acos(abs(cos(theta_lab)))*180.0/{0}".format(pi))
         e.get_tree().Project("H_h2_pLcut20_Resd0_theta_{0}".format(e.decay_channel),\
-                "5.+(10/(p*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
+                "5.+(10/(p_lab*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
         e.deactivate_cuts()
     # -- plotting ...
     for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL')==0 and \

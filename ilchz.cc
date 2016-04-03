@@ -155,6 +155,7 @@ struct ParticleKinRootAux
     std::vector<int> * isBCdaughter;
     std::vector<int> * isPrimaryHadron;
     std::vector<float> * p;
+    std::vector<float> * p_lab;
     std::vector<float> * pmother;
     std::vector<float> * phi;
     std::vector<float> * phi_lab;
@@ -174,7 +175,7 @@ struct ParticleKinRootAux
         &_listofusedpartindex } ;
     // list of vectors (floats)
     std::vector<std::vector<float> **> _auxF = { 
-        &p, &pmother, 
+        &p, &p_lab, &pmother, 
         &phi, &phi_lab,
         &theta, &theta_lab,
         &vx, &vy, &vz } ;
@@ -189,6 +190,7 @@ struct ParticleKinRootAux
         isBCdaughter(nullptr),
         isPrimaryHadron(nullptr),
         p(nullptr),
+        p_lab(nullptr),
         pmother(nullptr),
         phi(nullptr),
         phi_lab(nullptr),
@@ -230,6 +232,7 @@ struct ParticleKinRootAux
         isBCdaughter   = new std::vector<int>;
         isPrimaryHadron= new std::vector<int>;
         p              = new std::vector<float>;
+        p_lab          = new std::vector<float>;
         pmother        = new std::vector<float>;
         phi            = new std::vector<float>;
         phi_lab        = new std::vector<float>;
@@ -264,7 +267,9 @@ struct ParticleKinRootAux
     }
     int filltreevariables(const int & pythiaindex, const int & id, const int & _motherindex, 
             const int & _catchall, const int & _isHF, const int & _isPH,
-            const float & _p, const float & _pmother, const float & _phi, const float & _phi_lab,
+            const float & _p, const float & _p_lab, 
+            const float & _pmother, 
+            const float & _phi, const float & _phi_lab,
             const float & _theta, const float & _theta_lab,
             const float & _vx, const float & _vy, const float & _vz)
     {
@@ -274,6 +279,7 @@ struct ParticleKinRootAux
         this->isBCdaughter->push_back(_isHF);
         this->isPrimaryHadron->push_back(_isPH);
         this->p->push_back(_p);
+        this->p_lab->push_back(_p_lab);
         this->pmother->push_back(_pmother);
         this->phi->push_back(_phi);
         this->phi_lab->push_back(_phi_lab);
@@ -320,6 +326,7 @@ struct ParticleKinRootAux
         t->Branch("isBCdaughter",&isBCdaughter);
         t->Branch("isPrimaryHadron",&isPrimaryHadron);
         t->Branch("p",&p);
+        t->Branch("p_lab",&p_lab);
         t->Branch("pmother",&pmother);
         t->Branch("phi",&phi);
         t->Branch("phi_lab",&phi_lab);
@@ -346,7 +353,9 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     const int respdgId = resonanceHS.id();
     // Filling n-tuple and getting the n-tuple index of the Resonance
     const int reslocalIndex = p.filltreevariables(i,respdgId,-1,0,0,-1,
-            resonanceHS.pAbs(),-1,resonanceHS.phi(),resonanceHS.phi(),
+            resonanceHS.pAbs(), resonanceHS.pAbs(),
+            -1,
+            resonanceHS.phi(),resonanceHS.phi(),
             resonanceHS.theta(), resonanceHS.theta(),
             resonanceHS.xProd(),resonanceHS.yProd(),resonanceHS.zProd());
 
@@ -377,13 +386,17 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     const bool isLeading_s = (s.pAbs() > sbar.pAbs());
 
     p.filltreevariables(iS,s.id(),reslocalIndex,(int)isLeading_s,0,-1,
-            s.pAbs(),resonance.pAbs(),s.phi(),pythia.event[iS].phi(),
+            s.pAbs(),pythia.event[iS].pAbs(),
+            resonance.pAbs(),
+            s.phi(),pythia.event[iS].phi(),
             s.theta(),pythia.event[iS].theta(),
             s.xProd(),s.yProd(),s.zProd());
     
     // Save info of the sbar-quark
     p.filltreevariables(iSbar,sbar.id(),reslocalIndex,(int)(not isLeading_s),0,-1,
-            sbar.pAbs(),resonance.pAbs(),sbar.phi(),pythia.event[iSbar].phi(),
+            sbar.pAbs(),pythia.event[iSbar].pAbs(),
+            resonance.pAbs(),
+            sbar.phi(),pythia.event[iSbar].phi(),
             sbar.theta(),pythia.event[iSbar].theta(),
             sbar.xProd(),s.yProd(),s.zProd());
     
@@ -449,6 +462,7 @@ void display_usage()
         << "\t'isBoCdaughter': std::vector<int>   describes if the hadrons is coming from\n"
         << "                   a Bottom or Charm hadron.\n"
         << "\t'p'            : std::vector<float> momentum of the particle\n"
+        << "\t'p_lab'        : std::vector<float> momentum (at the lab. frame) of the particle\n"
         << "\t'pmother'      : std::vector<float> momentum of its mother [to be deprecated]\n"
         << "\t'phi'          : std::vector<float> phi of the particle\n"
         << "\t'phi_lab'      : std::vector<float> phi (at the lab. frame) of the particle\n"
@@ -459,7 +473,7 @@ void display_usage()
         << "\t'vz'           : std::vector<float> production vertex, z\n"
         << "Note that the p,phi,theta variables are respect the rest-frame of the q-qbar system\n"
         << "in the case of the final-state hadrons, as well as the pmother."
-        << "However, the production vertex, phi_lab and theta_lab is respect the Laboratory frame.\n";
+        << "However, the production vertex, p_lab, phi_lab and theta_lab is respect the Laboratory frame.\n";
     std::cout << std::endl;
 	std::cout << "[OPTIONS]\n\t-o name of the ROOT output file [hzkin.root]\n"
         << "\t-b flag to keep track if the final hadrons provenance is from charmed or bottom hadrons\n"
@@ -686,7 +700,9 @@ int main(int argc, char* argv[])
             const Particle & hadatlab = pythia.event[currI];
             particles.filltreevariables(currI,had.id(),particles.getlocalindex(quarkindex),
                     ancestorID,isBCdaughter,isPrimaryHadron,
-                    had.pAbs(),quarkatrest.pAbs(),had.phi(),hadatlab.phi(),
+                    had.pAbs(),hadatlab.pAbs(),
+                    quarkatrest.pAbs(),
+                    had.phi(),hadatlab.phi(),
                     had.theta(), hadatlab.theta(),
                     hadatlab.xProd(),hadatlab.yProd(),hadatlab.zProd());
 #ifdef DEBUG

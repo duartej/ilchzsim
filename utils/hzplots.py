@@ -433,7 +433,7 @@ class eff_cut_hadron(object):
         elif pLcut_type == "square":
             self.pLcut_function="abs(p[0]*cos(theta[0])) > {0} && abs(p[1]*cos(theta[1])) > {0}"
         elif pLcut_type == "line":
-            self.pLcut_function = "p[1]*cos(theta[1]) > (-{0}/40.0)*p[0]*cos(theta[0])+{0}"
+            self.pLcut_function = "p[1]*cos(theta[1]) > (-{0}/30.0)*p[0]*cos(theta[0])+{0}"
         else:
             raise RuntimeError("Not a valid pL-cut functional: valid values:"\
                     " circular, square and line")

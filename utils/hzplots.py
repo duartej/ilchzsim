@@ -394,7 +394,7 @@ class eff_cut_hadron(object):
     .. math::\varepsilon_{AB}^{q\bar{q}} = P( d0^{c} p_{||}^c L_{AB} | 
                 (ee\rightarrow HZ\rightarrow q\bar{q}) I_0 )
     """
-    def __init__(self,decay_channel,d0cut_type="circular",pLcut_type="circular"):
+    def __init__(self,decay_channel,z0cut=False,d0cut_type="circular",pLcut_type="circular"):
         """Encapsulates the efficieny cut of a Hadron-hadron event
         Incorporates the cut in impact parameter and in parallel momentum
 
@@ -402,6 +402,8 @@ class eff_cut_hadron(object):
         ----------
         decay_channel: str
             the Higgs hadronic decay (bbbar,ccbar,ssbar, ddbar, uubar)
+        z0: bool
+            whether or not activated an extra circular cut around z0=0.1 mm
         d0cut_type: str, [default: circular]
             defines the function to be used to cut in d0, valid values are
             circular, square
@@ -427,20 +429,27 @@ class eff_cut_hadron(object):
         self.__entrylists_reservoir = {}
         self.__finalhadrons_entries = { 'KK': None, 'KP': None, 'PP': None }
         
+        if z0cut:
+            self.pLcut_function = "sqrt( ({0})**2.0 + ({1})**2.0) < {2} && ".format(z0(0),z0(1),z0cut)
+            self.d0cut_function = "sqrt( ({0})**2.0 + ({1})**2.0) < {2} && ".format(z0(0),z0(1),z0cut)
+        else:
+            self.pLcut_function = ""
+            self.d0cut_function = ""
+
         # behaviour members
         if pLcut_type == "circular":
-            self.pLcut_function="sqrt( (p[0]*cos(theta[0]))**2. + (p[1]*cos(theta[1]))**2.) > {0}"
+            self.pLcut_function += "sqrt( (p[0]*cos(theta[0]))**2. + (p[1]*cos(theta[1]))**2.) > {0}"
         elif pLcut_type == "square":
-            self.pLcut_function="abs(p[0]*cos(theta[0])) > {0} && abs(p[1]*cos(theta[1])) > {0}"
+            self.pLcut_function += "abs(p[0]*cos(theta[0])) > {0} && abs(p[1]*cos(theta[1])) > {0}"
         elif pLcut_type == "line":
-            self.pLcut_function = "p[1]*cos(theta[1]) > (-{0}/30.0)*p[0]*cos(theta[0])+{0}"
+            self.pLcut_function += "p[1]*cos(theta[1]) > (-{0}/30.0)*p[0]*cos(theta[0])+{0}"
         else:
             raise RuntimeError("Not a valid pL-cut functional: valid values:"\
                     " circular, square and line")
         if d0cut_type == "circular":
-            self.d0cut_function="sqrt( {0}**2.0 + {1}**2.0) < {2}".format(d0(0),d0(1),"{0}")
+            self.d0cut_function += "sqrt( ({0})**2.0 + ({1})**2.0) < {2}".format(d0(0),d0(1),"{0}")
         elif d0cut_type == "square":
-            self.d0cut_function="abs({0}) < {2} && abs({1}) < {2}".format(d0(0),d0(1),"{0}")
+            self.d0cut_function += "abs({0}) < {2} && abs({1}) < {2}".format(d0(0),d0(1),"{0}")
         else:
             raise RuntimeError("Not a valid d0-cut functional: valid values:"\
                     " circular and square ")
@@ -1156,7 +1165,7 @@ def plot_profile_combined(hc,varname,axis,options='',legposition="RIGHT"):
             options=options,log=True,legposition=legposition,\
             normalize=False)
 
-def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,wp_activated):
+def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_activated):
     """Main function steering the efficiency calculation and
     the plots creation.
     
@@ -1179,8 +1188,14 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,wp_activate
         whether or not print-out the latex tables
     pLMax: float
         the parallel momentum cut considered
+    pLcut_type: str
+        functional of the pL cut(pL1,pL2): circular|square|line
     d0cuts: list(float)
         the list of d0-cuts to consider
+    d0cut_type: str
+        functional of the d0cut(d01,d02): circular|square
+    z0: float|None
+        whether activate or not z0cut, if yes, the cut number
     wp_activated: bool
         whether or not to plot on the working points...
     """
@@ -1225,7 +1240,7 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,wp_activate
     
     # --- Ready to extract efficiencies
     # the eff. classes 
-    eff = dict(map(lambda x: (x,eff_cut_hadron(x,d0cut_type=d0cut_type,pLcut_type=pLcut_type)), channels))
+    eff = dict(map(lambda x: (x,eff_cut_hadron(x,z0cut,d0cut_type=d0cut_type,pLcut_type=pLcut_type)), channels))
     
     message = "\r\033[1;34mhzplots INFO\033[1;m Obtaining efficiencies"
     # { 'docut1': [ (pLcut1, eff_sig, significance, pion_rejection, purity, N_sig, N_bkg), ... ],  }
@@ -1374,11 +1389,13 @@ if __name__ == '__main__':
     #Opciones de entrada
     usage = "usage: hzplots INPUTFILE [options]"
     parser = OptionParser(usage=usage)
-    parser.set_defaults(pLMax=30,d0="0.1,0.3,0.5",pLcut_type='circular',d0cut_type='circular')    
+    parser.set_defaults(pLMax=30,d0="0.1,0.3,0.5",z0=None,pLcut_type='circular',d0cut_type='circular')    
     parser.add_option( '-s', '--suffix', action='store', type='string', dest='suffixout',\
             help="output suffix for the plots [.pdf]")
     parser.add_option( '-d', '--d0', action='store', type='string', dest='d0',\
             metavar='d01[,d02,...]',help="Impact parameters cuts [0.1,0.3,0.5]")
+    parser.add_option( '-z', '--z0', action='store',  dest='z0',\
+            help="activate the z0-cut and the value to cut [False]")
     parser.add_option( '--d0cut-type', action='store', type='string', dest='d0cut_type',\
             metavar='circular|square',help="functional of the d0 cut [circular]")
     parser.add_option( '-p', '--pL-cut', action='store', type='string', dest='pLMax',\
@@ -1407,11 +1424,12 @@ if __name__ == '__main__':
     d0cuts = []
     for d0cut in sorted(opt.d0.split(','),key=lambda x: float(x)):
         d0cuts.append(float(d0cut))
-
+    
     main(os.path.abspath(args[0]),channels,
             opt.tables,
             int(opt.pLMax),
             opt.pLcut_type,
             d0cuts,
             opt.d0cut_type,
+            opt.z0,
             opt.wp_activate)

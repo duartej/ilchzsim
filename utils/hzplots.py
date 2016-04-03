@@ -1142,6 +1142,7 @@ def plot_profile_combined(hc,varname,axis,options='',legposition="RIGHT"):
         _profile_name = "{0}_pf_{1}_{2}".format(hname,axis,hash(random.uniform(0,1e5)))
         hc.book_histo(_h.ProfileX().Clone(_profile_name),\
                 description=hc._description[hname],\
+                ytitle='<#sigma_{d_{0}}> [#mum]',
                 color=_h.GetLineColor())
         profile_names.append( _profile_name )
         #hc.create_and_book_histo("{0}_prf_{1}".format(hname,axis),\

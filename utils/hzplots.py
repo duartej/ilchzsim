@@ -1268,7 +1268,7 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_ac
                     filter(lambda (x,y): x != signal_PID or x != signal_noPID, eff.iteritems() )))
             # Signal efficiency calculation: assuming 100% p-K separation with the PID 
             # effsig := eff['ssbar_PID']
-            # purity := 2*N_KK/(2*N_KK+2*N_KP+2*N_KK) = N_KK/(N_KK+NKP+N_PP)
+            # purity := 2*N_KK/(2*N_KK+2*N_KP+2*N_PP) = N_KK/(N_KK+N_KP+N_PP)
             # Pion rejection: N_b/N_signal assuming no p-K separation (no PID)
             # Note: sigma_HZ*L_int*Sum_qq BR(H->qq)/Sum_qq BR(h->qq)*(Sum_qq BR(H->qq) eff_qq*f_qq)
             # the Sum_qq BR(H->qq) terms are cancelled... 

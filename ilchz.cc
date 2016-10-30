@@ -29,7 +29,6 @@
 #include<utility>
 #include<iterator>
 
-
 // Helper class to declare hadrons-id
 struct FinalStateHadrons
 {

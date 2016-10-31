@@ -28,6 +28,7 @@
 #include<algorithm>
 #include<utility>
 #include<iterator>
+#include<random>
 
 // Helper class to declare hadrons-id
 struct FinalStateHadrons
@@ -86,7 +87,7 @@ struct FinalStateHadrons
 
     std::vector<int> getcharmed() const
     {
-        std::vector<int> _charmed = { D_0, D_PLUS, D_MINUS, D_PLUS_S, D_MINUS_S };
+        static std::vector<int> _charmed = { D_0, D_PLUS, D_MINUS, D_PLUS_S, D_MINUS_S };
 
         return _charmed;
     }
@@ -94,35 +95,35 @@ struct FinalStateHadrons
 
     std::vector<int> getpions() const
     {
-        std::vector<int> _pions = { PI_0, PI_PLUS };
+        static std::vector<int> _pions = { PI_0, PI_PLUS };
 
         return _pions;
     }
     
     std::vector<int> get_charged_pions() const
     {
-        std::vector<int> _pions = {PI_PLUS};
+        static std::vector<int> _pions = {PI_PLUS};
 
         return _pions;
     }
     
     std::vector<int> getkaons() const
     {
-        std::vector<int> _kaons = {K_LONG, K_SHORT, K_PLUS };
+        static std::vector<int> _kaons = {K_LONG, K_SHORT, K_PLUS };
 
         return _kaons;
     }
     
     std::vector<int> get_charged_kaons() const
     {
-        std::vector<int> _kaons = {K_PLUS};
+        static std::vector<int> _kaons = {K_PLUS};
 
         return _kaons;
     }
     
     std::vector<int> getbottoms() const
     {
-        std::vector<int> _bottoms = { B_0, B_PLUS, B_MINUS, B_0_S };
+        static std::vector<int> _bottoms = { B_0, B_PLUS, B_MINUS, B_0_S };
 
         return _bottoms;
     }
@@ -163,6 +164,12 @@ struct ParticleKinRootAux
     std::vector<float> * vx;
     std::vector<float> * vy;
     std::vector<float> * vz;
+    // random devices and distributions for 
+    // misid probability
+    float misid_prob;
+    bool apply_misid;
+    std::mt19937 rdm_gen;
+    std::uniform_real_distribution<float> uniform_dist;
 
     // Auxiliary
     std::vector<int> * _listofusedpartindex;
@@ -182,7 +189,7 @@ struct ParticleKinRootAux
     std::vector<int> strangehadrons;
 
     // Constructor
-    ParticleKinRootAux(const std::vector<int> & finalstatehadrons): 
+    ParticleKinRootAux(const std::vector<int> & finalstatehadrons, const float & _misidprob): 
         pdgId(nullptr),
         motherindex(nullptr),
         catchall(nullptr),
@@ -198,16 +205,76 @@ struct ParticleKinRootAux
         vx(nullptr),
         vy(nullptr),
         vz(nullptr),
+        misid_prob(_misidprob),
+        apply_misid(false),
+        // start ramdom machine
+        rdm_gen(std::random_device()()),
+        uniform_dist(0.0,1.0),
        _listofusedpartindex(nullptr) 
     {
         // User define the hadrons
         strangehadrons.insert(strangehadrons.end(),finalstatehadrons.begin(),
                 finalstatehadrons.end());
+        // apply misid or  not
+        if( std::fabs(misid_prob ) > 1e-15 )
+        {
+            apply_misid=true;
+        }
     }
 
     ~ParticleKinRootAux()
     {
         endloop();
+    }
+
+    // whether or not a particle (given its pdgID) should be processed or
+    // not 
+    bool tobeprocessed(const int & abspdgid)
+    {
+        // to be processed only if is in the strangehadrons list,
+        // i.e. usually means, pion or kaon
+        if( std::find(strangehadrons.begin(),strangehadrons.end(),
+                        abspdgid) == strangehadrons.end() )
+        {
+            return false;
+        }
+
+        // just return already if no misid has to be calculated
+        if( ! apply_misid )
+        {
+            return true;
+        }
+        
+        // Applying mis-identification probability (simple accepting-rejecting by value
+        // accepting when the uniform return a lower value than the misid probability
+        // (note it should be included better, a gaussian ?)
+        if( uniform_dist(rdm_gen) < misid_prob )
+        {
+            // Pion: accept the event although it shouldn't
+            // (misidentified as kaon)
+            if( abspdgid == 211 )
+            {
+                return true;
+            }
+            else
+            {
+                // Kaon: not accept the event although it should
+                // (misidentified as pion)
+                // [ Note at that point interesting particles are only 
+                //   kaons or  pions ]
+                return false;
+            }
+        }
+        else
+        {
+            // Pion should be rejected, the PID worked well
+            if( abspdgid == 211 )
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // used particles in the generated event: to speed up the loop not 
@@ -243,7 +310,7 @@ struct ParticleKinRootAux
 
         _listofusedpartindex = new std::vector<int>;
     }
-    
+
     // Delete before loop
     void endloop()
     {
@@ -458,7 +525,7 @@ void display_usage()
             << "\t\t\t * 0                  for the resonance (H,Z)\n"
             << "\t\t\t * is higher p quark? for the s-squark resonance daughters\n"
             << "\t\t\t * grandmother PDG_ID for the 'final state' strange hadrons\n"
-        << "\t'isBoCdaughter': std::vector<int>   describes if the hadrons is coming from\n"
+        << "\t'isBCdaughter' : std::vector<int>   describes if the hadrons is coming from\n"
         << "                   a Bottom or Charm hadron.\n"
         << "\t'p'            : std::vector<float> momentum of the particle\n"
         << "\t'p_lab'        : std::vector<float> momentum (at the lab. frame) of the particle\n"
@@ -477,6 +544,8 @@ void display_usage()
 	std::cout << "[OPTIONS]\n\t-o name of the ROOT output file [hzkin.root]\n"
         << "\t-b flag to keep track if the final hadrons provenance is from charmed or bottom hadrons\n"
         << "\t-f final state hadrons to keep: pions,kaons or pions_kaons [default:kaons])\n"
+        << "\t-m mis-identification probability, a value different from 0 will force '-t pions_kaons'"
+        << " regardless of the user input [default: 0.0]\n"
         << "\t-h show this help" << std::endl;
 }
 
@@ -494,6 +563,7 @@ int main(int argc, char* argv[])
     // Declare option-related variables
     std::string outputfilename("hzkin.root");
     std::string strangehadrontype("kaons");
+    float misid_ratio(0.0);
     bool accountforheavyflavoured = false;
 
 	
@@ -520,6 +590,11 @@ int main(int argc, char* argv[])
         {
             accountforheavyflavoured = true;
         }
+        else if( strcmp(argv[i],"-m") == 0 )
+        {
+            misid_ratio = std::stof(argv[i+1]);
+            ++i;
+        }
         else
         {
             // Check that the provided input name corresponds to an existing file.
@@ -533,6 +608,15 @@ int main(int argc, char* argv[])
             cmndfile = argv[i];
         }
     }
+
+    // Force to kaons_pions whenever a misid_ratio != 0.0
+    if( std::fabs(misid_ratio) > 1e-20)
+    {
+        strangehadrontype = "kaons_pions";
+        std::cout << "ilchz: Kaon/pion mis-identification set to " << misid_ratio
+            << "  Forcing 'kaons_pions' mode" << std::endl;
+    }
+    
     // Check was passed the proper hadron type
     if( strangehadrontype != "pions" && strangehadrontype != "kaons" && 
             (strangehadrontype != "pions_kaons" && strangehadrontype != "kaons_pions") )
@@ -560,7 +644,7 @@ int main(int argc, char* argv[])
     // selected hadrons:
     FinalStateHadrons fshadrons(strangehadrontype);
     // ROOT init tree
-    ParticleKinRootAux particles(fshadrons.getIDs());
+    ParticleKinRootAux particles(fshadrons.getIDs(),misid_ratio);
 
     TTree * thz = new TTree("mctrue","ee -> H Z -> s sbar s sbar");
     particles.inittree(thz);
@@ -622,9 +706,10 @@ int main(int argc, char* argv[])
             {
                 continue;
             }
-            // "Interesting" particles only!
-            if( std::find(particles.strangehadrons.begin(),particles.strangehadrons.end(),
-                        abspdgid) == particles.strangehadrons.end() )
+            
+            // "Interesting" particles only! (here is taken into account the 
+            // misid probability as well
+            if( ! particles.tobeprocessed(abspdgid) )
             {
                 continue;
             }
@@ -637,6 +722,7 @@ int main(int argc, char* argv[])
             {
                 continue;
             }
+
 
             Particle had = pythia.event[currI];
 

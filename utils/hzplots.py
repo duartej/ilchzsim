@@ -173,7 +173,7 @@ def parseprocess(name):
       
     return process
 
-def get_tree_name(tree_names,decay_channel,hadron_state):
+def get_tree_name(tree_names,decay_channel):
     """Given a standarized (TTree) tree list of names (obtained from the 
     processedhzroot.py script), it returns the name of the histogram matching
     the final state
@@ -183,22 +183,24 @@ def get_tree_name(tree_names,decay_channel,hadron_state):
     three_names: list(str)
         the names of all the trees found in a root processed file by the
         processedhzroot script
-    hadron_state: str
-        the two opposite-hemisphere final state hadrons: KK, KP, PP (K-kaon,
-        P-pion)
-
+    
     Return
     ------
     str, the name of the input list matching the final state
+
+    Raises
+    ------
+    AttributeError, whenever the tree 'mctrue_{channel}_*' is not found 
     """
     try:
-        tree_name = filter(lambda x: 
-                x.find('mctree_{0}'.format(hadron_state)) ==0 and  
-                    x.find(decay_channel) != -1,tree_names)[0]
+        return filter(lambda x: x.find("mctrue_{0}".format(decay_channel)) != -1,\
+                    tree_names)[0]
     except IndexError:
-        raise RuntimeError('Not found the tree "mctree_{0}_*_{1}"'\
-                ' in the root file'.format(decay_channel,hadron_state))
-    return tree_name
+        raise AttributeError('Not found the tree "mctree_{0}_*"'\
+                ' in the root file. Note that the input file should '\
+                ' follows the standard notation: '\
+                ' "mctrue_nnnPID_channel_blahblbah" being nnn: mis-ident.'\
+                ' probability'.format(decay_channel))
 
 def get_histo_name(th3names,decay_channel,hadron_state):
     """Given a standarized (TH3) histogram list of names (obtained from the 
@@ -402,7 +404,7 @@ class eff_cut_hadron(object):
         ----------
         decay_channel: str
             the Higgs hadronic decay (bbbar,ccbar,ssbar, ddbar, uubar)
-        z0: bool
+        z0cut: bool
             whether or not activated an extra circular cut around z0=0.1 mm
         d0cut_type: str, [default: circular]
             defines the function to be used to cut in d0, valid values are
@@ -561,12 +563,13 @@ class eff_cut_hadron(object):
         import ROOT 
         #ROOT.gROOT.SetBatch()
 
-        try:
-            treename = filter(lambda x: x.find("mctrue_{0}".format(self.decay_channel)) != -1,\
-                    treedict.keys())[0]
-        except IndexError:
-            raise AttributeError("\033[1;31mERROR:\033[1;m not found "\
-                    "decay channel '{0}' tree".format(self.decay_channel))
+        #try:
+        #    treename = filter(lambda x: x.find("mctrue_{0}".format(self.decay_channel)) != -1,\
+        #            treedict.keys())[0]
+        #except IndexError:
+        #    raise AttributeError("\033[1;31mERROR:\033[1;m not found "\
+        #            "decay channel '{0}' tree".format(self.decay_channel))
+        treename = get_tree_name(treedict.keys(),self.decay_channel)
         # get the tree and check if it was used before
         tree = treedict[treename]
         is_new_tree = False
@@ -866,6 +869,8 @@ def make_plot(points_dict,(xindex,yindex),plot_attr,g_points_dict=None,leg_posit
         k+=1
     leg.Draw()
     c.SaveAs('{0}{1}'.format(plot_attr.plotname.split('.')[0],suffixplots))
+    #if plot_attr.plotname == "significance":
+    #    c.SaveAs('{0}{1}'.format(plot_attr.plotname.split('.')[0],".C"))
     # Legend for the points
     if g_points_dict:
         c.Close()
@@ -878,7 +883,7 @@ def get_latex_table(obsList):
     """.. function:: get_latex_table(obsList) -> str(latex table)
     [ (pLcut1, eff_sig, significance, pion_rejection, purity, N_SIG, N_BKG) ]
     """
-    columns = ( 'p_{||}^{c}\;[GeV]','\\varepsilon_{ss}', 'S/\\sqrt{B}', 'N_{bkg}/N_{s\\bar{s}}', \
+    columns = ( 'p_{||}^{c}\;[GeV]','\\varepsilon_{ss}', 'N_{S}/\\sqrt{N_{B}}', 'N_{bkg}/N_{s\\bar{s}}', \
             'Kaon Purity', 'N_{s\\bar{s}}', 'N_{bkg}', '\\varepsilon_{bkg}')
     colformat = map(lambda x: ' ${0:'+str(x)+'}$ &' , \
             ( '.0f','.3f','.2f','.0f','.3f', '.0f', '.0f' , '.3f'))
@@ -1005,6 +1010,13 @@ def create_histos(suffix,description,res_int,hc=None):
             xtitle="|#theta_{lab}| [^{o}]", ytitle="A.U.",
             color=color)
     
+    hc.create_and_book_histo("{0}_h2_pL_theta_lab_{1}".format(resonance,suffix),\
+            "leading hadrons #theta vs. p_{L}",\
+            100,0,91,npoints_y=100,ylow=0,yhigh=65,description=description,
+            ytitle="p_{||} [GeV]",
+            xtitle='|#theta_{lab}| [^{o}]',
+            color=color)
+    
     hc.create_and_book_histo("{0}_h2_cosTheta_{1}".format(resonance,suffix),\
             "leading kaons angle (q#bar{q} system)",\
             100,-1,1,npoints_y=100,ylow=-1,yhigh=1,description=description,
@@ -1098,6 +1110,7 @@ def plot(histo,varname,xtitle='',ytitle='',option=''):
     
     c = ROOT.TCanvas()
     histo.Draw(option)
+    #suffix = SUFFIXPLOTS
     c.SaveAs("{0}.{1}".format(histo.GetName(),'png'))
 
     c.Close()
@@ -1123,7 +1136,9 @@ def plot_combined(hc,varname,option='',legposition="RIGHT"):
     hc.associated(histonames)
     hc.plot(histonames[0],'comb_{0}.png'.format(varname),log=True,legposition=legposition)
 
-def plot_profile_combined(hc,varname,axis,options='',legposition="RIGHT"):
+def plot_profile_combined(hc,varname,axis,
+        ytitle='<#sigma_{d_{0}}> [#mum]',
+        options='',legposition="RIGHT"):
     """Plot in the same canvas the plots with the common name 
     """
     from PyAnUtils.plotstyles import squaredStyle
@@ -1140,7 +1155,7 @@ def plot_profile_combined(hc,varname,axis,options='',legposition="RIGHT"):
     
     # plotting it
     # --- FIXME:: USE A function
-    histonames = filter(lambda _k: _k.find(varname) == 0,\
+    histonames = filter(lambda _k: _k.find(varname) == 0 and _k.find('_pf_') == -1,\
             hc._histos.keys())
     # create the profiles and include it in hc
     profile_names = []
@@ -1149,9 +1164,13 @@ def plot_profile_combined(hc,varname,axis,options='',legposition="RIGHT"):
         # Note that given the exact name for several cases (with/without) cuts
         # a random number is needed
         _profile_name = "{0}_pf_{1}_{2}".format(hname,axis,hash(random.uniform(0,1e5)))
-        hc.book_histo(_h.ProfileX().Clone(_profile_name),\
+        if axis == "X":
+            fProxy = _h.ProfileX
+        elif axis == "Y":
+            fProxy = _h.ProfileY
+        hc.book_histo(fProxy().Clone(_profile_name),\
                 description=hc._description[hname],\
-                ytitle='<#sigma_{d_{0}}> [#mum]',
+                ytitle=ytitle,
                 color=_h.GetLineColor())
         profile_names.append( _profile_name )
         #hc.create_and_book_histo("{0}_prf_{1}".format(hname,axis),\
@@ -1161,7 +1180,7 @@ def plot_profile_combined(hc,varname,axis,options='',legposition="RIGHT"):
         #    ytitle=_h.GetYaxis().GetTitle())
         #    #color=color)
     hc.associated(profile_names)
-    hc.plot(profile_names[0],'comb_{0}.png'.format(varname),\
+    hc.plot(profile_names[0],'comb_{0}_{1}.png'.format(varname,axis),\
             options=options,log=True,legposition=legposition,\
             normalize=False)
 
@@ -1219,22 +1238,23 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_ac
     #        }
     _obj = { 'H': _preobj }
 
-    signal_PID   = filter(lambda x: x.find('ssbar_PID') != -1,channels)[0]
-    signal_noPID = filter(lambda x: x.find('ssbar_noPID') != -1,channels)[0]
-
-    # check if the noPID histograms are present
-    try:
-        _test = filter(lambda name: name.find('ssbar_noPID') != -1,_obj['H'].keys())[0]
-        purity_evaluation = True
-    except IndexError:
-        # not found the related histograms, we cannot calculate purity
-        # just warn, but continue with the plots
-        print "\033[1;33mhzplots WARNING\033[1;m No 'ssbar_noPID' available." \
-                " The purity terms are not evaluated"
-        purity_evaluation = False
-        # and remove the signal_noPID from the channels list
-        channels.remove(signal_noPID)
+    #-- get the proper name of the signal channel (with the amount of PID)
+    signal_channel   = filter(lambda x: x.find('ssbar') != -1,channels)[0]
     
+    ## check if the noPID histograms are present
+    #try:
+    #    _test = filter(lambda name: name.find('ssbar_noPID') != -1,_obj['H'].keys())[0]
+    #    purity_evaluation = True  # XXX
+    #    purity_evaluation = False
+    #except IndexError:
+    #    # not found the related histograms, we cannot calculate purity
+    #    # just warn, but continue with the plots
+    #    print "\033[1;33mhzplots WARNING\033[1;m No 'ssbar_noPID' available." \
+    #            " The purity terms are not evaluated"
+    #    purity_evaluation = False
+    #    # and remove the signal_noPID from the channels list
+    #    channels.remove(signal_noPID)
+
     # -- just take care in the H-ressonance...
     pLcuts = xrange(0,pLMax+1)
     
@@ -1245,7 +1265,7 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_ac
     message = "\r\033[1;34mhzplots INFO\033[1;m Obtaining efficiencies"
     # { 'docut1': [ (pLcut1, eff_sig, significance, pion_rejection, purity, N_sig, N_bkg), ... ],  }
     observables = {}
-    # Indices
+    # Indices, see in line [MARK-1]
     I_PL = 0; I_EFF_SIG = 1; I_SIGN=2; I_PION_REJEC = 3; I_PURITY = 4; I_N_SIGNAL = 5; I_N_BKG=6; I_EFF_BKG=7;
 
     for _d0 in d0cuts:
@@ -1258,31 +1278,37 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_ac
 
             # setting the current cuts to all the efficienciesa
             _dummy = map(lambda e: e.set_total_eff(_obj['H'],pLcut=pL,d0cut=_d0), eff.values())
-            
+
             # Some needed values
-            eff_sig = eff['ssbar_PID'].get_total_eff('KK')
-            n_KK    = eff['ssbar_PID'].get_total_events()
+            #eff_sig = eff[signal_channel].get_total_eff('KK') ?
+            eff_sig = eff[signal_channel].get_total_eff()
+            n_KK    = eff[signal_channel].get_total_events()
             bkg_tot_evts = sum(map(lambda (x,y): y.get_total_events(),\
-                    filter(lambda (x,y): x != signal_PID or x != signal_noPID, eff.iteritems() )))
+                    filter(lambda (x,y): x != signal_channel, eff.iteritems() )))
             bkg_tot_eff = sum(map(lambda (x,y): y.get_total_eff(),\
-                    filter(lambda (x,y): x != signal_PID or x != signal_noPID, eff.iteritems() )))
-            # Signal efficiency calculation: assuming 100% p-K separation with the PID 
-            # effsig := eff['ssbar_PID']
-            # purity := 2*N_KK/(2*N_KK+2*N_KP+2*N_PP) = N_KK/(N_KK+N_KP+N_PP)
-            # Pion rejection: N_b/N_signal assuming no p-K separation (no PID)
+                    filter(lambda (x,y): x != signal_channel, eff.iteritems() )))
+            # Signal efficiency calculation 
+            # effsig := eff['ssbar_nnnPID'] --< ssbar
+            # purity := 2*N_KK/(2*N_KK+2*N_KP+2*N_PP) = N_KK/(N_KK+N_KP+N_PP) --> ssbar 
+            # Pion rejection: 1/(# accept. as K / # pions generated) -> equivalent
+            #     to ?? --> NOT IMPLEMENTED YET
             # Note: sigma_HZ*L_int*Sum_qq BR(H->qq)/Sum_qq BR(h->qq)*(Sum_qq BR(H->qq) eff_qq*f_qq)
             # the Sum_qq BR(H->qq) terms are cancelled... 
-            pion_rejection = float(bkg_tot_evts)/float(n_KK)
-            purity = -1
-            if purity_evaluation:
-                purity         = float(eff['ssbar_noPID'].get_events('KK'))/\
-                        (float(eff['ssbar_noPID'].get_events('KK'))+\
-                        float(eff['ssbar_noPID'].get_events('KP'))+\
-                        float(eff['ssbar_noPID'].get_events('PP')))
-                purity_evaluation = True
-            significance   = float(n_KK)/sqrt(float(bkg_tot_evts))
+            #pion_rejection = float(bkg_tot_evts)/float(n_KK)
+            pion_rejection = -1 # dummy NOT IMPLEMNTED
+            try:
+                purity = float(eff[signal_channel].get_events('KK'))/\
+                        (float(eff[signal_channel].get_events('KK'))+\
+                        float(eff[signal_channel].get_events('KP'))+\
+                        float(eff[signal_channel].get_events('PP')))
+            except ZeroDivisionError:
+                purity = 0.0
+            try:
+                significance   = float(n_KK)/sqrt(float(bkg_tot_evts))
+            except ZeroDivisionError:
+                significance   = 0.0
 
-            # store it
+            # store it, note reference above [MARK-1]
             observables[d0str].append( (pL,eff_sig,significance,pion_rejection,purity,n_KK,bkg_tot_evts,bkg_tot_eff) )
             i+=1
     # plotting
@@ -1300,6 +1326,8 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_ac
         e.get_tree().Project("H_h2_pL_{0}".format(e.decay_channel),"abs(p[1]*cos(theta[1])):abs(p[0]*cos(theta[0]))")
         e.get_tree().Project("H_h2_Resd0_theta_{0}".format(e.decay_channel),\
                 "5.+(10/(p_lab*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
+        e.get_tree().Project("H_h2_pL_theta_lab_{0}".format(e.decay_channel),\
+                "abs(p*cos(theta)):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
         # cut-dependent
         e.activate_cuts(pLcut=20)
         e.get_tree().Project("H_h_theta_lab_{0}".format(e.decay_channel),\
@@ -1310,6 +1338,8 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_ac
     # -- plotting ...
     for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL')==0 and \
             _k.find("cosTheta") == -1,hc._histos.iteritems()):
+        plot(h,k,option='COLZ')
+    for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL_theta_lab')==0,hc._histos.iteritems()):
         plot(h,k,option='COLZ')
     #for k,h in filter(lambda (_k,_h): _k.find('cosTheta')!=-1,hc._histos.iteritems()):
     #    plot(h,k,option='COLZ')
@@ -1322,27 +1352,26 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_ac
     try:
         plot_combined(hc,'H_h_theta_lab',legposition="LEFT")
     except ZeroDivisionError:
-        # Some histos are empty
         pass
     plot_profile_combined(hc,"H_h2_Resd0_theta","X",options="PE")
     plot_profile_combined(hc,"H_h2_pLcut20_Resd0_theta","X",options="PE")
+    plot_profile_combined(hc,"H_h2_pL_theta_lab","X",ytitle="<p_{||}> [GeV]",options="PE")
+    plot_profile_combined(hc,"H_h2_pL_theta_lab","Y",ytitle="<#theta> [^{0{}]",options="PE")
     #plot_combined(hc,'H_h_nM')
 
     # --- Some extra points (WP)
     if wp_activated:
-        leg_format_pion_rej = ( 'S/#sqrt{B}=%.1f @ p_{||}^{c}=%.0f GeV',(I_SIGN,I_PL) )
-        graphs_leg_pion_rej = get_point_graphs(observables,(I_EFF_SIG,I_PION_REJEC),I_PL,[10,20],leg_format_pion_rej)
+        #leg_format_pion_rej = ( 'S/#sqrt{B}=%.1f @ p_{||}^{c}=%.0f GeV',(I_SIGN,I_PL) )
+        #graphs_leg_pion_rej = get_point_graphs(observables,(I_EFF_SIG,I_PION_REJEC),I_PL,[10,20],leg_format_pion_rej)
+        graphs_leg_pion_rej = None
     
-        leg_format_pur = None
-        graphs_leg_pur = None
-        if purity_evaluation:
-            leg_format_pur = ( 'S/#sqrt{B}=%.1f @ p_{||}^{c}=%.0f GeV',(I_SIGN,I_PL) )
-            graphs_leg_pur = get_point_graphs(observables,(I_EFF_SIG,I_PURITY),I_PL,[10,20],leg_format_pur)
+        leg_format_pur = ( 'S/#sqrt{B}=%.1f @ p_{||}^{c}=%.0f GeV',(I_SIGN,I_PL) )
+        graphs_leg_pur = get_point_graphs(observables,(I_EFF_SIG,I_PURITY),I_PL,[10,20],leg_format_pur)
         
         leg_format_sig = ( '#varepsilon_{signal}=%.2f, #pi-rej.factor=%.0f',(I_EFF_SIG,I_PION_REJEC) )
         graphs_leg_sig = get_point_graphs(observables,(I_PL,I_SIGN),I_EFF_SIG,[0.4,0.8],leg_format_sig)
         
-        leg_format_roc = ( 'S/#sqrt{B}=%.2f, p_{||}^{cut}=%.1f',(I_SIG,I_PL) )
+        leg_format_roc = ( 'S/#sqrt{B}=%.2f, p_{||}^{cut}=%.1f',(I_SIGN,I_PL) )
         graphs_leg_roc = get_point_graphs(observables,(I_EFF_BKG,I_EFF_SIG),I_PL,[10,20],leg_format_roc)
     else:
         graphs_leg_pion_rej = None
@@ -1350,18 +1379,17 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_ac
         graphs_leg_sig      = None
         graphs_leg_roc      = None
 
-    pr_attr = plot_attributes('pion_rejection',
-            xtitle='#varepsilon_{S}', 
-            ytitle='pion rejection (N_{BKG}/N_{s#bar{s}} with no PID)',
-            x0 = 0.0, x1 = 1.0 , y0 = 0.0 )
-    make_plot(observables,(I_EFF_SIG,I_PION_REJEC),pr_attr,g_points_dict=graphs_leg_pion_rej)
+    #pr_attr = plot_attributes('pion_rejection',
+    #        xtitle='#varepsilon_{S}', 
+    #        ytitle='pion rejection (N_{BKG}/N_{s#bar{s}} with no PID)',
+    #        x0 = 0.0, x1 = 1.0 , y0 = 0.0 )
+    #make_plot(observables,(I_EFF_SIG,I_PION_REJEC),pr_attr,g_points_dict=graphs_leg_pion_rej)
 
-    if purity_evaluation:
-        purity_attr = plot_attributes('purity',
-                xtitle='#varepsilon_{S}', 
-                ytitle='purity',
-                x0 = 0.0, x1 = 1.0 , y0 = 0.0, y1= 0.0 )
-        make_plot(observables,(I_EFF_SIG,I_PURITY),purity_attr,g_points_dict=graphs_leg_pur)
+    purity_attr = plot_attributes('purity',
+            xtitle='#varepsilon_{S}', 
+            ytitle='purity',
+            x0 = 0.0, x1 = 1.0 , y0 = 0.0, y1= 0.0 )
+    make_plot(observables,(I_EFF_SIG,I_PURITY),purity_attr,g_points_dict=graphs_leg_pur)
 
     significance_attr = plot_attributes('significance',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
@@ -1389,7 +1417,10 @@ if __name__ == '__main__':
     #Opciones de entrada
     usage = "usage: hzplots INPUTFILE [options]"
     parser = OptionParser(usage=usage)
-    parser.set_defaults(pLMax=30,d0="0.1,0.3,0.5",z0=None,pLcut_type='circular',d0cut_type='circular')    
+    parser.set_defaults(pLMax=30,
+            d0="0.1,0.3,0.5",z0=None,
+            pLcut_type='circular',d0cut_type='circular',
+            channel_mode='PID')    
     parser.add_option( '-s', '--suffix', action='store', type='string', dest='suffixout',\
             help="output suffix for the plots [.pdf]")
     parser.add_option( '-d', '--d0', action='store', type='string', dest='d0',\
@@ -1406,9 +1437,13 @@ if __name__ == '__main__':
             help="whether or not print the latex tables")
     parser.add_option( '-w','--working-points', action='store_true', dest='wp_activate',\
             help="whether or not plot the some working points in the plots")
-    parser.add_option( '-l','--leading-hadrons', action='store_true', dest='doTH2Plots',\
-            help="whether or not activate the paralel momentum 2-dim plots of the"\
-            " leading hadrons")
+    parser.add_option( '-m','--mode',action='store',dest='channel_mode',\
+            help='The tree \'middle\' name of the pre-processed file (with'\
+            ' processedhz script) to be used. Note the tree name is created in the'\
+            ' \'processhz script\' and should follow the standard: '\
+            ' "mctree_nnnPID_channel_blahblah.root" [default: PID]')
+    parser.add_option( '-l', '--ligth-channels',action='store_true',dest='light_channels',\
+            help='whether or not add also the uubar and ddbar channels')
     
     (opt,args) = parser.parse_args()
     
@@ -1419,7 +1454,12 @@ if __name__ == '__main__':
     if opt.suffixout:
         suff = opt.suffixout.replace('.','')
         globals()['SUFFIXPLOTS'] ='.'+suff
-    channels = [ 'ssbar_PID', 'ssbar_noPID', 'bbbar', 'ccbar'] #'ddbar', 'uubar']
+    
+    # Which trees should be used?
+    pre_channels = [ 'ssbar','bbbar','ccbar' ]
+    if opt.light_channels:
+        pre_channels += [ 'uubar', 'ddbar' ]
+    channels = [ "{0}_{1}".format(x,opt.channel_mode) for x in pre_channels ]
     
     d0cuts = []
     for d0cut in sorted(opt.d0.split(','),key=lambda x: float(x)):

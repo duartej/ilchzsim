@@ -1184,6 +1184,35 @@ def plot_profile_combined(hc,varname,axis,
             options=options,log=True,legposition=legposition,\
             normalize=False)
 
+def saveallinfo(d,surname):
+    """Store the dictionary "d"
+
+    Parameters
+    ----------
+    d: any serializable object with pickle
+    surname: str, the string to be appended to 'd0cut_dict_' filename
+    """
+    import cPickle as pickle
+
+    output = open('d0cut_dict_{0}.pkl'.format(surname),'wb')
+    pickle.dump(d,output)
+    output.close()
+
+def getallinfo(filename):
+    """Store the dictionary "d"
+
+    Parameters
+    ----------
+    d: any serializable object with pickle
+    surname: str, the string to be appended to 'd0cut_dict_' filename
+    """
+    import cPickle as pickle
+
+    input_object = pickle.load( open(filename,'rb') )
+    d = input_object
+    return d
+
+
 def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_activated):
     """Main function steering the efficiency calculation and
     the plots creation.
@@ -1241,20 +1270,6 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_ac
     #-- get the proper name of the signal channel (with the amount of PID)
     signal_channel   = filter(lambda x: x.find('ssbar') != -1,channels)[0]
     
-    ## check if the noPID histograms are present
-    #try:
-    #    _test = filter(lambda name: name.find('ssbar_noPID') != -1,_obj['H'].keys())[0]
-    #    purity_evaluation = True  # XXX
-    #    purity_evaluation = False
-    #except IndexError:
-    #    # not found the related histograms, we cannot calculate purity
-    #    # just warn, but continue with the plots
-    #    print "\033[1;33mhzplots WARNING\033[1;m No 'ssbar_noPID' available." \
-    #            " The purity terms are not evaluated"
-    #    purity_evaluation = False
-    #    # and remove the signal_noPID from the channels list
-    #    channels.remove(signal_noPID)
-
     # -- just take care in the H-ressonance...
     pLcuts = xrange(0,pLMax+1)
     
@@ -1411,67 +1426,102 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_ac
             print 
         print "Max significance: ",max(obsList,key=lambda x: x[2])
 
+    # d0cut: (pLcut1, eff_sig, significance, pion_rejection, purity, N_sig, N_bkg)
+    observables['HEADER'] = ('D0-CUT','MOMENTUM-CUT','EFF_SIGNAL', 'SIGNIFICANCE', \
+            'NOT-USED1', 'NOT-USED2','N_SIGNAL','N_BKG','EFF_BKG')
+    saveallinfo(observables,signal_channel.replace("ssbar_",""))
+
 
 if __name__ == '__main__':
-    from optparse import OptionParser,OptionGroup
+    from argparse import ArgumentParser
     import os
 
     #Opciones de entrada
-    usage = "usage: hzplots INPUTFILE [options]"
-    parser = OptionParser(usage=usage)
-    parser.set_defaults(pLMax=30,
-            d0="0.1,0.3,0.5",z0=None,
-            pLcut_type='circular',d0cut_type='circular',
-            channel_mode='PID')    
-    parser.add_option( '-s', '--suffix', action='store', type='string', dest='suffixout',\
-            help="output suffix for the plots [.pdf]")
-    parser.add_option( '-d', '--d0', action='store', type='string', dest='d0',\
-            metavar='d01[,d02,...]',help="Impact parameters cuts [0.1,0.3,0.5]")
-    parser.add_option( '-z', '--z0', action='store',  dest='z0',\
-            help="activate the z0-cut and the value to cut [False]")
-    parser.add_option( '--d0cut-type', action='store', type='string', dest='d0cut_type',\
-            metavar='circular|square',help="functional of the d0 cut [circular]")
-    parser.add_option( '-p', '--pL-cut', action='store', type='string', dest='pLMax',\
-            help="Circular momentum maximum cut [30 GeV]")
-    parser.add_option( '--pLcut-type', action='store', type='string', dest='pLcut_type',\
-            metavar="circular|square|line",help="functional of the pL cut [circular]")
-    parser.add_option( '-t', '--tables', action='store_true', dest='tables',\
-            help="whether or not print the latex tables")
-    parser.add_option( '-w','--working-points', action='store_true', dest='wp_activate',\
-            help="whether or not plot the some working points in the plots")
-    parser.add_option( '-m','--mode',action='store',dest='channel_mode',\
-            help='The tree \'middle\' name of the pre-processed file (with'\
-            ' processedhz script) to be used. Note the tree name is created in the'\
+    usage = "Plot processing from a input file created with processhzroot script"
+    parser = ArgumentParser(prog='hzplots',description=usage)
+
+    # Two use modes: 
+    # 1. using as inputs a root file with the same PID definitions for 
+    # signal and backgrounds: will create efficiency curves (ROC), significance 
+    # curves, and the pickle dictionary
+    # 2. using as input a pickle file containing the efficiencies per d0,pL cut, etc... 
+    # will create purity curves, pion rejection curves and significance curves comparative
+    # using different PID
+    subparsers = parser.add_subparsers(title='subcommands',description='valid subcommands',
+            help='additional help')
+    
+    # 1. same PID
+    parser_pid = subparsers.add_parser("fixed_pid",help="Use the same PID from the root input"\
+            " file to build a dictionary with efficiencies, number of events, etc per d0 and pL-cut"\
+            " and stores this information in the 'd0cuts_dict_PIDUSED.pkl' file. Plus some plots"\
+            " will be created: efficiency curves (ROC), significance curves, ...")
+    parser_pid.add_argument('channel_mode',nargs=1,help='The PID tree to extract in the ROOTFILE.'\
+            ' The tree \'middle\' name of the pre-processed file (with'\
+            ' processedhz script) is then used. Note the tree name is created in the'\
             ' \'processhz script\' and should follow the standard: '\
-            ' "mctree_nnnPID_channel_blahblah.root" [default: PID]')
-    parser.add_option( '-l', '--ligth-channels',action='store_true',dest='light_channels',\
+            ' "mctree_nnnPID_channel_blahblah.root"')
+    parser_pid.add_argument('rootfile',nargs=1,help='Input root file, '\
+            'created with processedhz script')
+
+    parser_pid.add_argument( '-s', '--suffix', action='store', dest='suffixout',\
+            help="output suffix for the plots [.pdf]")
+    
+    parser_pid.add_argument( '-d', '--d0', action='store', nargs='+', dest='d0',\
+            metavar='d01[,d02,...]',help="Impact parameters cuts [0.013 0.02 0.05]")
+    parser_pid.add_argument( '-z', '--z0', action='store',  dest='z0',\
+            help="activate the z0-cut and the value to cut [False]")
+    parser_pid.add_argument( '--d0cut-type', action='store', dest='d0cut_type',\
+            metavar='circular|square',help="functional of the d0 cut [circular]")
+    parser_pid.add_argument( '-p', '--pL-cut', action='store', dest='pLMax',\
+            help="Circular momentum maximum cut [30 GeV]")
+    parser_pid.add_argument( '--pLcut-type', action='store', dest='pLcut_type',\
+            metavar="circular|square|line",help="functional of the pL cut [circular]")
+    parser_pid.add_argument( '-t', '--tables', action='store_true', dest='tables',\
+            help="whether or not print the latex tables")
+    parser_pid.add_argument( '-w','--working-points', action='store_true', dest='wp_activate',\
+            help="whether or not plot the some working points in the plots")
+    parser_pid.add_argument( '-l', '--ligth-channels',action='store_true',dest='light_channels',\
             help='whether or not add also the uubar and ddbar channels')
     
-    (opt,args) = parser.parse_args()
-    
-    if len(args) < 1:
-        message = "\033[31;1mhzroot ERROR\033[1;m Missing input file(s)"
-        raise RuntimeError(message)
+    parser_pid.set_defaults(which='fixed_pid',
+            pLMax=30,
+            d0=[0.01,0.03,0.05],z0=None,
+            pLcut_type='circular',d0cut_type='circular',
+            channel_mode='PID')    
 
-    if opt.suffixout:
-        suff = opt.suffixout.replace('.','')
+    # 2. input pickle file
+    parser_cmp_pid = subparsers.add_parser("compare_pid",help='Compare the performance for the'\
+            ' different PID assumptions (significance plots and tables for the different PIDs)')
+    parser_cmp_pid.add_argument('pickle_files',nargs='+',help='List of pickles files (created'\
+            ' previously by the command "fixed_pid" to be compared')
+    parser_cmp_pid.set_defaults(which='compare_pid')
+    
+    args = parser.parse_args()
+    
+    if args.suffixout:
+        suff = args.suffixout.replace('.','')
         globals()['SUFFIXPLOTS'] ='.'+suff
     
     # Which trees should be used?
     pre_channels = [ 'ssbar','bbbar','ccbar' ]
-    if opt.light_channels:
+    if args.light_channels:
         pre_channels += [ 'uubar', 'ddbar' ]
-    channels = [ "{0}_{1}".format(x,opt.channel_mode) for x in pre_channels ]
+    channels = [ "{0}_{1}".format(x,args.channel_mode[0]) for x in pre_channels ]
     
-    d0cuts = []
-    for d0cut in sorted(opt.d0.split(','),key=lambda x: float(x)):
-        d0cuts.append(float(d0cut))
+    #d0cuts = []
+    #for d0cut in sorted(opt.d0.split(','),key=lambda x: float(x)):
+    #    d0cuts.append(float(d0cut))
     
-    main(os.path.abspath(args[0]),channels,
-            opt.tables,
-            int(opt.pLMax),
-            opt.pLcut_type,
-            d0cuts,
-            opt.d0cut_type,
-            opt.z0,
-            opt.wp_activate)
+    if args.which == 'fixed_pid':
+        main(os.path.abspath(args.rootfile[0]),channels,
+                args.tables,
+                int(args.pLMax),
+                args.pLcut_type,
+                args.d0,
+                args.d0cut_type,
+                args.z0,
+                args.wp_activate)
+    elif args.which == 'compare_pid':
+        pass
+
+

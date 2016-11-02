@@ -1408,6 +1408,8 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_ac
             print "Table for d0: {0} mm".format(_d0)
             print "----------------------"
             print get_latex_table(obsList)
+            print 
+        print "Max significance: ",max(obsList,key=lambda x: x[2])
 
 
 if __name__ == '__main__':

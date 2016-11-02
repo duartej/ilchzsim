@@ -457,6 +457,16 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
             s.phi(),pythia.event[iS].phi(),
             s.theta(),pythia.event[iS].theta(),
             s.xProd(),s.yProd(),s.zProd());
+    // Save the hadron-multiplicity of the quark (how many final state hadrons)
+    //const Particle * _aux = &s;
+    //do
+    //{  /// --> This is a better approach to obtain the list of final state particles...
+    //    for(auto const & _daughter:  _aux->daughterList())
+    //    {
+    //        _aux = &pythia.event[_daughter];
+    //        std::cout << _daughter << " || " << _aux->idAbs() << " isFinal:" << _aux->isFinal() <<std::endl;
+    //    }
+    //} while( ! _aux->isFinal() );
     
     // Save info of the sbar-quark
     p.filltreevariables(iSbar,sbar.id(),reslocalIndex,(int)(not isLeading_s),0,-1,
@@ -465,6 +475,7 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
             sbar.phi(),pythia.event[iSbar].phi(),
             sbar.theta(),pythia.event[iSbar].theta(),
             sbar.xProd(),s.yProd(),s.zProd());
+    // Save the hadron-multiplicity of the quark (how many final state hadrons)
     
     // Returning the PDG ID of the resonance and the rest-frame system of 
     // its quarks daughters

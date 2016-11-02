@@ -1213,7 +1213,7 @@ def getallinfo(filename):
     return d
 
 
-def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_activated):
+def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_activated):
     """Main function steering the efficiency calculation and
     the plots creation.
     
@@ -1431,6 +1431,76 @@ def main(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_ac
             'NOT-USED1', 'NOT-USED2','N_SIGNAL','N_BKG','EFF_BKG')
     saveallinfo(observables,signal_channel.replace("ssbar_",""))
 
+# =============================================================================================
+# compare_pid mode functions
+COLORS_PLT = [ 'black','darksage','indianred', 'goldenrod']
+LINESTYLES = ['-', '--', ':', '-.']
+LEGEND     = { 'noPID': 'no PID', 'PID': 'PID', '005PID': '5% mis-id. prob.',
+        '020PID': '20% mis-id prob.' }
+ORDER = { 'PID': 0, 'noPID': 3, '020PID':2, '005PID':1 }
+
+def plot_python(_x,ydict,plotname):
+    """
+    """
+    from matplotlib import pyplot as plt
+    from scipy.interpolate import spline
+    import numpy as np
+
+    # Convert to numpy arrays
+    x = np.array(_x)
+    # and smooth the final lines
+    xnew = np.linspace(x.min(),x.max(),300)
+
+    # the figure
+    #plt.rc('text', usetex=True)
+    fig = plt.figure()
+    ax  = fig.add_subplot(1,1,1)
+    ymax = 0.0
+    ymin = 0.0
+    for k,(pid,signlist) in enumerate(sorted(ydict.iteritems(),key=lambda (x,y): ORDER[x])):
+        pidname = LEGEND[pid]
+        ymax = max(ymax,max(signlist))
+        ymin = min(ymin,min(signlist))
+        # Just to smooth a little the output lines
+        significance_smooth = spline(x,np.array(signlist),xnew)
+        plt.plot(xnew,significance_smooth,
+                linewidth=3,linestyle=LINESTYLES[k],color=COLORS_PLT[k], 
+                label=pidname)
+    ax.set_xlim(x[0],x[-1])
+    plt.xlabel(r'Paralel momentum cut [GeV]')
+    plt.ylabel(r'Significance')
+    ax.set_ylim(ymin,ymax*1.3)
+    ax.legend(loc=0,frameon=False)
+    plt.savefig(plotname)
+
+
+def main_cmp_pid(listpklfiles):
+    """Steering function to plot equ....
+    """
+    import os
+    
+    pid_dict = {}
+    for pklfile in listpklfiles:
+        # get absolute path and basename
+        absname  = os.path.abspath(pklfile)
+        basename = os.path.basename(absname)
+        # Careful, assuming standard names d0cut_dics_PIDRELATED.pkl
+        junk1,junk2,pidname = basename.replace(".pkl","").split("_")
+        pid_dict[pidname] = getallinfo(absname)
+    # Choose a d0cut to be plotted  XXX
+    # FIXME use numpy arrays
+    x = map(lambda x: x[0],pid_dict.values()[0].values()[0])
+    y = {}
+    for d0cut in filter(lambda x: x != 'HEADER',pid_dict.values()[0].keys()):
+        for pid,d0dict in pid_dict.iteritems():
+            d0list = d0dict[d0cut]
+            # the figure
+            # Create the TGraphs/THistos
+            y[pid] = []
+            for p,e_signal,significance,_x1,_x2,n_signal,n_bkg,e_bkg in d0list:
+                y[pid].append(significance)
+        plot_python(x,y,'significance_cmp_{0}.png'.format(d0cut))    
+
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
@@ -1449,6 +1519,11 @@ if __name__ == '__main__':
     # using different PID
     subparsers = parser.add_subparsers(title='subcommands',description='valid subcommands',
             help='additional help')
+
+
+    # just general option to be appearing in both commands
+    #parser.add_argument( '-s', '--suffix', action='store', dest='suffixout',\
+    #        help="output suffix for the plots [.pdf]")
     
     # 1. same PID
     parser_pid = subparsers.add_parser("fixed_pid",help="Use the same PID from the root input"\
@@ -1484,8 +1559,8 @@ if __name__ == '__main__':
             help='whether or not add also the uubar and ddbar channels')
     
     parser_pid.set_defaults(which='fixed_pid',
-            pLMax=30,
-            d0=[0.01,0.03,0.05],z0=None,
+            pLMax=40,
+            d0=[0.013,0.02,0.05],z0=None,
             pLcut_type='circular',d0cut_type='circular',
             channel_mode='PID')    
 
@@ -1494,7 +1569,9 @@ if __name__ == '__main__':
             ' different PID assumptions (significance plots and tables for the different PIDs)')
     parser_cmp_pid.add_argument('pickle_files',nargs='+',help='List of pickles files (created'\
             ' previously by the command "fixed_pid" to be compared')
-    parser_cmp_pid.set_defaults(which='compare_pid')
+    parser_cmp_pid.add_argument( '-s', '--suffix', action='store', dest='suffixout',\
+            help="output suffix for the plots [.pdf]")
+    parser_cmp_pid.set_defaults(which='compare_pid',suffixout='.pdf')
     
     args = parser.parse_args()
     
@@ -1502,18 +1579,13 @@ if __name__ == '__main__':
         suff = args.suffixout.replace('.','')
         globals()['SUFFIXPLOTS'] ='.'+suff
     
-    # Which trees should be used?
-    pre_channels = [ 'ssbar','bbbar','ccbar' ]
-    if args.light_channels:
-        pre_channels += [ 'uubar', 'ddbar' ]
-    channels = [ "{0}_{1}".format(x,args.channel_mode[0]) for x in pre_channels ]
-    
-    #d0cuts = []
-    #for d0cut in sorted(opt.d0.split(','),key=lambda x: float(x)):
-    #    d0cuts.append(float(d0cut))
-    
     if args.which == 'fixed_pid':
-        main(os.path.abspath(args.rootfile[0]),channels,
+        # Which trees should be used?
+        pre_channels = [ 'ssbar','bbbar','ccbar' ]
+        if args.light_channels:
+            pre_channels += [ 'uubar', 'ddbar' ]
+        channels = [ "{0}_{1}".format(x,args.channel_mode[0]) for x in pre_channels ]
+        main_fixed_pid(os.path.abspath(args.rootfile[0]),channels,
                 args.tables,
                 int(args.pLMax),
                 args.pLcut_type,
@@ -1522,6 +1594,6 @@ if __name__ == '__main__':
                 args.z0,
                 args.wp_activate)
     elif args.which == 'compare_pid':
-        pass
+        main_cmp_pid(args.pickle_files)
 
 

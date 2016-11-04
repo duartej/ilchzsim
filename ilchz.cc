@@ -33,30 +33,62 @@
 // Helper class to declare hadrons-id
 struct FinalStateHadrons
 {
-    const int K_LONG   =  130;
-    const int K_SHORT  =  310;
-    const int K_0      =  311;
-    const int K_PLUS   =  321;
-    const int K_MINUS  = -321;
+    static const int K_LONG   =  130;
+    static const int K_SHORT  =  310;
+    static const int K_0      =  311;
+    static const int K_PLUS   =  321;
+    static const int K_MINUS  = -321;
     
-    const int PI_0     =  111;
-    const int PI_PLUS  =  211;
-    const int PI_MINUS = -211;
+    static const int PI_0     =  111;
+    static const int PI_PLUS  =  211;
+    static const int PI_MINUS = -211;
 
-    const int B_0      =  511;
-    const int B_PLUS   =  521;
-    const int B_MINUS  = -521;
-    const int B_0_S    =  531;
+    static const int B_0      =  511;
+    static const int B_PLUS   =  521;
+    static const int B_MINUS  = -521;
+    static const int B_0_S    =  531;
 
-    const int D_PLUS   =  411;
-    const int D_MINUS  = -411;
-    const int D_0      =  421;
-    const int D_PLUS_S =  431;
-    const int D_MINUS_S= -431;
+    static const int D_PLUS   =  411;
+    static const int D_MINUS  = -411;
+    static const int D_0      =  421;
+    static const int D_PLUS_S =  431;
+    static const int D_MINUS_S= -431;
 
+    static std::vector<int> getcharmed() 
+    {
+        return { D_0, D_PLUS, D_MINUS, D_PLUS_S, D_MINUS_S };
+    }
+
+
+    static std::vector<int> getpions()
+    {
+        return { PI_0, PI_PLUS };
+    }
+    
+    static std::vector<int> get_charged_pions()
+    {
+        return {PI_PLUS};
+    }
+    
+    static std::vector<int> getkaons()
+    {
+        return {K_LONG, K_SHORT, K_PLUS };
+    }
+    
+    static std::vector<int> get_charged_kaons()
+    {
+        return {K_PLUS};
+    }
+    
+    static std::vector<int> getbottoms()
+    {
+        return { B_0, B_PLUS, B_MINUS, B_0_S };
+    }
+
+    // Some data members
     std::string _selectedtype;
     std::vector<int> _selected;
-
+    
     // Constructor
     FinalStateHadrons(const std::string & hadrontype)
     {
@@ -83,49 +115,6 @@ struct FinalStateHadrons
             std::cerr << "FinalStateHadrons() Initialization ERROR:"
                 << " Hadron type '" << hadrontype << "' not valid" << std::endl;
         }
-    }
-
-    std::vector<int> getcharmed() const
-    {
-        static std::vector<int> _charmed = { D_0, D_PLUS, D_MINUS, D_PLUS_S, D_MINUS_S };
-
-        return _charmed;
-    }
-
-
-    std::vector<int> getpions() const
-    {
-        static std::vector<int> _pions = { PI_0, PI_PLUS };
-
-        return _pions;
-    }
-    
-    std::vector<int> get_charged_pions() const
-    {
-        static std::vector<int> _pions = {PI_PLUS};
-
-        return _pions;
-    }
-    
-    std::vector<int> getkaons() const
-    {
-        static std::vector<int> _kaons = {K_LONG, K_SHORT, K_PLUS };
-
-        return _kaons;
-    }
-    
-    std::vector<int> get_charged_kaons() const
-    {
-        static std::vector<int> _kaons = {K_PLUS};
-
-        return _kaons;
-    }
-    
-    std::vector<int> getbottoms() const
-    {
-        static std::vector<int> _bottoms = { B_0, B_PLUS, B_MINUS, B_0_S };
-
-        return _bottoms;
     }
 
     const std::vector<int> getIDs() const
@@ -671,9 +660,9 @@ int main(int argc, char* argv[])
     if( accountforheavyflavoured )
     {
         hfhadrons = new std::vector<int>;
-        std::vector<int> _provb = fshadrons.getbottoms();
+        std::vector<int> _provb = FinalStateHadrons::getbottoms();
         hfhadrons->insert(hfhadrons->end(),_provb.begin(),_provb.end());
-        std::vector<int> _provc= fshadrons.getcharmed();
+        std::vector<int> _provc= FinalStateHadrons::getcharmed();
         hfhadrons->insert(hfhadrons->end(),_provc.begin(),_provc.end());
     }
      

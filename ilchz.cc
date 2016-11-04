@@ -141,6 +141,9 @@ struct ParticleKinRootAux
     //    catchall = grandmother PDG_ID for the strange hadrons promptly decayed from the resonance
     //    catchall = grandmother PDG_ID for the strange hadrons not prompt
     std::vector<int> * catchall;
+    // The ancestors of the final hadrons (case 
+    // they are not primary)
+    std::vector<int> * BC_ancestor;
     std::vector<int> * isBCdaughter;
     std::vector<int> * isPrimaryHadron;
     std::vector<float> * p;
@@ -517,36 +520,38 @@ void display_usage()
     std::cout << "Simulate the generation of the e+ e- --> H0 Z0 --> s sbar s sbar" 
         << " process (defined\nin the 'ilchz.cmnd' input file) using the Pythia8.2 "
         << "library. A n-tuple is created \n(called 'mctrue') containing the following info:\n"
-        << "\t'pdgId'        : std::vector<int> of the PDG ID code of the stored particle\n"
-        << "\t'motherindex'  : std::vector<int> of the n-tuple vector index of the mother\n"
-        << "\t                 Note that -1 is used when the particle is the FS hadrons\n"
-        << "\t'catchall'     : std::vector<int> a multi-use variable, changing its meaning\n"
-        << "\t                 depending the type of the particle:\n"
-            << "\t\t\t * 0                  for the resonance (H,Z)\n"
-            << "\t\t\t * is higher p quark? for the s-squark resonance daughters\n"
-            << "\t\t\t * grandmother PDG_ID for the 'final state' strange hadrons\n"
-        << "\t'isBCdaughter' : std::vector<int>   describes if the hadrons is coming from\n"
-        << "                   a Bottom or Charm hadron.\n"
-        << "\t'p'            : std::vector<float> momentum of the particle\n"
-        << "\t'p_lab'        : std::vector<float> momentum (at the lab. frame) of the particle\n"
-        << "\t'pmother'      : std::vector<float> momentum of its mother [to be deprecated]\n"
-        << "\t'phi'          : std::vector<float> phi of the particle\n"
-        << "\t'phi_lab'      : std::vector<float> phi (at the lab. frame) of the particle\n"
-        << "\t'theta'        : std::vector<float> theta of the particle\n"
-        << "\t'theta_lab'    : std::vector<float> theta (at the lab. frame) of the particle\n"
-        << "\t'vx'           : std::vector<float> production vertex, x\n"
-        << "\t'vy'           : std::vector<float> production vertex, y\n"
-        << "\t'vz'           : std::vector<float> production vertex, z\n"
-        << "Note that the p,phi,theta variables are respect the rest-frame of the q-qbar system\n"
-        << "in the case of the final-state hadrons, as well as the pmother."
-        << "However, the production vertex, p_lab, phi_lab and theta_lab is respect the Laboratory frame.\n";
+        << "   'pdgId'        : std::vector<int> of the PDG ID code of the stored particle\n"
+        << "   'motherindex'  : std::vector<int> of the n-tuple vector index of the mother\n"
+        << "                    Note that -1 is used when the particle is the FS hadrons\n"
+        << "   'catchall'     : std::vector<int> a multi-use variable, changing its meaning\n"
+        << "                    depending the type of the particle:\n"
+            << "                    * 0                  for the resonance (H,Z)\n"
+            << "                    * is higher p quark? for the s-squark resonance daughters\n"
+            << "                    * grandmother PDG_ID for the 'final state' strange hadrons\n"
+        << "   'isBCdaughter' : std::vector<int>   describes if the hadrons is coming from\n"
+        << "                    a Bottom or Charm hadron.\n"
+        << "   'p'            : std::vector<float> momentum of the particle\n"
+        << "   'p_lab'        : std::vector<float> momentum (at the lab. frame) of the particle\n"
+        << "   'pmother'      : std::vector<float> momentum of its mother [to be deprecated]\n"
+        << "   'phi'          : std::vector<float> phi of the particle\n"
+        << "   'phi_lab'      : std::vector<float> phi (at the lab. frame) of the particle\n"
+        << "   'theta'        : std::vector<float> theta of the particle\n"
+        << "   'theta_lab'    : std::vector<float> theta (at the lab. frame) of the particle\n"
+        << "   'vx'           : std::vector<float> production vertex, x\n"
+        << "   'vy'           : std::vector<float> production vertex, y\n"
+        << "   'vz'           : std::vector<float> production vertex, z\n"
+        << "Note that the some variables are defined with respect to the rest-frame of the"
+        << " q-qbar system (final state hadrons):\n"
+        << "   >>> p,phi,theta,pmother\n"
+        << "and others with respect to the Laboratory frame\n"
+        << "   >>> production vertex, p_lab, phi_lab, theta_lab\n";
     std::cout << std::endl;
-	std::cout << "[OPTIONS]\n\t-o name of the ROOT output file [hzkin.root]\n"
-        << "\t-b flag to keep track if the final hadrons provenance is from charmed or bottom hadrons\n"
-        << "\t-f final state hadrons to keep: pions,kaons or pions_kaons [default:kaons])\n"
-        << "\t-m mis-identification probability, a value different from 0 will force '-t pions_kaons'"
+	std::cout << "[OPTIONS]\n -o name of the ROOT output file [hzkin.root]\n"
+        << " -b flag to keep track if the final hadrons provenance is from charmed or bottom hadrons\n"
+        << " -f final state hadrons to keep: pions,kaons or pions_kaons [default:kaons])\n"
+        << " -m mis-identification probability, a value different from 0 will force '-t pions_kaons'"
         << " regardless of the user input [default: 0.0]\n"
-        << "\t-h show this help" << std::endl;
+        << " -h show this help" << std::endl;
 }
 
 int main(int argc, char* argv[]) 

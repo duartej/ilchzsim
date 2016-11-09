@@ -25,28 +25,50 @@
 # LAUNCH:
 #  $ ilchz [OPTIONS] ilchz.cmnd [> out.txt]
 # 
-# Simulate the generation of the e+ e- --> H0 Z0 --> s sbar s sbar 
-# process (defined in the 'ilchz.cmnd' input file, so in principal
-# can be changed but the persistency makes no sense no longer) using
-# the Pythia8.2 library. A n-tuple is created (called 'mctrue') 
-# containing the following info:
-#    'pdgId'      : std::vector<int> of the PDG ID code of the stored particle
-#    'motherindex': std::vector<int> of the n-tuple vector index of the mother
-#                   Note that -1 is used when the particle is the FS hadrons
-#    'catchall'   : std::vector<int> a multi-use variable, changing its meaning
-#                   depending the type of the particle:
-#             * 0                  for the resonance (H,Z)
-#             * is higher p quark? for the s-squark resonance daughters
-#             * grandmother PDG_ID for the 'final state' strange hadrons
-#    'p'          : std::vector<float> momentum of the particle
-#    'pmother'    : std::vector<float> momentum of its mother [to be deprecated]
-#    'phi'        : std::vector<float> phi of the particle
-#    'theta'      : std::vector<float> theta of the particle
-#Note that the p,phi,theta variables are respect the rest-frame of the q-qbar system
-#in the case of the final-state hadrons, as well as the pmother
-#
-#[OPTIONS]
-#    -o name of the ROOT output file [hzkin.root]
-#    -p flag to keep final state PIONS instead of KAONS (default)
-#    -h show this help
-#           
+# usage: ilchz [OPTIONS] ilchz.cmnd [> out.txt]
+# 
+# Simulate the generation of the e+ e- --> H0 Z0 --> s sbar s sbar process (defined
+# in the 'ilchz.cmnd' input file) using the Pythia8.2 library. A n-tuple is created 
+# (called 'mctrue') containing the following info:
+#    'pdgId'          : std::vector<int> of the PDG ID code of the stored particle
+#    'motherindex'    : std::vector<int> of the n-tuple vector index of the mother
+#                       Note that -1 is used when the particle is the FS hadrons
+#    'catchall'       : std::vector<int> a multi-use variable, changing its meaning
+#                       depending the type of the particle:
+#                     * 0                  for the resonance (H,Z)
+#                     * is higher p quark? for the s-squark resonance daughters
+#                     * grandmother PDG_ID for the 'final state' strange hadrons
+#                     * number of daughters for the Bottom/Charm ancestors
+#    'isBCancestor'   : std::vector<int>   whether or not is a B or D hadron ancestor present
+#                       in any point of the chain of a final state hadron
+#    'multiplicity'   : std::vector<int>   the number of final state particles
+#                       decayed originated from this
+#    'decay_chain'    : std::string        the decay chain (if isBCancestor) as a string
+#                       of type 'pdgname1+pdgname2+...' 
+#    'isBCdaughter'   : std::vector<int>   describes if the hadrons is coming from
+#                       a Bottom or Charm hadron.
+#    'isPrimaryHadron': std::vector<int>   whether or not the hadron is decay directly
+#                       from a leg of the the q-qbar system (81-89 Phytia status)
+#    'p'              : std::vector<float> momentum of the particle
+#    'p_lab'          : std::vector<float> momentum (at the lab. frame) of the particle
+#    'pmother'        : std::vector<float> momentum of its mother [to be deprecated]
+#    'phi'            : std::vector<float> phi of the particle
+#    'phi_lab'        : std::vector<float> phi (at the lab. frame) of the particle
+#    'theta'          : std::vector<float> theta of the particle
+#    'theta_lab'      : std::vector<float> theta (at the lab. frame) of the particle
+#    'vx'             : std::vector<float> production vertex, x
+#    'vy'             : std::vector<float> production vertex, y
+#    'vz'             : std::vector<float> production vertex, z
+# Note that the some variables are defined with respect to the rest-frame of the q-qbar system (final state hadrons):
+#    >>> p,phi,theta,pmother
+# and others with respect to the Laboratory frame
+#    >>> production vertex, p_lab, phi_lab, theta_lab
+# 
+# [OPTIONS]
+#  -o name of the ROOT output file [hzkin.root]
+#  -b flag to keep track if the final hadrons provenance is from charmed or bottom hadrons
+#  -f final state hadrons to keep: pions,kaons or pions_kaons [default:kaons])
+#  -m mis-identification probability, a value different from 0 will force '-t pions_kaons' regardless of the user input [default: 0.0]
+#  -h show this help
+# 
+

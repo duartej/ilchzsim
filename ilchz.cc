@@ -290,23 +290,15 @@ struct ParticleKinRootAux
     // preloop initialization
     void initloop()
     {
-        pdgId          = new std::vector<int>;
-        motherindex    = new std::vector<int>;
-        catchall       = new std::vector<int>;
-        isBCancestor   = new std::vector<int>;
-        multiplicity   = new std::vector<int>;
-        isBCdaughter   = new std::vector<int>;
-        isPrimaryHadron= new std::vector<int>;
-        p              = new std::vector<float>;
-        p_lab          = new std::vector<float>;
-        pmother        = new std::vector<float>;
-        phi            = new std::vector<float>;
-        phi_lab        = new std::vector<float>;
-        theta          = new std::vector<float>;
-        theta_lab      = new std::vector<float>;
-        vx             = new std::vector<float>;
-        vy             = new std::vector<float>;
-        vz             = new std::vector<float>;
+        for(auto & ivarpointer : _auxI)
+        {
+            (*ivarpointer) = new std::vector<int>;
+        }
+
+        for(auto & fvarpointer : _auxF)
+        {
+            (*fvarpointer) = new std::vector<float>;
+        }
 
         _listofusedpartindex = new std::vector<int>;
     }

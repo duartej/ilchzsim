@@ -157,6 +157,7 @@ struct ParticleKinRootAux
     std::vector<float> * vx;
     std::vector<float> * vy;
     std::vector<float> * vz;
+    //std::vector<std::string> * decay_chain;
     // random devices and distributions for 
     // misid probability
     float misid_prob;
@@ -170,7 +171,9 @@ struct ParticleKinRootAux
     // list of vector (ints)
     std::vector<std::vector<int> **> _auxI = { 
         &pdgId, &motherindex, 
-        &catchall, &isBCdaughter, &isPrimaryHadron,
+        &catchall, 
+        &isBCancestor, &multiplicity,
+        &isBCdaughter, &isPrimaryHadron,
         &_listofusedpartindex } ;
     // list of vectors (floats)
     std::vector<std::vector<float> **> _auxF = { 
@@ -404,6 +407,7 @@ struct ParticleKinRootAux
         t->Branch("vx",&vx);
         t->Branch("vy",&vy);
         t->Branch("vz",&vz);
+        //t->Branch("decay_chaing",&decay_chain);
     }
 };
 

@@ -1432,6 +1432,126 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     saveallinfo(observables,signal_channel.replace("ssbar_",""))
 
 # =============================================================================================
+# print_decaychain mode functions
+def get_decays(t,hadron):
+    """Obtain the decay histogram for the isBCancestor particles
+    
+    Parameters
+    ----------
+    t: ROOT.TTree
+    hadron: str,
+        the family of ancestors to look at. Valid values are
+        B or D
+
+    Return
+    ------
+    h: list(tuple(float,str))
+        the list of decays ordered by produced frequence, so each entry 
+        of the list contains the frequency (float) and the decay (str)
+    """
+    import ROOT
+    ROOT.gROOT.SetBatch(True)
+
+    if hadron not in [ "B", "D" ]:
+        raise AttributeError("Not a valid hadron to seek: '{0}'"\
+                " Accepted 'B' 'D' only".format(hadron))
+    cut = "isBCancestor"
+    # FIXME: just including mesons right now
+    if hadron == "B":
+        cut += " && abs(pdgId) > 500 && abs(pdgId) < 600" 
+    elif hadron == "D":
+        cut += " && abs(pdgId) > 400 && abs(pdgId) < 500" 
+    
+    # Filling the histo and getting it
+    hname = "h{0}_{1}".format(hadron,hash(t))
+    t.Draw("decay_chain>>{0}".format(hname),cut)
+    h = ROOT.gDirectory.Get(hname)
+    # scale it to frequencies
+    try:
+        h.Scale(1.0/h.Integral())
+    except ZeroDivisionError:
+        print "\033[1;33mCAVEAT\033[1;m Not found any {0}-hadron ancestor".format(hadron)
+        return []
+    # Construct the list of frequency-decay
+    xaxis = h.GetXaxis()
+    decays = []
+    for i in xrange(1,h.GetNbinsX()+1):
+        decays.append( (h.GetBinContent(i), xaxis.GetBinLabel(i)) )
+    # returning the ordered (by high-freq first) list
+    return sorted(decays,key=lambda (x,y): x,reverse=True)
+
+def show_decays(d,nfirst,hadron):
+    """Print a table with the nfirst frequent produced dacay of the 
+    first ancestor from the final hadron (pion/kaon)
+
+    Parameters
+    ----------
+    d: list(tuple(float,str))
+        the input list to extract the info (ordered by frequency)
+    nfirts: int
+        the maximum number of decays to show (taken from the nfirst more
+        frequent)
+    hadron: str,
+        the name of the ancestor (valid only B or D)
+    """
+    print "="*80
+    print "{0}-meson decays (first backward ancestor from the final "\
+            "state hadron)".format(hadron)
+    print "-"*80
+    # first check if there is any element
+    if len(d) == 0:
+        print "NOT FOUND"
+        print "="*80
+        return
+    maxline=max(map(lambda (x,y): len(y),d[:nfirst]))
+    fmtstr = "{0}0:{1}{2} {3}".format("{",maxline,"s}","{1:.2f}%")
+    for i in d[:nfirst]: 
+        print fmtstr.format(i[1],i[0]*100.0)
+    print "="*80
+
+def table_latex(outfile,hl,hadron):
+    """Create a file containing a latex table with the list of 
+    decay and their frequency
+
+    Parameters
+    ----------
+    outfile: str
+        name of the output latex file
+    hl: list(tuple(float,str))
+        the input list to extract the info
+    hadron: str,
+        the name of the ancestor (valid only B or D)
+
+    Return
+    ------
+    the name of the created file
+    """
+    print "table_latex NOT IMPLEMENTED YET... ignoring"
+    
+def main_decay_chain(rootfiles,want_latex,nfirst=10):
+    """Create a list of most frequent decays for the B/D mesons
+    ancestors of the final state hadron 
+    """
+    import ROOT
+    for i in rootfiles:
+        # Get files and tree
+        _froot = ROOT.TFile(i)
+        if _froot.IsZombie():
+            raise IOError("Cannot open '{0}' root file".format(i))
+        t = _froot.Get("mctrue")
+        # -- Get histo for decay for B
+        hB = get_decays(t,'B')
+        hD = get_decays(t,'D')
+        # -- and print the list of the top 10
+        show_decays(hB,nfirst,"B")
+        show_decays(hD,nfirst,"D")
+        if want_latex:
+            # Get a kind of file name from the root filename
+            tablename = "table_decay_{0}_"+i.replace(".root",".tex")
+            table_latex(tablename.format("B"),hB,"B")
+            table_latex(tablename.format("D"),hD,"D")
+
+# =============================================================================================
 # compare_pid mode functions
 COLORS_PLT = [ 'black','darksage','indianred', 'goldenrod']
 LINESTYLES = ['-', '--', ':', '-.']
@@ -1563,8 +1683,17 @@ if __name__ == '__main__':
             d0=[0.013,0.02,0.05],z0=None,
             pLcut_type='circular',d0cut_type='circular',
             channel_mode='PID')    
+    
+    # 2. decay chain for B/D ancestors
+    parser_decaychain = subparsers.add_parser("decay_chain",help='Print the decay of the first'\
+            'B or D-hadron ancestor (backward from the final hadron)' )
+    parser_decaychain.add_argument('rootfile',nargs='+',action='store',help='The input root file')
+    parser_decaychain.add_argument('-n','--nfirst',action='store',dest='nfirst',type=int,
+            help='Maximum number of decays to show [Default: 10]')
+    parser_decaychain.add_argument('--latex',action='store_true',dest='want_latex',help='Print also a latex table')
+    parser_decaychain.set_defaults(which='decay_chain',nfirst=10)
 
-    # 2. input pickle file
+    # 3. input pickle file
     parser_cmp_pid = subparsers.add_parser("compare_pid",help='Compare the performance for the'\
             ' different PID assumptions (significance plots and tables for the different PIDs)')
     parser_cmp_pid.add_argument('pickle_files',nargs='+',help='List of pickles files (created'\
@@ -1575,7 +1704,7 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    if args.suffixout:
+    if args.which in [ 'fixed_pid', 'compare_pid' ] and args.suffixout:
         suff = args.suffixout.replace('.','')
         globals()['SUFFIXPLOTS'] ='.'+suff
     
@@ -1593,6 +1722,8 @@ if __name__ == '__main__':
                 args.d0cut_type,
                 args.z0,
                 args.wp_activate)
+    elif args.which == 'decay_chain':
+        main_decay_chain(args.rootfile,args.want_latex,args.nfirst)
     elif args.which == 'compare_pid':
         main_cmp_pid(args.pickle_files)
 

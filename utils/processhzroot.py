@@ -204,8 +204,9 @@ def momentum_1d(p1,p2):
 
 def pythonize(x):
     import ROOT
-    
-    return eval('ROOT.std.'+x.replace('<','(').replace('>',')')+'()')
+
+    # Fix the string case    
+    return eval('ROOT.std.'+x.replace('<','(').replace('>',')').replace('string','str')+'()')
 
 def store_hadrons(outname,hadronlist,old_tree,treename):
     """
@@ -259,7 +260,7 @@ def store_hadrons(outname,hadronlist,old_tree,treename):
     f.Close()
         
 
-def main(args,suffixout,hadrons,is_charge_considered,outfilename):
+def main(args,suffixout,is_charge_considered,outfilename):
     """
     """
     import os
@@ -298,8 +299,6 @@ if __name__ == '__main__':
     parser.add_option( '--no-charge', action='store_true',  dest='notcharge',\
             help="not applying the opposite charge requirement"\
             "between leading kaons")
-    parser.add_option( '--hadron', action='store', type='string', dest='hadrons',\
-            help="final state hadron type [kaons]")
     
     (opt,args) = parser.parse_args()
 
@@ -307,5 +306,5 @@ if __name__ == '__main__':
         message = "\033[31mprocesshzroot ERROR\033[m Missing input file(s)"
         raise RuntimeError(message)
     
-    main(args,opt.suffixout,opt.hadrons,(not opt.notcharge),opt.outfname)
+    main(args,opt.suffixout,(not opt.notcharge),opt.outfname)
 

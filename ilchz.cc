@@ -146,6 +146,9 @@ struct ParticleKinRootAux
     // they are not primary)
     std::vector<int> * isBCancestor;
     std::vector<int> * multiplicity;
+    // this daughter index makes only sense for the ancestors,
+    // -1 is for the others
+    std::vector<int> * ancestorBCindex;
     std::vector<int> * isBCdaughter;
     std::vector<int> * isPrimaryHadron;
     std::vector<float> * p;
@@ -175,7 +178,7 @@ struct ParticleKinRootAux
         &pdgId, &motherindex, 
         &catchall, 
         &isBCancestor, &multiplicity,
-        &isBCdaughter, &isPrimaryHadron,
+        &ancestorBCindex, &isBCdaughter, &isPrimaryHadron,
         &_listofusedpartindex } ;
     // list of vectors (floats)
     std::vector<std::vector<float> **> _auxF = { 
@@ -193,6 +196,7 @@ struct ParticleKinRootAux
         catchall(nullptr),
         isBCancestor(nullptr),
         multiplicity(nullptr),
+        ancestorBCindex(nullptr),
         isBCdaughter(nullptr),
         isPrimaryHadron(nullptr),
         p(nullptr),
@@ -336,28 +340,82 @@ struct ParticleKinRootAux
             decay_chain = nullptr;
         }
     }
-    // Overloaded for not ancestor XXX: would be several overloaded functions for 
-    // the different particles)
-    int filltreevariables(const int & pythiaindex, const int & id, const int & _motherindex, 
-            const int & _catchall, 
-            const int & _isBCancestor, const int & _multiplicity, 
-            const int & _isHF, const int & _isPH,
+
+    // Filling tree variables: final hadron version
+    int filltreevar_finalhadron(const int & pythiaindex, const int & id, const int & _motherindex, 
+            const int & _resonanceID, 
+            const int & _isHF, const int & _bcindex, const int & _isPH,
             const float & _p, const float & _p_lab, 
             const float & _pmother, 
             const float & _phi, const float & _phi_lab,
             const float & _theta, const float & _theta_lab,
             const float & _vx, const float & _vy, const float & _vz)
     {
-        return filltreevariables(pythiaindex,id,_motherindex,_catchall,
-                _isBCancestor,"",_multiplicity,
-                _isHF,_isPH,_p,_p_lab,_pmother,_phi,_phi_lab,_theta,_theta_lab,
+        return _filltreevariables(pythiaindex,id,_motherindex,_resonanceID,
+                -1,"",-1, // bcAncestor related
+                _isHF,_bcindex,_isPH,
+                _p,_p_lab,_pmother,
+                _phi,_phi_lab,_theta,_theta_lab,
                 _vx,_vy,_vz);
     }
+
+    // Filling tree variables: BCancestor version
+    int filltreevar_bc_ancestor(const int & pythiaindex, const int & id, const int & _motherindex, 
+            const int & _resonanceID, 
+            const std::string & finalhadrons, const int & _multiplicity,
+            const float & _p, const float & _p_lab, 
+            const float & _pmother, 
+            const float & _phi, const float & _phi_lab,
+            const float & _theta, const float & _theta_lab,
+            const float & _vx, const float & _vy, const float & _vz)
+    {
+        return _filltreevariables(pythiaindex,id,_motherindex,
+                _resonanceID,
+                1,finalhadrons,_multiplicity,
+                -1,-1,-1,  // final hadron related
+                _p,_p_lab,_pmother,
+                _phi,_phi_lab,
+                _theta,_theta_lab,
+                _vx,_vy,_vz);
+    }
+
+    // Filling tree variable: quark version
+    int filltreevar_quark(const int & pythiaindex, const int & id, const int & _motherindex, 
+            const int & _isleading,
+            const float & _p, const float & _p_lab, 
+            const float & _pmother, 
+            const float & _phi, const float & _phi_lab,
+            const float & _theta, const float & _theta_lab,
+            const float & _vx, const float & _vy, const float & _vz)
+    {
+        return _filltreevariables(pythiaindex,id,_motherindex, _isleading, 
+                -1,"",-1,-1,-1,-1,
+                _p,_p_lab,_pmother, 
+                _phi, _phi_lab,
+                _theta, _theta_lab,
+                _vx, _vy, _vz);
+    }
+
+    // Filling tree variable: resonance version
+    int filltreevar_resonance(const int & pythiaindex, const int & id,
+            const float & _p, 
+            const float & _phi,
+            const float & _theta,
+            const float & _vx, const float & _vy, const float & _vz)
+    {
+        return _filltreevariables(pythiaindex,id,-1,0, 
+                -1,"",-1,-1,-1,-1,
+                _p,_p,-1, 
+                _phi, _phi,
+                _theta, _theta,
+                _vx, _vy, _vz);
+    }
     
-    int filltreevariables(const int & pythiaindex, const int & id, const int & _motherindex, 
+    // Filling tree variables: should not be called directly (see above)
+    int _filltreevariables(const int & pythiaindex, const int & id, const int & _motherindex, 
             const int & _catchall, 
-            const int & _isBCancestor, const std::string & finalhadrons, const int & _multiplicity, 
-            const int & _isHF, const int & _isPH,
+            const int & _isBCancestor, const std::string & finalhadrons, const int & _multiplicity,
+            const int & _isHF, const int & _bc_ancestor_index,  const int & _isPH,
             const float & _p, const float & _p_lab, 
             const float & _pmother, 
             const float & _phi, const float & _phi_lab,
@@ -370,6 +428,7 @@ struct ParticleKinRootAux
         this->isBCancestor->push_back(_isBCancestor);
         this->decay_chain->push_back(finalhadrons);
         this->multiplicity->push_back(_multiplicity);
+        this->ancestorBCindex->push_back(_bc_ancestor_index);
         this->isBCdaughter->push_back(_isHF);
         this->isPrimaryHadron->push_back(_isPH);
         this->p->push_back(_p);
@@ -420,6 +479,7 @@ struct ParticleKinRootAux
         t->Branch("isBCancestor",&isBCancestor);
         t->Branch("decay_chain",&decay_chain);
         t->Branch("multiplicity",&multiplicity);
+        t->Branch("ancestorBCindex",&ancestorBCindex);
         t->Branch("isBCdaughter",&isBCdaughter);
         t->Branch("isPrimaryHadron",&isPrimaryHadron);
         t->Branch("p",&p);
@@ -449,11 +509,8 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     const Particle & resonanceHS = pythia.event[iHS];
     const int respdgId = resonanceHS.id();
     // Filling n-tuple and getting the n-tuple index of the Resonance
-    const int reslocalIndex = p.filltreevariables(i,respdgId,-1,0,0,0,0,-1,
-            resonanceHS.pAbs(), resonanceHS.pAbs(),
-            -1,
-            resonanceHS.phi(),resonanceHS.phi(),
-            resonanceHS.theta(), resonanceHS.theta(),
+    const int reslocalIndex = p.filltreevar_resonance(i,respdgId,
+            resonanceHS.pAbs(),resonanceHS.phi(),resonanceHS.theta(),
             resonanceHS.xProd(),resonanceHS.yProd(),resonanceHS.zProd());
 
     // Before dealing with the daughters, recover the lowest copy (already 
@@ -482,7 +539,7 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     // Save info of the s-quark
     const bool isLeading_s = (s.pAbs() > sbar.pAbs());
 
-    p.filltreevariables(iS,s.id(),reslocalIndex,(int)isLeading_s,0,0,0,-1,
+    p.filltreevar_quark(iS,s.id(),reslocalIndex,(int)isLeading_s,
             s.pAbs(),pythia.event[iS].pAbs(),
             resonance.pAbs(),
             s.phi(),pythia.event[iS].phi(),
@@ -500,7 +557,7 @@ std::pair<int,RotBstMatrix> fillresonancechain(const int & i, const Pythia & pyt
     //} while( ! _aux->isFinal() );
     
     // Save info of the sbar-quark
-    p.filltreevariables(iSbar,sbar.id(),reslocalIndex,(int)(not isLeading_s),0,0,0,-1,
+    p.filltreevar_quark(iSbar,sbar.id(),reslocalIndex,(int)(not isLeading_s),
             sbar.pAbs(),pythia.event[iSbar].pAbs(),
             resonance.pAbs(),
             sbar.phi(),pythia.event[iSbar].phi(),
@@ -555,22 +612,31 @@ int getancestorindex(const int & currIndex, const Pythia & pythia,const std::vec
 std::pair<std::string,int> get_final_hadrons(const int & pId, const Pythia & pythia,
         bool /*countLeptons*/, bool /*countGammas*/)
 {
+    int nFS = 0;
     std::multiset<std::string> decaychannel_v;
-    // Downstream approach to obtain the number of final statu particles
+    // Downstream approach to obtain the number of final status particles
     const Particle * _aux = &pythia.event[pId];
     do
     {
-        for(auto const & _daughter:  _aux->daughterList())
+        for(const auto & _daughter:  _aux->daughterList())
         {
             _aux = &pythia.event[_daughter]; 
             // not interested in leptons neither gammas, ...(?)
             if( _aux->isFinal() )
             {
-                decaychannel_v.insert(_aux->name());
+                ++nFS;
             }
             //std::cout << _daughter << " || " << _aux->idAbs() << " isFinal:" << _aux->isFinal() <<std::endl;
         }
     } while( ! _aux->isFinal() );
+
+    // XXX PROVISIONAL: not very optimized (see above)
+    //
+    for(const auto & _daughter: pythia.event[pId].daughterList())
+    {
+        _aux = &pythia.event[_daughter]; 
+        decaychannel_v.insert(_aux->name());
+    }
 
     // build the string
     std::string decaychannel("");
@@ -603,6 +669,9 @@ void display_usage()
         << "                      in any point of the chain of a final state hadron\n"
         << "   'multiplicity'   : std::vector<int>   the number of final state particles\n"
         << "                      decayed originated from this\n"
+        << "   'ancestorBCindex'   : std::vector<int>   of the n-tuple vector index of the ancestor which\n"
+        << "                      originated the current finals state hadron (could be not directly). Only\n"
+        << "                      valid when isBCdaughter=1, otherwise contains the value -1\n"
         << "   'decay_chain'    : std::vector<string> the decay chain (if isBCancestor) as a string\n"
         << "                      of type 'pdgname1::pdgname2::...' \n"
         << "   'isBCdaughter'   : std::vector<int>   describes if the hadrons is coming from\n"
@@ -846,15 +915,17 @@ int main(int argc, char* argv[])
             //}
             // And convert to qqbar system reference frame
             had.rotbst(restframe);
-         
+            
+            // B/C hadron stuff
             // Check if the hadron come from a Bottom or charmed hadron (if relevant)
             int isBCdaughter = 0;
-            pre_quarkindex   = currI;
+            int pre_quarkindex_forBD = currI;
+            int bc_index = -1;
             if(hfhadrons != 0)
             {
                // XXX : ---> TO A FUNCTION:..
                //if( getancestorindex(currI,pythia,*hfhadrons,pre_quarkindex) != 0 )
-               const int bc_index = getancestorindex(currI,pythia,*hfhadrons,pre_quarkindex);
+               bc_index = getancestorindex(currI,pythia,*hfhadrons,pre_quarkindex_forBD);
                if( bc_index != 0 )
                {
                    isBCdaughter = 1;
@@ -871,11 +942,10 @@ int main(int argc, char* argv[])
                    const std::pair<std::string,int> fhadancs = 
                             get_final_hadrons(bc_index,pythia,false,false);
                    // filling ancestor info
-                   particles.filltreevariables(bc_index,bc_hadron.id(),
+                   particles.filltreevar_bc_ancestor(bc_index,bc_hadron.id(),
                            particles.getlocalindex(quarkindex),
                            ancestorID,
-                           1,fhadancs.first,fhadancs.second,
-                           0,0,
+                           fhadancs.first,fhadancs.second,
                            bc_hadron.pAbs(),p_at_lab,
                            quarkatrest.pAbs(),
                            bc_hadron.phi(),phi_at_lab,
@@ -884,6 +954,7 @@ int main(int argc, char* argv[])
                }
             }
 
+            
             // Check if it is a primary hadron: Pythia code 81-89
             int isPrimaryHadron = 0;
             if( had.status() >= 81 && had.status() <= 89)
@@ -893,8 +964,10 @@ int main(int argc, char* argv[])
             // storing info in the rest-frame of the quark-bquark ref. system (except
             // for the vertex)
             const Particle & hadatlab = pythia.event[currI];
-            particles.filltreevariables(currI,had.id(),particles.getlocalindex(quarkindex),
-                    ancestorID,0,0,isBCdaughter,isPrimaryHadron,
+            particles.filltreevar_finalhadron(currI,had.id(),
+                    particles.getlocalindex(quarkindex),
+                    ancestorID,
+                    isBCdaughter,particles.getlocalindex(bc_index),isPrimaryHadron,
                     had.pAbs(),hadatlab.pAbs(),
                     quarkatrest.pAbs(),
                     had.phi(),hadatlab.phi(),

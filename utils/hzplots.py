@@ -1455,30 +1455,58 @@ def get_decays(t,hadron):
     if hadron not in [ "B", "D" ]:
         raise AttributeError("Not a valid hadron to seek: '{0}'"\
                 " Accepted 'B' 'D' only".format(hadron))
-    cut = "isBCancestor"
+    # The needed branchesa
+    pdgIdV = ROOT.std.vector("int")()
+    t.SetBranchAddress("pdgId", pdgIdV)
+    pV = ROOT.std.vector("float")()
+    t.SetBranchAddress("p", pV)
+    catchallV = ROOT.std.vector("int")()
+    t.SetBranchAddress("catchall", catchallV)
+    isBCancestorV = ROOT.std.vector("int")()
+    t.SetBranchAddress("isBCancestor", isBCancestorV)
+    isBCdaughterV = ROOT.std.vector("int")()
+    t.SetBranchAddress("isBCdaughter", isBCdaughterV)
+    ancestorBCindexV = ROOT.std.vector("int")()
+    t.SetBranchAddress("ancestorBCindex", ancestorBCindexV)
+    decay_chainV = ROOT.std.vector('std::string')()
+    t.SetBranchAddress("decay_chain", decay_chainV)
+    
+    # order the final state hadrons need for the pre_cut: 
+    indices_fs_hadrons = lambda : map(lambda x: x[0], filter(lambda (i,(catch,isBC)): catch == 25 and isBC != 1,\
+            enumerate(zip(catchallV,isBCancestorV))))
+    indices_max_hadron = lambda _fslist: sorted(_fslist,reverse=True,key=lambda k: pV[k])[:2]
     # FIXME: just including mesons right now
     if hadron == "B":
-        cut += " && abs(pdgId) > 500 && abs(pdgId) < 600" 
+        cut = lambda k: abs(pdgIdV[k]) > 500 and abs(pdgIdV[k]) < 600 
     elif hadron == "D":
-        cut += " && abs(pdgId) > 400 && abs(pdgId) < 500" 
+        cut = lambda k: abs(pdgIdV[k]) > 400 and abs(pdgIdV[k]) < 500 
     
+    decays = {}
     # Filling the histo and getting it
-    hname = "h{0}_{1}".format(hadron,hash(t))
-    t.Draw("decay_chain>>{0}".format(hname),cut)
-    h = ROOT.gDirectory.Get(hname)
-    # scale it to frequencies
-    try:
-        h.Scale(1.0/h.Integral())
-    except ZeroDivisionError:
-        print "\033[1;33mCAVEAT\033[1;m Not found any {0}-hadron ancestor".format(hadron)
-        return []
-    # Construct the list of frequency-decay
-    xaxis = h.GetXaxis()
-    decays = []
-    for i in xrange(1,h.GetNbinsX()+1):
-        decays.append( (h.GetBinContent(i), xaxis.GetBinLabel(i)) )
+    for i in xrange(t.GetEntries()):
+        __dum = t.GetEntry(i)
+        # Getting the indices of the final state hadrons (only from H)
+        idx_fs = indices_fs_hadrons()
+        # Only use the two leading hadrons 
+        idx_leading_hadrons = indices_max_hadron(idx_fs)
+        # checking if those hadrons are BCdaughters
+        idx_bcdaughters = filter(lambda _k: isBCdaughterV[_k],idx_leading_hadrons)
+        # storing 
+        for k in idx_bcdaughters:
+            # Get the index of the BC parent
+            BC_k = ancestorBCindexV[k]
+            # check if is a B or D ancestor
+            if not cut(BC_k):
+                continue
+            try:
+                decays[decay_chainV[BC_k]] += 1
+            except KeyError:
+                decays[decay_chainV[BC_k]] = 1
+    # build 
+    ntotal = sum(decays.values())
     # returning the ordered (by high-freq first) list
-    return sorted(decays,key=lambda (x,y): x,reverse=True)
+    return map(lambda (_dc,_n): ((float(_n)/float(ntotal)),_dc),\
+            sorted(decays.iteritems(),key=lambda (x,y): y,reverse=True))
 
 def show_decays(d,nfirst,hadron):
     """Print a table with the nfirst frequent produced dacay of the 
@@ -1533,12 +1561,17 @@ def main_decay_chain(rootfiles,want_latex,nfirst=10):
     ancestors of the final state hadron 
     """
     import ROOT
+    needed_branches = [ "pdgId", "p", "catchall", "isBCancestor", \
+            "isBCdaughter", "ancestorBCindex", "decay_chain" ]
     for i in rootfiles:
         # Get files and tree
         _froot = ROOT.TFile(i)
         if _froot.IsZombie():
             raise IOError("Cannot open '{0}' root file".format(i))
         t = _froot.Get("mctrue")
+        # Speeding up the access: only activated the needed branches
+        t.SetBranchStatus("*",0)
+        _kk = map(lambda x: t.SetBranchStatus(x,1), needed_branches)
         # -- Get histo for decay for B
         hB = get_decays(t,'B')
         hD = get_decays(t,'D')

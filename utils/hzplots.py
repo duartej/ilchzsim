@@ -1445,9 +1445,9 @@ def get_decays(t,hadron):
 
     Return
     ------
-    h: list(tuple(float,str))
-        the list of decays ordered by produced frequence, so each entry 
-        of the list contains the frequency (float) and the decay (str)
+    h: list(tuple(int,str))
+        the list of decays ordered by times produced, so each entry 
+        of the list contains the number the decay mode was produced and the decay (str)
     """
     import ROOT
     ROOT.gROOT.SetBatch(True)
@@ -1503,19 +1503,20 @@ def get_decays(t,hadron):
             except KeyError:
                 decays[decay_chainV[BC_k]] = 1
     # build 
-    ntotal = sum(decays.values())
+    #ntotal = sum(decays.values())
     # returning the ordered (by high-freq first) list
-    return map(lambda (_dc,_n): ((float(_n)/float(ntotal)),_dc),\
-            sorted(decays.iteritems(),key=lambda (x,y): y,reverse=True))
+    #return map(lambda (_dc,_n): ((float(_n)/float(ntotal)),_dc),\
+    #        sorted(decays.iteritems(),key=lambda (x,y): y,reverse=True))
+    return sorted(decays.iteritems(),key=lambda (x,y): y,reverse=True)
 
-def show_decays(d,nfirst,hadron):
+def show_decays(pre_d,nfirst,hadron):
     """Print a table with the nfirst frequent produced dacay of the 
     first ancestor from the final hadron (pion/kaon)
 
     Parameters
     ----------
-    d: list(tuple(float,str))
-        the input list to extract the info (ordered by frequency)
+    pre_d: list(tuple(str,int))
+        the input list to extract the info (ordered by number of times happened)
     nfirts: int
         the maximum number of decays to show (taken from the nfirst more
         frequent)
@@ -1527,10 +1528,16 @@ def show_decays(d,nfirst,hadron):
             "state hadron)".format(hadron)
     print "-"*80
     # first check if there is any element
-    if len(d) == 0:
+    if len(pre_d) == 0:
         print "NOT FOUND"
         print "="*80
         return
+    ntotal = sum(map(lambda (dmode,_n): _n, pre_d))
+    print "TOTAL final state hadrons ( with {0} ancestors: {1}".format(hadron,ntotal)
+    print "-"*80
+    # convert to frequency (and change the order, frequency first)
+    d = map(lambda (_dc,_n): (float(_n)/float(ntotal),_dc), pre_d)
+
     maxline=max(map(lambda (x,y): len(y),d[:nfirst]))
     fmtstr = "{0}0:{1}{2} {3}".format("{",maxline,"s}","{1:.2f}%")
     for i in d[:nfirst]: 

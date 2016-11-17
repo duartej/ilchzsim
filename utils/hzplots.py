@@ -345,6 +345,21 @@ def get_cuts_eff(_obj,decay_channel,hadrons,\
     # Entries takes into account overflow bin
     return float(evts)/float(h.GetEntries())
 
+#def smearing_value(func):
+#    """
+#    """
+#    def resolution(*args,**kwargs):
+#        import numpy as np 
+#        
+#        # d0- sigma calculation 
+#        sigma_d0 = "5.0+10.0/(p_lab{[0]}*sin(theta_lab[{0}])**(3./2.))".format(args[0])
+#
+#        d0_smeared_at1 = np.random.normal(1.0, sigma)
+#        # decorate the function with the resolution
+#        func.resolution = d0_smeared-at1
+#        return resolution
+#
+
 def d0(index):
     """Impact parameter extrapolation considering a straight line
 
@@ -354,7 +369,8 @@ def d0(index):
         the index of the gen-particle in the tree
     """
     #return  "(vy[{0}]-vx[{0}]*tan(phi_lab[{0}]))*cos(phi_lab[{0}])".format(index)
-    return "sin(atan(vy[{0}]/vx[{0}])-phi_lab[{0}])*sqrt(vx[{0}]**2+vy[{0}]**2)".format(index)
+    #return "sin(atan(vy[{0}]/vx[{0}])-phi_lab[{0}])*sqrt(vx[{0}]**2+vy[{0}]**2)".format(index)
+    return "d0[{0}]".format(index)
 
 def z0(index):
     """Impact parameter extrapolation considering a straight line
@@ -365,7 +381,8 @@ def z0(index):
         the index of the gen-particle in the tree
     """
     #return  "-(vy[{0}]-vz[{0}]*tan(theta_lab[{0}]))/tan(theta_lab[{0}])".format(index)
-    return "({1}-sqrt(vx[{0}]**2+vy[{0}]**2))/tan(theta_lab[{0}])+vz[{0}]".format(index,d0(index))
+    #return "({1}-sqrt(vx[{0}]**2+vy[{0}]**2))/tan(theta_lab[{0}])+vz[{0}]".format(index,d0(index))
+    return "z0[{0}]".format(index)
 
 def get_common_entries(entrylist_list):
     """Return the common entries found in the list of TEntryList

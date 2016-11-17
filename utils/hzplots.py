@@ -353,7 +353,8 @@ def d0(index):
     index: int
         the index of the gen-particle in the tree
     """
-    return  "(vy[{0}]-vx[{0}]*tan(phi_lab[{0}]))*cos(phi_lab[{0}])".format(index)
+    #return  "(vy[{0}]-vx[{0}]*tan(phi_lab[{0}]))*cos(phi_lab[{0}])".format(index)
+    return "sin(atan(vy[{0}]/vx[{0}])-phi_lab[{0}])*sqrt(vx[{0}]**2+vy[{0}]**2)".format(index)
 
 def z0(index):
     """Impact parameter extrapolation considering a straight line
@@ -363,7 +364,8 @@ def z0(index):
     index: int
         the index of the gen-particle in the tree
     """
-    return  "-(vy[{0}]-vz[{0}]*tan(theta_lab[{0}]))/tan(theta_lab[{0}])".format(index)
+    #return  "-(vy[{0}]-vz[{0}]*tan(theta_lab[{0}]))/tan(theta_lab[{0}])".format(index)
+    return "({1}-sqrt(vx[{0}]**2+vy[{0}]**2))/tan(theta_lab[{0}])+vz[{0}]".format(index,d0(index))
 
 def get_common_entries(entrylist_list):
     """Return the common entries found in the list of TEntryList
@@ -563,12 +565,6 @@ class eff_cut_hadron(object):
         import ROOT 
         #ROOT.gROOT.SetBatch()
 
-        #try:
-        #    treename = filter(lambda x: x.find("mctrue_{0}".format(self.decay_channel)) != -1,\
-        #            treedict.keys())[0]
-        #except IndexError:
-        #    raise AttributeError("\033[1;31mERROR:\033[1;m not found "\
-        #            "decay channel '{0}' tree".format(self.decay_channel))
         treename = get_tree_name(treedict.keys(),self.decay_channel)
         # get the tree and check if it was used before
         tree = treedict[treename]
@@ -626,20 +622,8 @@ class eff_cut_hadron(object):
         
         # main loop
         for i in self.final_state_hadrons:
-            #cut_entries_OLD = tree.GetEntries(\
-            #        "{0} > {1} && {2} < {3} && {4}".format(\
-            #        self.pLcut_function,pLcut,\
-            #        self.d0cut_function,d0cut,\
-            #        FS_CONDITION[i]))
-            #n_hadrons_entries = tree.GetEntries(FS_CONDITION[i])
             cut_entries = get_common_entries( [self.__entrylist_d0cut,\
                   self.__entrylist_pLcut, self.__entrylist_hadrons[i]] )
-            #if cut_entries != cut_entries_OLD:
-            #    print 
-            #    print "\033[1;33mWARNING\033[1;m"
-            #    print self.__tree.GetName(),self.current_d0cut,self.current_pLcut
-            #    print cut_entries,cut_entries_OLD,"+"*20
-            #    print self
             _eff  = 0.0
             _prob = 0.0
             if self.__tree_entries != 0:
@@ -1503,10 +1487,6 @@ def get_decays(t,hadron):
             except KeyError:
                 decays[decay_chainV[BC_k]] = 1
     # build 
-    #ntotal = sum(decays.values())
-    # returning the ordered (by high-freq first) list
-    #return map(lambda (_dc,_n): ((float(_n)/float(ntotal)),_dc),\
-    #        sorted(decays.iteritems(),key=lambda (x,y): y,reverse=True))
     return sorted(decays.iteritems(),key=lambda (x,y): y,reverse=True)
 
 def show_decays(pre_d,nfirst,hadron):
@@ -1524,7 +1504,7 @@ def show_decays(pre_d,nfirst,hadron):
         the name of the ancestor (valid only B or D)
     """
     print "="*80
-    print "{0}-meson decays (first backward ancestor from the final "\
+    print "{0}-meson decays (first backward ancestor from the two leading final "\
             "state hadron)".format(hadron)
     print "-"*80
     # first check if there is any element
@@ -1533,7 +1513,7 @@ def show_decays(pre_d,nfirst,hadron):
         print "="*80
         return
     ntotal = sum(map(lambda (dmode,_n): _n, pre_d))
-    print "TOTAL final state hadrons ( with {0} ancestors: {1}".format(hadron,ntotal)
+    print "TOTAL final state hadrons ( with {0} ancestors ): {1}".format(hadron,ntotal)
     print "-"*80
     # convert to frequency (and change the order, frequency first)
     d = map(lambda (_dc,_n): (float(_n)/float(ntotal),_dc), pre_d)

@@ -937,9 +937,12 @@ int main(int argc, char* argv[])
                //if( getancestorindex(currI,pythia,*hfhadrons,pre_quarkindex) != 0 )
                bc_index = getancestorindex(currI,pythia,*hfhadrons,pre_quarkindex_forBD);
                // If was already used, don't duplicate (note thet bc_index is the pythia code)
-               if( bc_index != 0 and !particles.is_stored(bc_index) ) 
+               if( bc_index != 0 )
                {
                    isBCdaughter = 1;
+               }
+               if( bc_index != 0 and !particles.is_stored(bc_index) ) 
+               {
                    Particle bc_hadron = pythia.event[bc_index];
                    const float p_at_lab = bc_hadron.pAbs();
                    const float phi_at_lab = bc_hadron.phi();

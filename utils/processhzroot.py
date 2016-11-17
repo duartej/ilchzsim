@@ -40,64 +40,25 @@ class hadron(object):
     def __gt__(self,other):
         return self.p > other.p
 
-def evalefficiency(h,cutlist,name):
-    """.. function:: evalefficiency(h,cutlist,name) -> ROOT.TEfficiency
-
-    Obtain the efficiency object given a simple momentum (radial) cut
-    in the p_{||}^1 vs. p_{||}^2 space
-
-    :param h: histogram with the number of entries for the paralel momentum
-              (with respect the quark-antiquark system) of the leading hadrons
-    :type  h: ROOT.TH2F
-    :param cutlist: list of the momentum cut [GeV]
-    :type  cutlist: list(float)
-    :param name: Name of the inputfile root used to extract h
-    :type  name: str
-    """
-    import ROOT
-    from math import sqrt
-
-    # Count how many events where selected above the
-    # radial cut (which are inside the cutlist), 
-    # i.e. how many events fulfil:  sqrt(p**2+p**2) > cut
-    integral = dict([(x,0) for x in cutlist])
-    for ibin in xrange(1,h.GetNbinsX()+1):
-        p1 = h.GetXaxis().GetBinCenter(ibin)
-        for jbin in xrange(1,h.GetNbinsY()+1):
-            p2 = h.GetYaxis().GetBinCenter(jbin)
-            content=h.GetBinContent(ibin,jbin)
-            r = sqrt(p1**2.0+p2**2.0)
-            for cut in cutlist:
-                if r > cut:
-                    integral[cut]+=content
-    total = h.Integral()
-    
-    # Build the efficiency object (efficiency vs. cut) 
-    # and fill it the Npass/Ntotal
-    n = len(integral)
-    eff = ROOT.TEfficiency(name,"Efficiency simple cut (r > cut);\
-                cut (< #sqrt{p_{||1}^{2}+p_{||}^{2}}) [GeV];#varepsilon",50,0,60)
-    for (i,(p,npassed)) in enumerate(integral.iteritems()):
-        #e = float(npassed)/float(total)
-        ibin=eff.FindFixBin(p)
-        eff.SetTotalEvents(ibin,int(total))
-        eff.SetPassedEvents(ibin,int(npassed))
-    return eff
-
 def get_leading_kaons(tree,applycharge):
+    """Obtain the leading kaons
     """
-    """
-    from math import cos,sqrt
+    from math import cos,sqrt,tan,sin,atan2
     import os
     import sys
+
+    # FIXME: As the d0 and z0 are calculated here, it could be useful to
+    #        included them in the trees later
 
     # auxiliar function to obtain the signed (+1 top hemisphere, 
     # -1 bottom hemispher) parallel momentum
     signed_pm = lambda _k: tree.p[_k]*cos(tree.theta[_k])
-    d0_f      = lambda _k: (tree.vy[_k]-tree.vx[_k]*tree.phi_lab[_k])*cos(tree.phi_lab[_k])
-    z0_f      = lambda _k: (tree.vy[_k]-tree.vz[_k]*tree.theta_lab[_k])*cos(tree.theta_lab[_k])
+    #d0_f      = lambda _k: (tree.vy[_k]-tree.vx[_k]*tan(tree.phi_lab[_k]))*cos(tree.phi_lab[_k])
+    #z0_f      = lambda _k: -(tree.vy[_k]-tree.vz[_k]*tan(tree.theta_lab[_k]))/tan(tree.theta_lab[_k])
     L_f       = lambda _k: sqrt(tree.vx[_k]**2.0+tree.vy[_k]**2.0)
     R_f       = lambda _k: sqrt(tree.vx[_k]**2.0+tree.vy[_k]**2.0+tree.vz[_k]**2.0)
+    d0_f      = lambda _k: sin(atan2(tree.vy[_k],tree.vx[_k])-tree.phi_lab[_k])*L_f(_k)
+    z0_f      = lambda _k: (d0_f(_k)-L_f(_k))/tan(tree.theta_lab[_k])+tree.vz[_k]
     nentries = tree.getentries()
     leading_kaons = {}
     ## count the particle multiplicity per quark
@@ -119,10 +80,10 @@ def get_leading_kaons(tree,applycharge):
         ## multiplicity
         _nM_evt = {}
         for k in xrange(tree.catchall.size()):
-            if tree.catchall[k] != 25:
+            # just final hadrons
+            if tree.catchall[k] != 25 or tree.isBCancestor[k] == 1:
                 continue
             # parallel momentum with sign, and charge
-            ###kaons_pm.append((signed_pm(k),abs(tree.pdgId[k])/tree.pdgId[k],k))
             kaons_pm.append(  hadron(p=signed_pm(k),
                                 charge=abs(tree.pdgId[k])/tree.pdgId[k],
                                 d0 = d0_f(k),
@@ -152,13 +113,6 @@ def get_leading_kaons(tree,applycharge):
         # the top hemisphere, and last one, the highest p in the
         # bottom hemisphere
         sorted_kaons= sorted(kaons_pm,reverse=True)
-        # separate between both hemispheres (using the 
-        # sign of the parallel momentum)
-        ###u_h = filter(lambda x: x[0] > 0,sorted_kaons)
-        # Re-order again because we're recovering the positive
-        # sign for the parallel momentum
-        ###d_h = sorted(map(lambda y: (abs(y[0]),y[1],y[2]),\
-        ###        filter(lambda x: x[0] < 0,sorted_kaons)),reverse=True)
         u_h = filter(lambda x: x.hemisphere == 1, sorted_kaons)
         d_h = filter(lambda x: x.hemisphere == -1, sorted_kaons)
         # -- continue if none was found
@@ -169,7 +123,6 @@ def get_leading_kaons(tree,applycharge):
         if applycharge:
             for ku in u_h:
                 try:
-                    #opposite_down = filter(lambda kd: ku[1]*kd[1] < 1,d_h)[0]
                     opposite_down = filter(lambda kd: ku.charge*kd.charge < 1,d_h)[0]
                     leading_kaons[i] = (ku, opposite_down)
                     break
@@ -222,10 +175,12 @@ def store_hadrons(outname,hadronlist,old_tree,treename):
     tree = ROOT.TTree(treename,'leading and subleading hadrons')
     #tree = old_tree.CloneTree(0)
     # -- initialize the containers to be filled
-    #pythonize = lambda x:  eval('ROOT.std.'+x.replace('<','(').replace('>',')')+'()')
     containers = dict(map(lambda x: (x.GetName(),pythonize(x.GetClassName())),old_tree.GetListOfBranches()))
     # -- setting branch addresses
     _dumm = map(lambda (bname,vobject): tree.Branch(bname,vobject),sorted(containers.iteritems()))
+    # -- and the new d0, z0 for hadrons
+    pseudoimpactpar = { 'd0': ROOT.std.vector("float")(), 'z0' : ROOT.std.vector("float")() }
+    _dumm = map(lambda (bname,vobject): tree.Branch(bname,vobject),sorted(pseudoimpactpar.iteritems()))
 
     # -- old tree, set containers
     oldcont = dict(map(lambda x: (x.GetName(),pythonize(x.GetClassName())),old_tree.GetListOfBranches()))
@@ -254,6 +209,11 @@ def store_hadrons(outname,hadronlist,old_tree,treename):
             vobject.reserve(2)
             # using the two leading hadrons (index) and filling it
             _dumm = map(lambda k: vobject.push_back(oldcont[branch_name][k]),[k_l,k_sl])
+        # and the new d0,z0 
+        for (bname, ipvector) in pseudoimpactpar.iteritems():
+            ipvector.clear()
+            ipvector.reserve(2)
+            _dumm = map(lambda _hadron: ipvector.push_back(getattr(_hadron,bname)),[h_l,h_sl])
         tree.Fill()
     print
     f.Write()

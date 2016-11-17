@@ -44,20 +44,25 @@ struct FinalStateHadrons
     static const int PI_PLUS  =  211;
     static const int PI_MINUS = -211;
 
+    // Actually not final state hadrons, 
+    // but intermediate hadrons
+    // B-mesons and baryons
     static const int B_0      =  511;
     static const int B_PLUS   =  521;
     static const int B_MINUS  = -521;
     static const int B_0_S    =  531;
-
+    static const int LAMBDA_B = 5122;
+    // C-mesons and baryons
     static const int D_PLUS   =  411;
     static const int D_MINUS  = -411;
     static const int D_0      =  421;
     static const int D_PLUS_S =  431;
     static const int D_MINUS_S= -431;
+    static const int LAMBDA_D = 4122;
 
     static std::vector<int> getcharmed() 
     {
-        return { D_0, D_PLUS, D_MINUS, D_PLUS_S, D_MINUS_S };
+        return { D_0, D_PLUS, D_MINUS, D_PLUS_S, D_MINUS_S, LAMBDA_D };
     }
 
 
@@ -83,7 +88,7 @@ struct FinalStateHadrons
     
     static std::vector<int> getbottoms()
     {
-        return { B_0, B_PLUS, B_MINUS, B_0_S };
+        return { B_0, B_PLUS, B_MINUS, B_0_S, LAMBDA_B };
     }
 
     // Some data members

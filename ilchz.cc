@@ -287,6 +287,13 @@ struct ParticleKinRootAux
         return true;
     }
 
+    // Check if the particle was already stored (using as input the pythia code)
+    bool is_stored(const int & pythia_index)
+    {
+        return (std::find(getusedid()->begin(),getusedid()->end(),pythia_index) != 
+                getusedid()->end());
+    }
+
     // used particles in the generated event: to speed up the loop not 
     // looking to particles already looked at and stored
     void usedparticle(const int & i)
@@ -875,8 +882,7 @@ int main(int argc, char* argv[])
             // Obtain the last "carbon" copy of the particle to work with it
             const int currI = pythia.event[i].iBotCopy();
             // If was already used, don't duplicate (note thet currI is the pythia code)
-            if( (std::find(particles.getusedid()->begin(),particles.getusedid()->end(),currI) != 
-                        particles.getusedid()->end() ) )
+            if( particles.is_stored(currI) )
             {
                 continue;
             }
@@ -896,8 +902,7 @@ int main(int argc, char* argv[])
             const int ancestorID = pythia.event[ancestorindex].id();
             // Store the info if isn't, the fillresonance function is also getting
             // the restframe system of the qqbar system 
-            if( std::find(particles.getusedid()->begin(),particles.getusedid()->end(),
-                        ancestorindex) == particles.getusedid()->end() )
+            if( ! particles.is_stored(ancestorindex) )
             { 
                 // Fill the resonance relative info: plus quarks involved
                 restframesmap.insert(fillresonancechain(ancestorindex,pythia,particles));
@@ -931,7 +936,8 @@ int main(int argc, char* argv[])
                // XXX : ---> TO A FUNCTION:..
                //if( getancestorindex(currI,pythia,*hfhadrons,pre_quarkindex) != 0 )
                bc_index = getancestorindex(currI,pythia,*hfhadrons,pre_quarkindex_forBD);
-               if( bc_index != 0 )
+               // If was already used, don't duplicate (note thet bc_index is the pythia code)
+               if( bc_index != 0 and !particles.is_stored(bc_index) ) 
                {
                    isBCdaughter = 1;
                    Particle bc_hadron = pythia.event[bc_index];

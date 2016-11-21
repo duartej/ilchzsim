@@ -360,6 +360,23 @@ def get_cuts_eff(_obj,decay_channel,hadrons,\
 #        return resolution
 #
 
+def d0_explicit_calculation(vx,vy,phi):
+    """Impact parameter extrapolation considering a straight line.
+    Explicit calculation.
+
+    Parameters
+    ----------
+    vx: float
+        the x-point of the production vertex
+    vy: float
+        the y-point of the production vertex
+    phi: float
+        the angle (in the X-Y plane) defined by the momentum 
+        of the particle
+    """
+    import numpy as np
+    return np.sin(np.arctan2(vy,vx)-phi)*np.sqrt(vx**2.+vy**2.)
+
 def d0(index):
     """Impact parameter extrapolation considering a straight line
 
@@ -367,10 +384,37 @@ def d0(index):
     ----------
     index: int
         the index of the gen-particle in the tree
+
+    See Also
+    --------
+    d0_explicit_calculation
     """
     #return  "(vy[{0}]-vx[{0}]*tan(phi_lab[{0}]))*cos(phi_lab[{0}])".format(index)
     #return "sin(atan(vy[{0}]/vx[{0}])-phi_lab[{0}])*sqrt(vx[{0}]**2+vy[{0}]**2)".format(index)
     return "d0[{0}]".format(index)
+
+def z0_explicit_calculation(vx,vy,phi,vz,theta):
+    """Longitudinal impact parameter extrapolation considering a straight line.
+    Explicit calculation.
+
+    Parameters
+    ----------
+    vx: float
+        the x-point of the production vertex
+    vy: float
+        the y-point of the production vertex
+    phi: float
+        the azimuthal angle (in the X-Y plane) defined by the momentum 
+        of the particle
+    vz: float
+        the z-point of the production vertex
+    theta: float
+        the angle (in the YZ plane) defined by the momentum of the
+        particle
+    """
+    import numpy as np
+    return (d0_explicit_calculation(vx,vy,phi)-np.sqrt(vx**2.+vy**2.))/(np.tan(theta)) + \
+            vz
 
 def z0(index):
     """Impact parameter extrapolation considering a straight line
@@ -379,9 +423,10 @@ def z0(index):
     ----------
     index: int
         the index of the gen-particle in the tree
+    See Also
+    --------
+    d0_explicit_calculation
     """
-    #return  "-(vy[{0}]-vz[{0}]*tan(theta_lab[{0}]))/tan(theta_lab[{0}])".format(index)
-    #return "({1}-sqrt(vx[{0}]**2+vy[{0}]**2))/tan(theta_lab[{0}])+vz[{0}]".format(index,d0(index))
     return "z0[{0}]".format(index)
 
 def get_common_entries(entrylist_list):
@@ -559,6 +604,44 @@ class eff_cut_hadron(object):
             out += p+'\n'
         return out
 
+#    def set_total_eff(self,treedict,pLcut,d0cut,verbose=False):
+#        """builds the total efficiency and evaluates it for the different 
+#        final state cases KK, KP and PP (if exist)
+#
+#        Parameters
+#        ----------
+#        treedict: ROOT.TTree
+#            the tree where to extract the info
+#        pLcut: float
+#            the parallel momentum cut
+#        d0cut: float
+#            the impact parameter cut
+#
+#        Implementation Notes
+#        --------------------
+#        Note that the ROOT.TEntryList should have one unique name, otherwise
+#        the ROOT.gDirectory.Get method retrieve the first object in memory, 
+#        obtaining wrong results
+#        """
+#        treename = get_tree_name(treedict.keys(),self.decay_channel)
+#        # get the tree and check if it was used before
+#        tree = treedict[treename]
+#        is_new_tree = False
+#        if self.__tree != tree:
+#            self.__tree = tree
+#            self.__tree_entries = self.__tree.GetEntries()
+#            # new EntryList reservoir
+#            if not self.__entrylists_reservoir.has_key(treename):
+#                self.__entrylists_reservoir[treename] = {}
+#            # create the entrylist for final state hadrons final state
+#            for i in self.final_state_hadrons:
+#                el_HSname = "{0}_entrylist_hadrons_{1}".format(treename,i)
+#                print el_HSname,FS_CONDITION[i]
+#            raise
+#                #self.__tree.Draw(">>{0}".format(el_HSname),FS_CONDITION[i],"entrylist")
+#                #self.__entrylist_hadrons[i] = ROOT.gDirectory.Get("{0}".format(el_HSname))
+#                #self.__finalhadrons_entries[i] = self.__entrylist_hadrons[i].GetN()
+#            is_new_tree = True
 
     def set_total_eff(self,treedict,pLcut,d0cut,verbose=False):
         """builds the total efficiency and evaluates it for the different 
@@ -1432,9 +1515,35 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
             'NOT-USED1', 'NOT-USED2','N_SIGNAL','N_BKG','EFF_BKG')
     saveallinfo(observables,signal_channel.replace("ssbar_",""))
 
+
+def indices_max_hadron(indices_list,pV,thetaV):
+    """Obtain the higher parallel momentum on the two hemispheres 
+    Note that different hemispheres are described by different
+    p*cos(theta) sign
+
+    Return
+    ------
+    max_up,max_down: int,int
+        indices of the two opposite hemisphere high parallel momentum
+        hadrons
+    """
+    from math import cos
+    # A dictionary
+    d = dict(map(lambda k: (k,pV[k]*cos(thetaV[k])),indices_list))
+    # Separate dict for up-hemisphere and down
+    dup = filter(lambda (k,parp): parp > 1.0, d.iteritems())
+    ddown = filter(lambda (k,parp): parp < 1.0, d.iteritems())
+    indices = []
+    for _d in [ dup, ddown ]:
+        try: 
+            indices.append(sorted(_d,reverse=True,key=lambda (k,pc): abs(pc))[0][0])
+        except IndexError:
+            pass
+    return indices
+
 # =============================================================================================
 # print_decaychain mode functions
-def get_decays(t,hadron):
+def get_decays(t,hadron,pcut=None,d0cut=None):
     """Obtain the decay histogram for the isBCancestor particles
     
     Parameters
@@ -1443,6 +1552,13 @@ def get_decays(t,hadron):
     hadron: str,
         the family of ancestors to look at. Valid values are
         B or D
+    pcut: float, [Default: None]
+        the minimum parallel momentum than the hadrons should 
+        carry on
+    d0cut: float, [Default: None]
+        the maximum (absolute value) impact parameter allowed 
+        for the hadron (d0 calculated from the vertex to the 
+        point of closest approach using a straight line)
 
     Return
     ------
@@ -1450,6 +1566,7 @@ def get_decays(t,hadron):
         the list of decays ordered by times produced, so each entry 
         of the list contains the number the decay mode was produced and the decay (str)
     """
+    import sys
     import ROOT
     ROOT.gROOT.SetBatch(True)
 
@@ -1461,6 +1578,14 @@ def get_decays(t,hadron):
     t.SetBranchAddress("pdgId", pdgIdV)
     pV = ROOT.std.vector("float")()
     t.SetBranchAddress("p", pV)
+    if d0cut:
+        vtxdict = dict(map(lambda x: (x,ROOT.std.vector("float")()), [ 'vx', 'vy']))
+        for _vtx, _vect in vtxdict.iteritems():
+            t.SetBranchAddress(_vtx,_vect)
+        phi_labV= ROOT.std.vector("float")()
+        t.SetBranchAddress("phi_lab",phi_labV)
+    thetaV = ROOT.std.vector("float")()
+    t.SetBranchAddress("theta",thetaV)
     catchallV = ROOT.std.vector("int")()
     t.SetBranchAddress("catchall", catchallV)
     isBCancestorV = ROOT.std.vector("int")()
@@ -1475,7 +1600,6 @@ def get_decays(t,hadron):
     # order the final state hadrons need for the pre_cut: 
     indices_fs_hadrons = lambda : map(lambda x: x[0], filter(lambda (i,(catch,isBC)): catch == 25 and isBC != 1,\
             enumerate(zip(catchallV,isBCancestorV))))
-    indices_max_hadron = lambda _fslist: sorted(_fslist,reverse=True,key=lambda k: pV[k])[:2]
     # FIXME: just including mesons right now
     if hadron == "B":
         cut = lambda k: abs(pdgIdV[k]) > 500 and abs(pdgIdV[k]) < 600 
@@ -1483,13 +1607,31 @@ def get_decays(t,hadron):
         cut = lambda k: abs(pdgIdV[k]) > 400 and abs(pdgIdV[k]) < 500 
     
     decays = {}
+    total_fs = 0
     # Filling the histo and getting it
+    pointpb = float(t.GetEntries())/100.0
     for i in xrange(t.GetEntries()):
+        # Progress bar
+        sys.stdout.write("\r\033[1;34m+-- \033[1;mExtracting decay modes for "+hadron+
+                " ancestors [ " +"\b"+str(int(float(i)/pointpb)+1).rjust(3)+"%]")
+        sys.stdout.flush()
         __dum = t.GetEntry(i)
         # Getting the indices of the final state hadrons (only from H)
         idx_fs = indices_fs_hadrons()
         # Only use the two leading hadrons 
-        idx_leading_hadrons = indices_max_hadron(idx_fs)
+        idx_leading_hadrons = indices_max_hadron(idx_fs,pV,thetaV)
+        # passing the d0 cuts and p-cut if any
+        if pcut:
+            if len(filter(lambda _k: pV[_k] > pcut, idx_leading_hadrons)) != 2:
+                continue
+        if d0cut:
+            if len(filter(lambda _k: 
+                abs(d0_explicit_calculation(vtxdict['vx'][_k],vtxdict['vy'][_k],
+                    phi_labV[_k])) < d0cut , 
+                        idx_leading_hadrons)) != 2:
+                continue
+        # We are here, so we have two final state hadrons
+        total_fs += 2
         # checking if those hadrons are BCdaughters
         idx_bcdaughters = filter(lambda _k: isBCdaughterV[_k],idx_leading_hadrons)
         # storing 
@@ -1503,10 +1645,12 @@ def get_decays(t,hadron):
                 decays[decay_chainV[BC_k]] += 1
             except KeyError:
                 decays[decay_chainV[BC_k]] = 1
+    print
+    t.ResetBranchAddresses()
     # build 
-    return sorted(decays.iteritems(),key=lambda (x,y): y,reverse=True)
+    return sorted(decays.iteritems(),key=lambda (x,y): y,reverse=True),total_fs
 
-def show_decays(pre_d,nfirst,hadron):
+def show_decays(pre_d,nfirst,hadron,total_fs):
     """Print a table with the nfirst frequent produced dacay of the 
     first ancestor from the final hadron (pion/kaon)
 
@@ -1519,6 +1663,8 @@ def show_decays(pre_d,nfirst,hadron):
         frequent)
     hadron: str,
         the name of the ancestor (valid only B or D)
+    total_fs: int
+        the total number of final state hadrons present (and pass the cuts if any)
     """
     print "="*80
     print "{0}-meson decays (first backward ancestor from the two leading final "\
@@ -1530,7 +1676,8 @@ def show_decays(pre_d,nfirst,hadron):
         print "="*80
         return
     ntotal = sum(map(lambda (dmode,_n): _n, pre_d))
-    print "TOTAL final state hadrons ( with {0} ancestors ): {1}".format(hadron,ntotal)
+    print "TOTAL final state hadrons: {0} || with {1} ancestors: {2} ({3:.1f}%)".format(
+            total_fs,hadron,ntotal,float(ntotal)/float(total_fs)*100.0)
     print "-"*80
     # convert to frequency (and change the order, frequency first)
     d = map(lambda (_dc,_n): (float(_n)/float(ntotal),_dc), pre_d)
@@ -1560,13 +1707,34 @@ def table_latex(outfile,hl,hadron):
     """
     print "table_latex NOT IMPLEMENTED YET... ignoring"
     
-def main_decay_chain(rootfiles,want_latex,nfirst=10):
+def main_decay_chain(rootfiles,want_latex,nfirst=10,**kwargs):
     """Create a list of most frequent decays for the B/D mesons
     ancestors of the final state hadron 
+
+    Parameters
+    ----------
+    rootfiles: str,
+        the root filenames where to extract the info
+    want_latex: bool [NOT IMPLEMENTED YET]
+        whether or not a latex table will be printed
+    nfirst: int, default: 10
+        the number of decays mode to print
+    pcut: float, optional 
+        a cut in the parallel momentum of the hadrons
+    d0cut: float, optional
+        a cut in the impact parameters of the hadrons
     """
     import ROOT
+    # Only recognized: pcut, d0cut
+    if kwargs.has_key("pcut"):
+        pcut = kwargs["pcut"]
+    if kwargs.has_key("d0cut"):
+        d0cut = kwargs["d0cut"]
+
     needed_branches = [ "pdgId", "p", "catchall", "isBCancestor", \
-            "isBCdaughter", "ancestorBCindex", "decay_chain" ]
+            "isBCdaughter", "ancestorBCindex", "decay_chain", "theta" ]
+    if d0cut:
+        needed_branches += [ "vx", "vy", "phi_lab" ]
     for i in rootfiles:
         # Get files and tree
         _froot = ROOT.TFile(i)
@@ -1577,11 +1745,15 @@ def main_decay_chain(rootfiles,want_latex,nfirst=10):
         t.SetBranchStatus("*",0)
         _kk = map(lambda x: t.SetBranchStatus(x,1), needed_branches)
         # -- Get histo for decay for B
-        hB = get_decays(t,'B')
-        hD = get_decays(t,'D')
+        hB,total_fs_B_process = get_decays(t,'B',pcut=pcut,d0cut=d0cut)
+        hD,total_fs_C_process = get_decays(t,'D',pcut=pcut,d0cut=d0cut)
+        # just a cross-check: the total number of final state hadrons
+        # should be the same regardless the B/C ancestor check
+        assert total_fs_B_process == total_fs_C_process
+        total_fs = total_fs_B_process
         # -- and print the list of the top 10
-        show_decays(hB,nfirst,"B")
-        show_decays(hD,nfirst,"D")
+        show_decays(hB,nfirst,"B",total_fs)
+        show_decays(hD,nfirst,"D",total_fs)
         if want_latex:
             # Get a kind of file name from the root filename
             tablename = "table_decay_{0}_"+i.replace(".root",".tex")
@@ -1725,6 +1897,10 @@ if __name__ == '__main__':
     parser_decaychain = subparsers.add_parser("decay_chain",help='Print the decay of the first'\
             'B or D-hadron ancestor (backward from the final hadron)' )
     parser_decaychain.add_argument('rootfile',nargs='+',action='store',help='The input root file')
+    parser_decaychain.add_argument('-p','--pcut',action='store',dest='pcut',type=float,
+            help='The parallel momentum cut to be applied for both final hadrons (in GeV)')
+    parser_decaychain.add_argument('-d','--d0cut',action='store',dest='d0cut',type=float,
+            help='The maximum impact parameter to be allowed for both final hadrons (in mm)')
     parser_decaychain.add_argument('-n','--nfirst',action='store',dest='nfirst',type=int,
             help='Maximum number of decays to show [Default: 10]')
     parser_decaychain.add_argument('--latex',action='store_true',dest='want_latex',help='Print also a latex table')
@@ -1760,7 +1936,8 @@ if __name__ == '__main__':
                 args.z0,
                 args.wp_activate)
     elif args.which == 'decay_chain':
-        main_decay_chain(args.rootfile,args.want_latex,args.nfirst)
+        main_decay_chain(args.rootfile,args.want_latex,args.nfirst,
+                pcut=args.pcut,d0cut=args.d0cut)
     elif args.which == 'compare_pid':
         main_cmp_pid(args.pickle_files)
 

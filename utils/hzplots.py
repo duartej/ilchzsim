@@ -83,6 +83,7 @@ class higgsinputs:
         self.brbbbar    = 5.66e-1
         self.brccbar    = 2.85e-2
         self.brssbar    = 2.41e-4
+        self.brgg       = 8.50e-2
         self.bruubar    = 0.0  # just below 1e-4
         self.brddbar    = 0.0  # just below 1e-4
         self.Lint       = 0 #(fb)
@@ -114,11 +115,14 @@ BRuu_cc = 3.3e-6
 BRdd_cc = 1.4e-5
 BRss_cc = 0.006
 BRbb_cc = 10.75
+BRgg_cc = 2.98 # ??--> just using values from higgsclass, how can I
+               #       if m_g = 0?
 
 BRuu_ss = 5.9e-4
 BRdd_ss = 2.6e-3
 BRcc_ss = 180.1
 BRbb_ss = 1936.0
+BTgg_ss = 352.7
 
 def getbr(name):
     """.. function:: getbr(name) -> br
@@ -142,6 +146,8 @@ def getbr_cc(name):
         return BRdd_cc
     elif name.find("ssbar") != -1:
         return BRss_cc
+    elif name.find("gg") != -1:
+        return BRgg_cc
     elif name.find("ccbar") != -1:
         return 1.0
 
@@ -165,7 +171,7 @@ def getbr_ss(name):
 def parseprocess(name):
     """
     """
-    availpr = [ 'bbbar', 'uubar', 'ddbar', 'ssbar', 'ccbar' ]
+    availpr = [ 'bbbar', 'uubar', 'ddbar', 'ssbar', 'ccbar', 'gg' ]
     try:
         process = filter(lambda x: name.find(x) != -1,availpr)[0]
     except IndexError:
@@ -467,7 +473,7 @@ class eff_cut_hadron(object):
         Parameters
         ----------
         decay_channel: str
-            the Higgs hadronic decay (bbbar,ccbar,ssbar, ddbar, uubar)
+            the Higgs hadronic decay (gg, bbbar,ccbar,ssbar, ddbar, uubar)
         z0cut: bool
             whether or not activated an extra circular cut around z0=0.1 mm
         d0cut_type: str, [default: circular]
@@ -1038,7 +1044,7 @@ def create_histos(suffix,description,res_int,hc=None):
     ROOT.gStyle.SetLegendBorderSize(0)
     ROOT.gROOT.SetBatch()
 
-    COLOR = { 'ssbar': 46, 'bbbar': 12,
+    COLOR = { 'ssbar': 46, 'bbbar': 12, 'gg': 34,
             'ccbar': 14, 'uubar': 16,
             'ddbar': 18}
     RES = { 23: 'Z', 25: 'H' }
@@ -1923,7 +1929,7 @@ if __name__ == '__main__':
     
     if args.which == 'fixed_pid':
         # Which trees should be used?
-        pre_channels = [ 'ssbar','bbbar','ccbar' ]
+        pre_channels = [ 'ssbar','bbbar','ccbar', 'gg' ]
         if args.light_channels:
             pre_channels += [ 'uubar', 'ddbar' ]
         channels = [ "{0}_{1}".format(x,args.channel_mode[0]) for x in pre_channels ]

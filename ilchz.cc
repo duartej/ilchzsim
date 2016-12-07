@@ -30,6 +30,7 @@
 #include<utility>
 #include<iterator>
 #include<random>
+#include<cmath>
 
 // Helper class to declare hadrons-id
 struct FinalStateHadrons
@@ -355,7 +356,7 @@ struct ParticleKinRootAux
 
     // Filling tree variables: final hadron version
     int filltreevar_finalhadron(const int & pythiaindex, const int & id, const int & _motherindex, 
-            const int & _resonanceID, 
+            const int & _resonanceID, const int & _multiplicity,
             const int & _isHF, const int & _bcindex, const int & _isPH,
             const float & _p, const float & _p_lab, 
             const float & _pmother, 
@@ -364,7 +365,8 @@ struct ParticleKinRootAux
             const float & _vx, const float & _vy, const float & _vz)
     {
         return _filltreevariables(pythiaindex,id,_motherindex,_resonanceID,
-                -1,"",-1, // bcAncestor related
+                -1,"", // bcAncestor related
+                _multiplicity,
                 _isHF,_bcindex,_isPH,
                 _p,_p_lab,_pmother,
                 _phi,_phi_lab,_theta,_theta_lab,
@@ -660,6 +662,35 @@ std::pair<std::string,int> get_final_hadrons(const int & pId, const Pythia & pyt
     return std::pair<std::string,int>(decaychannel,decaychannel_v.size());
 }
 
+// get the pdgId of the particles (final) inside a dR-cone of the given
+// hadron (current_index)
+const std::vector<int> get_hadron_multiplicity(const Pythia & pythia, const int & hadron_index, 
+        const double & eta, const double & phi,const double & dR=0.4)
+{
+    // the pdgId vector of particles inside a dR-cone
+    std::vector<int> multiplicity;
+
+    // Note that at least the 20 first are hard-scattering processes
+    for(int i = 20; i < pythia.event.size(); ++i)
+    {
+        // Just final state charged particles (NOT APPLIED ACCEPTANCE CUTS:XXX)
+        if( i == hadron_index || !pythia.event[i].isFinal() || !pythia.event[i].isCharged() )
+        {
+            continue;
+        }
+
+        const Particle & fs = pythia.event[i];
+        // Checking the dR cone around the current hadron
+        const double dEta = eta-fs.eta();
+        const double dPhi = phi-fs.phi();
+        if( std::sqrt( dEta*dEta+dPhi*dPhi ) < dR )
+        {
+            multiplicity.push_back(fs.id());
+        }
+    }
+    return multiplicity;
+}
+
 void display_usage()
 {
     std::cout << "\033[37musage:\033[m ilchz [OPTIONS] ilchz.cmnd [> out.txt]"
@@ -865,12 +896,12 @@ int main(int argc, char* argv[])
         // of the original quark and resonance
         for(int i= 0; i < pythia.event.size(); ++i)
         {
-            const int abspdgid = pythia.event[i].idAbs();
-            
             if( ! pythia.event[i].isFinal() )
             {
                 continue;
             }
+            
+            const int abspdgid = pythia.event[i].idAbs();            
             
             // "Interesting" particles only! (here is taken into account the 
             // misid probability as well
@@ -975,12 +1006,17 @@ int main(int argc, char* argv[])
             {
                 isPrimaryHadron = 1;
             }
+            // getting the number of particles surrounding the hadron
+            // in a 0.3-0.4 cone
+            const std::vector<int> hadron_multiplicity = 
+                get_hadron_multiplicity(pythia,currI,had.eta(),had.phi());
             // storing info in the rest-frame of the quark-bquark ref. system (except
             // for the vertex)
             const Particle & hadatlab = pythia.event[currI];
             particles.filltreevar_finalhadron(currI,had.id(),
                     particles.getlocalindex(quarkindex),
                     ancestorID,
+                    hadron_multiplicity.size(),
                     isBCdaughter,particles.getlocalindex(bc_index),isPrimaryHadron,
                     had.pAbs(),hadatlab.pAbs(),
                     quarkatrest.pAbs(),

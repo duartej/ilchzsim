@@ -1021,6 +1021,7 @@ def create_histos(suffix,description,res_int,hc=None):
 
      * h_nM_suffix  : the quark multiplicity (related with the number
                       of constituents of a jet) [FIXME: not well defined]
+     * XXX: THE MULTIPLICITY:: MISSING!!!
 
     Parameters
     ----------
@@ -1134,6 +1135,27 @@ def create_histos(suffix,description,res_int,hc=None):
             ytitle="#sigma_{d_{0}} [#mu m]",
             xtitle='|#theta_{lab}| [^{o}]',
             color=color)
+    
+    # NEW: multiplicity
+    hc.create_and_book_histo("{0}_h2_pL_multiplicity_0_{1}".format(resonance,suffix),\
+            "leading hadrons: p_{||} vs. N_{trk} #in dR < 0.4",
+            100,0,65.,npoints_y=20,ylow=-0.5,yhigh=19.5,description=description,
+            ytitle="N_{trk} #in dR < 0.4",
+            xtitle=' p_{||} [GeV]',
+            color=color)
+    hc.create_and_book_histo("{0}_h2_pL_multiplicity_1_{1}".format(resonance,suffix),\
+            "sub-leading hadrons: p_{||} vs. N_{trk} #in dR < 0.4",
+            100,0,65.,npoints_y=20,ylow=-0.5,yhigh=19.5,description=description,
+            ytitle="N_{trk} #in dR < 0.4",
+            xtitle=' p_{||} [GeV]',
+            color=color)
+    hc.create_and_book_histo("{0}_h2_pL_multiplicity_Add_{1}".format(resonance,suffix),\
+            "leading/subleading hadrons: p_{||} vs. N_{trk} #in dR < 0.4",
+            100,0,65.,npoints_y=20,ylow=-0.5,yhigh=19.5,description=description,
+            ytitle="N_{trk} #in dR < 0.4",
+            xtitle=' p_{||} [GeV]',
+            color=color)
+    
     # TO BE DEPRECATED -- 
     hc.create_and_book_histo("{0}_h2_d0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",\
@@ -1423,8 +1445,10 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     hc = None
     for effname,e in eff.iteritems():
         hc = create_histos(e.decay_channel,e.decay_channel,25,hc)
-        e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"(vy-vx*tan(phi_lab))*cos(phi_lab)")
-        e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"-(vy-vz*tan(theta_lab))/tan(theta_lab)")
+        #e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"(vy-vx*tan(phi_lab))*cos(phi_lab)")
+        #e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"-(vy-vz*tan(theta_lab))/tan(theta_lab)")
+        e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"d0")
+        e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"z0")
         e.get_tree().Project("H_h_Lxy_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy)")
         e.get_tree().Project("H_h_R_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy+vz*vz)")
         # two-dim
@@ -1433,6 +1457,11 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
                 "5.+(10/(p_lab*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
         e.get_tree().Project("H_h2_pL_theta_lab_{0}".format(e.decay_channel),\
                 "abs(p*cos(theta)):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
+        # -- The new-multiplicity
+        e.get_tree().Project("H_h2_pL_multiplicity_0_{0}".format(e.decay_channel),"multiplicity[0]:abs(p[0]*cos(theta[0]))")
+        e.get_tree().Project("H_h2_pL_multiplicity_1_{0}".format(e.decay_channel),"multiplicity[1]:abs(p[1]*cos(theta[1]))") 
+        e.get_tree().Project("H_h2_pL_multiplicity_Add_{0}".format(e.decay_channel),\
+                "multiplicity[0]+multiplicity[1]:(sqrt( (p[0]*cos(theta[0]))**2.0+ (p[1]*cos(theta[1]))**2.0 )")
         # cut-dependent
         e.activate_cuts(pLcut=20)
         e.get_tree().Project("H_h_theta_lab_{0}".format(e.decay_channel),\
@@ -1462,6 +1491,9 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     plot_profile_combined(hc,"H_h2_pLcut20_Resd0_theta","X",options="PE")
     plot_profile_combined(hc,"H_h2_pL_theta_lab","X",ytitle="<p_{||}> [GeV]",options="PE")
     plot_profile_combined(hc,"H_h2_pL_theta_lab","Y",ytitle="<#theta> [^{0{}]",options="PE")
+    # -- new multiplicity
+    plot_profile_combined(hc,"H_h2_pL_multiplicity_Add","X",ytitle="<#p_{||}> [GeV]",options="PE")
+    plot_profile_combined(hc,"H_h2_pL_multiplicity_Add","Y",ytitle="<N_{trk}> #in dR < 0.4",options="PE")
     #plot_combined(hc,'H_h_nM')
 
     # --- Some extra points (WP)

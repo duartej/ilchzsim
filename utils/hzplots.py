@@ -1151,7 +1151,7 @@ def create_histos(suffix,description,res_int,hc=None):
             color=color)
     hc.create_and_book_histo("{0}_h2_pL_multiplicity_Add_{1}".format(resonance,suffix),\
             "leading/subleading hadrons: p_{||} vs. N_{trk} #in dR < 0.4",
-            100,0,80.,npoints_y=25,ylow=-0.5,yhigh=14.5,description=description,
+            100,0,80.,npoints_y=25,ylow=-0.5,yhigh=24.5,description=description,
             ytitle="N_{trk} #in dR < 0.4",
             xtitle=' p_{||} [GeV]',
             color=color)
@@ -1492,8 +1492,8 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     plot_profile_combined(hc,"H_h2_pL_theta_lab","X",ytitle="<p_{||}> [GeV]",options="PE")
     plot_profile_combined(hc,"H_h2_pL_theta_lab","Y",ytitle="<#theta> [^{0{}]",options="PE")
     # -- new multiplicity
-    plot_profile_combined(hc,"H_h2_pL_multiplicity_Add","X",ytitle="<#p_{||}> [GeV]",options="PE")
-    plot_profile_combined(hc,"H_h2_pL_multiplicity_Add","Y",ytitle="<N_{trk}> #in dR < 0.4",options="PE")
+    plot_profile_combined(hc,"H_h2_pL_multiplicity_Add","X",ytitle="<N_{trk}> #in dR < 0.4",options="PE")
+    plot_profile_combined(hc,"H_h2_pL_multiplicity_Add","Y",ytitle="<p_{||}> [GeV]",options="PE")
     #plot_combined(hc,'H_h_nM')
 
     # --- Some extra points (WP)

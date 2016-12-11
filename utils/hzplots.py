@@ -466,7 +466,7 @@ class eff_cut_hadron(object):
     .. math::\varepsilon_{AB}^{q\bar{q}} = P( d0^{c} p_{||}^c L_{AB} | 
                 (ee\rightarrow HZ\rightarrow q\bar{q}) I_0 )
     """
-    def __init__(self,decay_channel,z0cut=False,d0cut_type="circular",pLcut_type="circular"):
+    def __init__(self,decay_channel,z0cut=False,Ntrackcut=None,d0cut_type="circular",pLcut_type="circular"):
         """Encapsulates the efficieny cut of a Hadron-hadron event
         Incorporates the cut in impact parameter and in parallel momentum
 
@@ -476,6 +476,9 @@ class eff_cut_hadron(object):
             the Higgs hadronic decay (gg, bbbar,ccbar,ssbar, ddbar, uubar)
         z0cut: bool
             whether or not activated an extra circular cut around z0=0.1 mm
+        Ntrackcut: int
+            whether or not activated an extra cut in the hadron multiplicity 
+            and the maximum allowed tracks surrounding a dR cone of the hadron
         d0cut_type: str, [default: circular]
             defines the function to be used to cut in d0, valid values are
             circular, square
@@ -507,6 +510,10 @@ class eff_cut_hadron(object):
         else:
             self.pLcut_function = ""
             self.d0cut_function = ""
+    
+        if Ntrackcut:
+            self.pLcut_function += "multiplicity[0] <= {0} && multiplicity[1] <= {0} && ".format(Ntrackcut)
+            self.d0cut_function += "multiplicity[0] <= {0} && multiplicity[1] <= {0} && ".format(Ntrackcut)
 
         # behaviour members
         if pLcut_type == "circular":
@@ -1325,7 +1332,7 @@ def getallinfo(filename):
     return d
 
 
-def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,wp_activated):
+def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,Ntrackcut,wp_activated):
     """Main function steering the efficiency calculation and
     the plots creation.
     
@@ -1356,6 +1363,8 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
         functional of the d0cut(d01,d02): circular|square
     z0: float|None
         whether activate or not z0cut, if yes, the cut number
+    Ntrackcut: int|None
+        whether activate or not multiplicity cut, if yes, the cut number
     wp_activated: bool
         whether or not to plot on the working points...
     """
@@ -1387,7 +1396,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     
     # --- Ready to extract efficiencies
     # the eff. classes 
-    eff = dict(map(lambda x: (x,eff_cut_hadron(x,z0cut,d0cut_type=d0cut_type,pLcut_type=pLcut_type)), channels))
+    eff = dict(map(lambda x: (x,eff_cut_hadron(x,z0cut,Ntrackcut,d0cut_type=d0cut_type,pLcut_type=pLcut_type)), channels))
     
     message = "\r\033[1;34mhzplots INFO\033[1;m Obtaining efficiencies"
     # { 'docut1': [ (pLcut1, eff_sig, significance, pion_rejection, purity, N_sig, N_bkg), ... ],  }
@@ -1912,6 +1921,9 @@ if __name__ == '__main__':
             metavar='d01[,d02,...]',help="Impact parameters cuts [0.013 0.02 0.05]")
     parser_pid.add_argument( '-z', '--z0', action='store',  dest='z0',\
             help="activate the z0-cut and the value to cut [False]")
+    parser_pid.add_argument( '-m', '--multiplicity', action='store',  dest='Ntrack',\
+            help="activate the multiplicity cut (the max. number of allowed tracks"\
+            " surrounding the final hadron at a dR-cone) and the value to cut [False]")
     parser_pid.add_argument( '--d0cut-type', action='store', dest='d0cut_type',\
             metavar='circular|square',help="functional of the d0 cut [circular]")
     parser_pid.add_argument( '-p', '--pL-cut', action='store', dest='pLMax',\
@@ -1972,6 +1984,7 @@ if __name__ == '__main__':
                 args.d0,
                 args.d0cut_type,
                 args.z0,
+                args.Ntrack,
                 args.wp_activate)
     elif args.which == 'decay_chain':
         main_decay_chain(args.rootfile,args.want_latex,args.nfirst,

@@ -40,6 +40,16 @@ class hadron(object):
     def __gt__(self,other):
         return self.p > other.p
 
+def get_opposite_charge(ref_hadron, the_other_list):
+    for kref in ref_hadron:
+        try:
+            opposite_other = filter(lambda kd: kref.charge*kd.charge < 1,the_other_list)[0]
+            return (kref,opposite_other)
+        except IndexError:
+            pass
+    # didn't found it
+    return (-1,-1)
+
 def get_leading_kaons(tree,applycharge):
     """Obtain the leading kaons
     """
@@ -121,13 +131,20 @@ def get_leading_kaons(tree,applycharge):
             continue
         # -- check charge if needed
         if applycharge:
-            for ku in u_h:
-                try:
-                    opposite_down = filter(lambda kd: ku.charge*kd.charge < 1,d_h)[0]
-                    leading_kaons[i] = (ku, opposite_down)
-                    break
-                except IndexError:
-                    pass
+            # double loop and get the higher of the two
+            up_down_pair = get_opposite_charge(u_h,d_u)
+            down_up_pair = get_opposite_charge(d_u,u_h)
+            if  sum(up_down_pair) > sum(down_up_pair):
+                leading_kaons[i] = up_down_pair
+            else:
+                leading_kaons[i] = down_up_pair
+            #for ku in u_h:
+            #    try:
+            #        opposite_down = filter(lambda kd: ku.charge*kd.charge < 1,d_h)[0]
+            #        leading_kaons[i] = (ku, opposite_down)
+            #        break
+            #    except IndexError:
+            #        pass
         else:
             leading_kaons[i] = (u_h[0],d_h[0])
 

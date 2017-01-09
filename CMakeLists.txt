@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 project(ilchzsim)
 set(CMAKE_INSTALL_PREFIX $ENV{HOME}/.local)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ansi -pedantic -W -Wall -Wshadow -fPIC")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ansi -pedantic -W -Wall -Wshadow -fPIC -ldl")
 
 # the Pythia8 seeker
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")

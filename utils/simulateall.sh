@@ -27,7 +27,7 @@ for s in $samples;
 do
     mode=${cmdfile[$n]}
     sed -i.bak -e 's/onMode = [01]/onMode = 0/g' ilchz.cmnd 
-    sed -i.bak "s/$mode = [01]/$mode = 1/g" ilchz.cmnd 
+    sed -i.bak "s/25:$mode = [01]/25:$mode = 1/g" ilchz.cmnd
     echo "Processing MODE:$mode"
     # Obtaining the Kaon-kaon background (assuming PID)
     ilchz ilchz.cmnd -f "kaons" -b -o hz${s}_PID_kaons_only.root &

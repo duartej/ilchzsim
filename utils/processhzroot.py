@@ -71,9 +71,14 @@ def get_leading_kaons(tree,applycharge):
     signed_pm = lambda _k: tree.p[_k]*cos(tree.theta[_k])
     #d0_f      = lambda _k: (tree.vy[_k]-tree.vx[_k]*tan(tree.phi_lab[_k]))*cos(tree.phi_lab[_k])
     #z0_f      = lambda _k: -(tree.vy[_k]-tree.vz[_k]*tan(tree.theta_lab[_k]))/tan(tree.theta_lab[_k])
+
+    # distance in transverse plane of the decay vertex to the IP
     L_f       = lambda _k: sqrt(tree.vx[_k]**2.0+tree.vy[_k]**2.0)
+    # distance in 3D of the decay vertex to the IP
     R_f       = lambda _k: sqrt(tree.vx[_k]**2.0+tree.vy[_k]**2.0+tree.vz[_k]**2.0)
+    # impact parameter in transverse plane
     d0_f      = lambda _k: sin(atan2(tree.vy[_k],tree.vx[_k])-tree.phi_lab[_k])*L_f(_k)
+    # longitudinal impact parameter
     z0_f      = lambda _k: (d0_f(_k)-L_f(_k))/tan(tree.theta_lab[_k])+tree.vz[_k]
     nentries = tree.getentries()
     leading_kaons = {}

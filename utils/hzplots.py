@@ -76,7 +76,7 @@ class higgsinputs:
     # Cross section   : 
     def __init__(self):
         self.mH         = 125.09 # (GeV)
-        self.eeToHat250 = 2.5e2 # (fb) (at 250 GeV center of mass, is almost equivalent to ee->HZ)
+        self.eeToHat250 = 1e7 # (fb) (at 250 GeV center of mass, is almost equivalent to ee->HZ)
         # Generic, only dependent of the higgs mass
         # therefore, following values at self.mH higgs
         # mass
@@ -107,7 +107,7 @@ class higgsinputs:
         return self.higgsproduced*br
 
 hiInstance = higgsinputs()
-hiInstance.setLint(500) # (fb-1)
+hiInstance.setLint(1) # (fb-1)
 
 # Branching ratios with respect ccbar (m_q^2/m_c^2)
 # using the pole mass (measured) not the mass at the higgs scale

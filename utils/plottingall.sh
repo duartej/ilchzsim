@@ -16,6 +16,10 @@
 
 n=0
 #NCPU=`cat /proc/cpuinfo |grep processor|wc -l`
+
+# collect the pkl files for the different PID modes
+pklfiles=""
+
 for i in noPID 020PID 005PID PID; 
 do
     #if (("$NCPU" <= "$n"));
@@ -26,8 +30,12 @@ do
     mkdir -p ${i} ;
     cd ${i};
     hzplots fixed_pid -s png -z 40.0 -p 40 --pLcut-type square ${i} ../processedhz_all.root #&
+    pklfiles=$pklfiles" $i/d0cut_dict_$i.pkl"
     cd -;
     #n=$(($n+1))
 done;
 # Be sure everything finished
 #wait;
+
+# run hzplots in compare_pid mode
+hzplots compare_pid -s png `echo $pklfiles`

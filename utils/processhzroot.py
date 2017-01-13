@@ -242,6 +242,11 @@ def store_hadrons(outname,hadronlist,old_tree,treename):
             ipvector.reserve(2)
             _dumm = map(lambda _hadron: ipvector.push_back(getattr(_hadron,bname)),[h_l,h_sl])
         tree.Fill()
+    # clear the vectors for filling the tree with empty events (to match number of generated events)
+    _dummy = map(lambda _v: _v.clear(), containers.values())
+    _dummy = map(lambda _v: _v.clear(), pseudoimpactpar.values())
+    # Filling empty events
+    _dummy = map(lambda k: tree.Fill(), xrange(old_tree.GetEntries()-len(hadronlist)))
     print
     f.Write()
     f.Close()

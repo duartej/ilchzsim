@@ -25,7 +25,7 @@ Stat:showPartonLevel = on           ! additional statistics on MPI
 ! 3) Beam parameter settings. Values below agree with default ones.
 Beams:idA = 11                     ! first beam, e- = 11
 Beams:idB = -11                    ! second beam, e+ = -11
-Beams:eCM = 250.                   ! CM energy of collision
+Beams:eCM = 240.                   ! CM energy of collision
 
 ! 4) PDF settings. Default is to use internal PDFs --> NOT needed PDF!!
 ! some pdf sets examples: cteq61.LHpdf cteq61.LHgrid MRST2004nlo.LHgrid

@@ -76,7 +76,7 @@ class higgsinputs:
     # Cross section   : 
     def __init__(self):
         self.mH         = 125.09 # (GeV)
-        self.eeToHat250 = 1e7 # (fb) (at 250 GeV center of mass, is almost equivalent to ee->HZ)
+        self.eeToHat240 = 230 # (fb) (at 240 GeV center of mass, is almost equivalent to ee->HZ)
         # Generic, only dependent of the higgs mass
         # therefore, following values at self.mH higgs
         # mass
@@ -91,7 +91,7 @@ class higgsinputs:
 
     def setLint(self,_Lint):
         self.Lint = float(_Lint)
-        self.higgsproduced = self.eeToHat250*self.Lint
+        self.higgsproduced = self.eeToHat240*self.Lint
 
     def getEvents(self,decaychannel):
         """
@@ -107,7 +107,7 @@ class higgsinputs:
         return self.higgsproduced*br
 
 hiInstance = higgsinputs()
-hiInstance.setLint(1) # (fb-1)
+hiInstance.setLint(43478) # (fb-1)
 
 # Branching ratios with respect ccbar (m_q^2/m_c^2)
 # using the pole mass (measured) not the mass at the higgs scale
@@ -1443,7 +1443,6 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
                 significance   = float(n_KK)/sqrt(float(bkg_tot_evts))
             except ZeroDivisionError:
                 significance   = 0.0
-
             # store it, note reference above [MARK-1]
             observables[d0str].append( (pL,eff_sig,significance,pion_rejection,purity,n_KK,bkg_tot_evts,bkg_tot_eff) )
             i+=1

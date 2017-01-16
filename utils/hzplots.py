@@ -1237,7 +1237,7 @@ def plot(histo,varname,xtitle='',ytitle='',option=''):
     c = ROOT.TCanvas()
     histo.Draw(option)
     #suffix = SUFFIXPLOTS
-    c.SaveAs("{0}.{1}".format(histo.GetName(),'png'))
+    c.SaveAs("{0}{1}".format(histo.GetName(),SUFFIXPLOTS))
 
     c.Close()
     del c
@@ -1260,7 +1260,7 @@ def plot_combined(hc,varname,option='',legposition="RIGHT"):
     histonames = filter(lambda _k: _k.find(varname) == 0,\
             hc._histos.keys())
     hc.associated(histonames)
-    hc.plot(histonames[0],'comb_{0}.png'.format(varname),log=True,legposition=legposition)
+    hc.plot(histonames[0],'comb_{0}{1}'.format(varname,SUFFIXPLOTS),log=True,legposition=legposition)
 
 def plot_profile_combined(hc,varname,axis,
         ytitle='<#sigma_{d_{0}}> [#mum]',
@@ -1306,7 +1306,7 @@ def plot_profile_combined(hc,varname,axis,
         #    ytitle=_h.GetYaxis().GetTitle())
         #    #color=color)
     hc.associated(profile_names)
-    hc.plot(profile_names[0],'comb_{0}_{1}.png'.format(varname,axis),\
+    hc.plot(profile_names[0],'comb_{0}_{1}{2}'.format(varname,axis,SUFFIXPLOTS),\
             options=options,log=True,legposition=legposition,\
             normalize=False)
 
@@ -1882,7 +1882,7 @@ def main_cmp_pid(listpklfiles):
             y[pid] = []
             for p,e_signal,significance,_x1,_x2,n_signal,n_bkg,e_bkg in d0list:
                 y[pid].append(significance)
-        plot_python(x,y,'significance_cmp_{0}.png'.format(d0cut))    
+        plot_python(x,y,'significance_cmp_{0}{1}'.format(d0cut,SUFFIXPLOTS))
 
 
 if __name__ == '__main__':

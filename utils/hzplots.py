@@ -1011,6 +1011,8 @@ def create_histos(suffix,description,res_int,hc=None):
     to plot. So far the histograms defined are:
      * h2_pL_suffix : the parallel momentum of the leading 
                       and subleading hadrons
+     * h2_[sub]leading_pL_d0_suffix: the impact parameter of the
+                      [sub]leading kaon vs its parallel momentum
      * h2_d0_suffix : the impact parameter of the leading 
                       and subleading hadrons (extrapolated as
                       straight lines)
@@ -1052,9 +1054,9 @@ def create_histos(suffix,description,res_int,hc=None):
     ROOT.gStyle.SetLegendBorderSize(0)
     ROOT.gROOT.SetBatch()
 
-    COLOR = { 'ssbar': 46, 'bbbar': 12, 'gg': 34,
-            'ccbar': 14, 'uubar': 16,
-            'ddbar': 18}
+    COLOR = { 'ssbar': 46, 'bbbar': 30, 'gg': 38,
+              'ccbar': 14, 'uubar': 20,
+              'ddbar': 28}
     RES = { 23: 'Z', 25: 'H' }
 
     resonance = RES[res_int]
@@ -1070,6 +1072,11 @@ def create_histos(suffix,description,res_int,hc=None):
             "leading kaons parallel momentum",\
             100,0,65,npoints_y=100,ylow=0,yhigh=65,description=description,
             xtitle="leading-p_{||} [GeV]",ytitle='subleading-p_{||} [GeV]',
+            color=color)
+    hc.create_and_book_histo("{0}_h2_pL_d0_{1}".format(resonance,suffix),\
+            "leading kaons parallel momentum vs impact parameter",\
+            100,0,65,npoints_y=100,ylow=0,yhigh=0.1,description=description,
+            xtitle="p_{||} [GeV]",ytitle='d_{0} [mm]',
             color=color)
     hc.create_and_book_histo("{0}_h_d0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",100,-5,5,\
@@ -1461,6 +1468,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
         e.get_tree().Project("H_h_R_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy+vz*vz)")
         # two-dim
         e.get_tree().Project("H_h2_pL_{0}".format(e.decay_channel),"abs(p[1]*cos(theta[1])):abs(p[0]*cos(theta[0]))")
+        e.get_tree().Project("H_h2_pL_d0_{0}".format(e.decay_channel),"d0:abs(p*cos(theta))")
         e.get_tree().Project("H_h2_Resd0_theta_{0}".format(e.decay_channel),\
                 "5.+(10/(p_lab*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
         e.get_tree().Project("H_h2_pL_theta_lab_{0}".format(e.decay_channel),\

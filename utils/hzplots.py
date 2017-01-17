@@ -836,6 +836,7 @@ class plot_attributes(object):
         self.yunit    = ''
         self.title    = ''
         self.log      = False
+        self.xlog     = False
         self.opt      = ''
         for key,val in kwd.iteritems():
             setattr(self,key,val)
@@ -930,6 +931,8 @@ def make_plot(points_dict,(xindex,yindex),plot_attr,g_points_dict=None,leg_posit
     c = ROOT.TCanvas()
     if plot_attr.log:
         c.SetLogy()
+    if plot_attr.xlog:
+        c.SetLogx()
     # una grafica para el mismo d0
     # Extract the limits
     dummy = update_limits(points_dict,(xindex,yindex),plot_attr)
@@ -1080,6 +1083,12 @@ def create_histos(suffix,description,res_int,hc=None):
             color=color)
     hc.create_and_book_histo("{0}_h_d0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",100,-5,5,\
+            description=description,
+            xtitle="d_{0} [mm]",
+            ytitle="A.U.",
+            color=color)
+    hc.create_and_book_histo("{0}_h_absd0_{1}".format(resonance,suffix),\
+            "leading kaons impact parameter",100,0.01,5,\
             description=description,
             xtitle="d_{0} [mm]",
             ytitle="A.U.",
@@ -1242,7 +1251,7 @@ def plot(histo,varname,xtitle='',ytitle='',option=''):
     c.Close()
     del c
 
-def plot_combined(hc,varname,option='',legposition="RIGHT"):
+def plot_combined(hc,varname,option='',legposition="RIGHT",xlog=False):
     """
     """
     from PyAnUtils.plotstyles import squaredStyle
@@ -1260,11 +1269,11 @@ def plot_combined(hc,varname,option='',legposition="RIGHT"):
     histonames = filter(lambda _k: _k.find(varname) == 0,\
             hc._histos.keys())
     hc.associated(histonames)
-    hc.plot(histonames[0],'comb_{0}{1}'.format(varname,SUFFIXPLOTS),log=True,legposition=legposition)
+    hc.plot(histonames[0],'comb_{0}{1}'.format(varname,SUFFIXPLOTS),log=True,legposition=legposition,xlog=xlog)
 
 def plot_profile_combined(hc,varname,axis,
-        ytitle='<#sigma_{d_{0}}> [#mum]',
-        options='',legposition="RIGHT"):
+                          ytitle='<#sigma_{d_{0}}> [#mum]',
+                          options='',legposition="RIGHT",xlog=False):
     """Plot in the same canvas the plots with the common name 
     """
     from PyAnUtils.plotstyles import squaredStyle
@@ -1308,7 +1317,7 @@ def plot_profile_combined(hc,varname,axis,
     hc.associated(profile_names)
     hc.plot(profile_names[0],'comb_{0}_{1}{2}'.format(varname,axis,SUFFIXPLOTS),\
             options=options,log=True,legposition=legposition,\
-            normalize=False)
+            normalize=False,xlog=xlog)
 
 def saveallinfo(d,surname):
     """Store the dictionary "d"
@@ -1463,6 +1472,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
         #e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"(vy-vx*tan(phi_lab))*cos(phi_lab)")
         #e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"-(vy-vz*tan(theta_lab))/tan(theta_lab)")
         e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"d0")
+        e.get_tree().Project("H_h_absd0_{0}".format(e.decay_channel),"abs(d0)")
         e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"z0")
         e.get_tree().Project("H_h_Lxy_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy)")
         e.get_tree().Project("H_h_R_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy+vz*vz)")
@@ -1496,6 +1506,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     
     # and the combined histograms
     plot_combined(hc,'H_h_d0')
+    plot_combined(hc,'H_h_absd0',xlog=True)
     plot_combined(hc,'H_h_z0')
     plot_combined(hc,'H_h_Lxy')
     plot_combined(hc,'H_h_R')

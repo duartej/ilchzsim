@@ -1406,7 +1406,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
 
     #-- get the proper name of the signal channel (with the amount of PID)
     signal_channel   = filter(lambda x: x.find('ssbar') != -1,channels)[0]
-    
+
     # -- just take care in the H-ressonance...
     pLcuts = xrange(0,pLMax+1)
     
@@ -1418,7 +1418,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     # { 'docut1': [ (pLcut1, eff_sig, significance, pion_rejection, purity, N_sig, N_bkg), ... ],  }
     observables = {}
     # Indices, see in line [MARK-1]
-    I_PL = 0; I_EFF_SIG = 1; I_SIGN=2; I_PION_REJEC = 3; I_PURITY = 4; I_N_SIGNAL = 5; I_N_BKG=6; I_EFF_BKG=7;
+    I_PL = 0; I_EFF_SIG = 1; I_SIGN=2; I_PION_REJEC = 3; I_PURITY = 4; I_N_SIGNAL = 5; I_N_BKG=6; I_EFF_BKG=7; I_N_BB=8; I_N_CC=9; I_N_GG=10;
 
     for _d0 in d0cuts:
         d0str = '{0}'.format(_d0)
@@ -1435,6 +1435,9 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
             #eff_sig = eff[signal_channel].get_total_eff('KK') ?
             eff_sig = eff[signal_channel].get_total_eff()
             n_KK    = eff[signal_channel].get_total_events()
+            n_bb    = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_events()
+            n_cc    = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_events()
+            n_gg    = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_events()
             bkg_tot_evts = sum(map(lambda (x,y): y.get_total_events(),\
                     filter(lambda (x,y): x != signal_channel, eff.iteritems() )))
             bkg_tot_eff = sum(map(lambda (x,y): y.get_total_eff(),\
@@ -1460,7 +1463,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
             except ZeroDivisionError:
                 significance   = 0.0
             # store it, note reference above [MARK-1]
-            observables[d0str].append( (pL,eff_sig,significance,pion_rejection,purity,n_KK,bkg_tot_evts,bkg_tot_eff) )
+            observables[d0str].append( (pL,eff_sig,significance,pion_rejection,purity,n_KK,bkg_tot_evts,bkg_tot_eff,n_bb,n_cc,n_gg) )
             i+=1
     # plotting
     print
@@ -1503,7 +1506,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
         plot(h,k,option='COLZ')
     #for k,h in filter(lambda (_k,_h): _k.find('cosTheta')!=-1,hc._histos.iteritems()):
     #    plot(h,k,option='COLZ')
-    
+   
     # and the combined histograms
     plot_combined(hc,'H_h_d0')
     plot_combined(hc,'H_h_absd0',xlog=True)
@@ -1561,6 +1564,28 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
             x0 = 0.0, y0 = 0.0 )
     make_plot(observables,(I_PL,I_SIGN),significance_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
 
+    Nevents_BB_attr = plot_attributes('N_bb_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_BB),Nevents_BB_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_GG_attr = plot_attributes('N_gg_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_GG),Nevents_GG_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_CC_attr = plot_attributes('N_cc_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_CC),Nevents_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    
     # ROC curve
     roc_attr = plot_attributes("roc",ytitle='#varepsilon_{S}',xtitle='#varepsilon_{B}',
             x0=0.0,x1=1.0,y0=0.0,y1=1.0)
@@ -1861,9 +1886,50 @@ def plot_python(_x,ydict,plotname):
                 linewidth=3,linestyle=LINESTYLES[k],color=COLORS_PLT[k], 
                 label=pidname)
     ax.set_xlim(x[0],x[-1])
-    plt.xlabel(r'Paralel momentum cut [GeV]')
+    plt.xlabel(r'Parallel momentum cut [GeV]')
     plt.ylabel(r'Significance')
     ax.set_ylim(ymin,ymax*1.3)
+    ax.legend(loc=0,frameon=False)
+    plt.savefig(plotname)
+
+COLORS_PLT_DET = [ 'black','darksage','indianred', 'goldenrod']
+LINESTYLES_DET = ['-', '-', '-', '-']
+LEGEND_DET     = { 'gg': 'gg', 'bb': 'bbbar', 'cc': 'ccbar', 'ss': 'ssbar' }
+ORDER_DET = { 'ss': 0, 'cc':3 , 'gg':1, 'bb':2 }
+
+def plot_python_detailed(_x,ydict,plotname):
+    """
+    """
+    from matplotlib import pyplot as plt
+    from scipy.interpolate import spline
+    import numpy as np
+
+    # Convert to numpy arrays
+    x = np.array(_x)
+    # and smooth the final lines
+    xnew = np.linspace(x.min(),x.max(),300)
+
+    # the figure
+    #plt.rc('text', usetex=True)
+    fig = plt.figure()
+    ax  = fig.add_subplot(1,1,1)
+    ymax = 0.0
+    ymin = 0.0
+
+    for k,(pid,signlist) in enumerate(sorted(ydict.iteritems(),key=lambda (x,y): ORDER_DET[x])):
+        pidname = LEGEND_DET[pid]
+        ymax = max(ymax,max(signlist))
+        ymin = min(ymin,min(signlist))
+        # Just to smooth a little the output lines
+        significance_smooth = spline(x,np.array(signlist),xnew)
+        plt.plot(xnew,significance_smooth,
+                linewidth=3,linestyle=LINESTYLES_DET[k],color=COLORS_PLT_DET[k], 
+                label=pidname)
+    ax.set_xlim(x[0],x[-1])
+    plt.xlabel(r'Parallel momentum cut [GeV]')
+    plt.ylabel(r'# events')
+    ax.set_ylim(10,ymax*1.3)
+    ax.set_yscale('log')
     ax.legend(loc=0,frameon=False)
     plt.savefig(plotname)
 
@@ -1885,14 +1951,24 @@ def main_cmp_pid(listpklfiles):
     # FIXME use numpy arrays
     x = map(lambda x: x[0],pid_dict.values()[0].values()[0])
     y = {}
+    n = {}
     for d0cut in filter(lambda x: x != 'HEADER',pid_dict.values()[0].keys()):
         for pid,d0dict in pid_dict.iteritems():
             d0list = d0dict[d0cut]
             # the figure
             # Create the TGraphs/THistos
             y[pid] = []
-            for p,e_signal,significance,_x1,_x2,n_signal,n_bkg,e_bkg in d0list:
+            n['bb']=[]
+            n['cc']=[]
+            n['gg']=[]
+            n['ss']=[]
+            for p,e_signal,significance,_x1,_x2,n_signal,n_bkg,e_bkg,n_bb,n_cc,n_gg in d0list:
                 y[pid].append(significance)
+                n['bb'].append(n_bb)
+                n['cc'].append(n_cc)
+                n['gg'].append(n_gg)
+                n['ss'].append(n_signal)
+            plot_python_detailed(x,n,'nevents_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS))
         plot_python(x,y,'significance_cmp_{0}{1}'.format(d0cut,SUFFIXPLOTS))
 
 

@@ -34,7 +34,7 @@ do
     # Obtaining a 0.05 of mis-identification
     ilchz ilchz.cmnd -f "kaons_pions" -b -m 0.05 -o hz${s}_005PID_kaons_pions.root &
     # Obtaining a 0.05 of mis-identification
-    ilchz ilchz.cmnd -f "kaons_pions" -b -m 0.20 -o hz${s}_020PID_kaons_pions.root &
+    ilchz ilchz.cmnd -f "kaons_pions" -b -m 0.10 -o hz${s}_010PID_kaons_pions.root &
     # Obtaining no PID (pions and kaons used indistinctly
     ilchz ilchz.cmnd -f "kaons_pions" -b -o hz${s}_noPID_kaons_pions.root &
     wait 

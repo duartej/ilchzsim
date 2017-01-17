@@ -1855,8 +1855,8 @@ def main_decay_chain(rootfiles,want_latex,nfirst=10,**kwargs):
 COLORS_PLT = [ 'black','darksage','indianred', 'goldenrod']
 LINESTYLES = ['-', '--', ':', '-.']
 LEGEND     = { 'noPID': 'no PID', 'PID': 'PID', '005PID': '5% mis-id. prob.',
-        '020PID': '20% mis-id prob.' }
-ORDER = { 'PID': 0, 'noPID': 3, '020PID':2, '005PID':1 }
+        '010PID': '10% mis-id prob.' }
+ORDER = { 'PID': 0, 'noPID': 3, '010PID':2, '005PID':1 }
 
 def plot_python(_x,ydict,plotname):
     """

@@ -20,7 +20,7 @@ n=0
 # collect the pkl files for the different PID modes
 pklfiles=""
 
-for i in noPID 020PID 005PID PID; 
+for i in noPID 010PID 005PID PID; 
 do
     #if (("$NCPU" <= "$n"));
     #then

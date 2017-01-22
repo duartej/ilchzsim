@@ -1088,7 +1088,14 @@ def create_histos(suffix,description,res_int,hc=None):
     hc.create_and_book_histo("{0}_h_absd0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",20,10**(-3),10,\
             description=description,
-            xtitle="d_{0}+10^{-3} [mm]",
+            xtitle="|d_{0}|+10^{-3} [mm]",
+            ytitle="A.U.",
+            color=color,
+            xlog=True)
+    hc.create_and_book_histo("{0}_h_pLcut15_absd0_{1}".format(resonance,suffix),\
+            "leading kaons impact parameter",20,10**(-3),10,\
+            description=description,
+            xtitle="|d_{0}|+10^{-3} [mm]",
             ytitle="A.U.",
             color=color,
             xlog=True)
@@ -1497,6 +1504,9 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
         e.get_tree().Project("H_h2_pLcut20_Resd0_theta_{0}".format(e.decay_channel),\
                 "5.+(10/(p_lab*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
         e.deactivate_cuts()
+        e.activate_cuts(pLcut=15)        
+        e.get_tree().Project("H_h_pLcut15_absd0_{0}".format(e.decay_channel),"abs(d0)+10**-3")
+        e.deactivate_cuts()
     # -- plotting ...
     for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL')==0 and \
             _k.find("cosTheta") == -1,hc._histos.iteritems()):
@@ -1509,6 +1519,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     # and the combined histograms
     plot_combined(hc,'H_h_d0')
     plot_combined(hc,'H_h_absd0')
+    plot_combined(hc,'H_h_pLcut15_absd0')
     plot_combined(hc,'H_h_z0')
     plot_combined(hc,'H_h_Lxy')
     plot_combined(hc,'H_h_R')

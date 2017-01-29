@@ -157,6 +157,7 @@ struct ParticleKinRootAux
     std::vector<int> * ancestorBCindex;
     std::vector<int> * isBCdaughter;
     std::vector<int> * isPrimaryHadron;
+    std::vector<int> * isKshort;
     std::vector<float> * p;
     std::vector<float> * p_lab;
     std::vector<float> * pmother;
@@ -185,7 +186,7 @@ struct ParticleKinRootAux
         &catchall, 
         &isBCancestor, &multiplicity,
         &ancestorBCindex, &isBCdaughter, &isPrimaryHadron,
-        &_listofusedpartindex } ;
+        &isKshort, &_listofusedpartindex } ;
     // list of vectors (floats)
     std::vector<std::vector<float> **> _auxF = { 
         &p, &p_lab, &pmother, 
@@ -205,6 +206,7 @@ struct ParticleKinRootAux
         ancestorBCindex(nullptr),
         isBCdaughter(nullptr),
         isPrimaryHadron(nullptr),
+	isKshort(nullptr),
         p(nullptr),
         p_lab(nullptr),
         pmother(nullptr),
@@ -368,6 +370,27 @@ struct ParticleKinRootAux
                 -1,"", // bcAncestor related
                 _multiplicity,
                 _isHF,_bcindex,_isPH,
+                0, // K-short related
+                _p,_p_lab,_pmother,
+                _phi,_phi_lab,_theta,_theta_lab,
+                _vx,_vy,_vz);
+    }
+
+      // Filling tree variables: K-short version
+    int filltreevar_kshort(const int & pythiaindex, const int & id, const int & _motherindex,
+            const int & _resonanceID, const int & _multiplicity,
+	    const int & _isHF, const int & _bcindex, const int & _isPH,
+            const float & _p, const float & _p_lab,
+            const float & _pmother,
+            const float & _phi, const float & _phi_lab,
+            const float & _theta, const float & _theta_lab,
+            const float & _vx, const float & _vy, const float & _vz)
+    {
+        return _filltreevariables(pythiaindex,id,_motherindex,_resonanceID,
+                -1,"", // bcAncestor related
+                _multiplicity,
+		_isHF,_bcindex,_isPH,
+		1, // k-short related
                 _p,_p_lab,_pmother,
                 _phi,_phi_lab,_theta,_theta_lab,
                 _vx,_vy,_vz);
@@ -386,7 +409,7 @@ struct ParticleKinRootAux
         return _filltreevariables(pythiaindex,id,_motherindex,
                 _resonanceID,
                 1,finalhadrons,_multiplicity,
-                -1,-1,-1,  // final hadron related
+                -1,-1,-1,0,  // final hadron related
                 _p,_p_lab,_pmother,
                 _phi,_phi_lab,
                 _theta,_theta_lab,
@@ -403,7 +426,7 @@ struct ParticleKinRootAux
             const float & _vx, const float & _vy, const float & _vz)
     {
         return _filltreevariables(pythiaindex,id,_motherindex, _isleading, 
-                -1,"",-1,-1,-1,-1,
+                -1,"",-1,-1,-1,-1,0,
                 _p,_p_lab,_pmother, 
                 _phi, _phi_lab,
                 _theta, _theta_lab,
@@ -418,7 +441,7 @@ struct ParticleKinRootAux
             const float & _vx, const float & _vy, const float & _vz)
     {
         return _filltreevariables(pythiaindex,id,-1,0, 
-                -1,"",-1,-1,-1,-1,
+                -1,"",-1,-1,-1,-1,0,
                 _p,_p,-1, 
                 _phi, _phi,
                 _theta, _theta,
@@ -430,6 +453,7 @@ struct ParticleKinRootAux
             const int & _catchall, 
             const int & _isBCancestor, const std::string & finalhadrons, const int & _multiplicity,
             const int & _isHF, const int & _bc_ancestor_index,  const int & _isPH,
+	    const int & _isKs,
             const float & _p, const float & _p_lab, 
             const float & _pmother, 
             const float & _phi, const float & _phi_lab,
@@ -445,6 +469,7 @@ struct ParticleKinRootAux
         this->ancestorBCindex->push_back(_bc_ancestor_index);
         this->isBCdaughter->push_back(_isHF);
         this->isPrimaryHadron->push_back(_isPH);
+	this->isKshort->push_back(_isKs);
         this->p->push_back(_p);
         this->p_lab->push_back(_p_lab);
         this->pmother->push_back(_pmother);
@@ -496,6 +521,7 @@ struct ParticleKinRootAux
         t->Branch("ancestorBCindex",&ancestorBCindex);
         t->Branch("isBCdaughter",&isBCdaughter);
         t->Branch("isPrimaryHadron",&isPrimaryHadron);
+	t->Branch("isKshort",&isKshort);
         t->Branch("p",&p);
         t->Branch("p_lab",&p_lab);
         t->Branch("pmother",&pmother);
@@ -721,6 +747,7 @@ void display_usage()
         << "                      a Bottom or Charm hadron.\n"
         << "   'isPrimaryHadron': std::vector<int>   whether or not the hadron is decay directly\n"
         << "                      from a leg of the the q-qbar system (81-89 Phytia status)\n"
+	<< "   'isKshort'       : std::vector<int> whether or not this is a K-short or not\n"
         << "   'p'              : std::vector<float> momentum of the particle\n"
         << "   'p_lab'          : std::vector<float> momentum (at the lab. frame) of the particle\n"
         << "   'pmother'        : std::vector<float> momentum of its mother [to be deprecated]\n"
@@ -728,9 +755,9 @@ void display_usage()
         << "   'phi_lab'        : std::vector<float> phi (at the lab. frame) of the particle\n"
         << "   'theta'          : std::vector<float> theta of the particle\n"
         << "   'theta_lab'      : std::vector<float> theta (at the lab. frame) of the particle\n"
-        << "   'vx'             : std::vector<float> production vertex, x\n"
-        << "   'vy'             : std::vector<float> production vertex, y\n"
-        << "   'vz'             : std::vector<float> production vertex, z\n"
+        << "   'vx'             : std::vector<float> production (decay) vertex of K+-,pi+- (K_s), x\n"
+        << "   'vy'             : std::vector<float> production (decay) vertex of K+-,pi+- (K_s), y\n"
+        << "   'vz'             : std::vector<float> production (decay) vertex of K+-,pi+- (K_s), z\n"
         << "Note that the some variables are defined with respect to the rest-frame of the"
         << " q-qbar system (final state hadrons):\n"
         << "   >>> p,phi,theta,pmother\n"
@@ -740,6 +767,8 @@ void display_usage()
 	std::cout << "[OPTIONS]\n -o name of the ROOT output file [hzkin.root]\n"
         << " -b flag to keep track if the final hadrons provenance is from charmed or bottom hadrons\n"
         << " -f final state hadrons to keep: pions,kaons or pions_kaons [default:kaons])\n"
+	<< " -s keep also k_shorts when their decay happens in a spherical shell around the interaction point\n"
+	<< "    with the inner and outer radii given in mm [defaut:0.0 0.0, i.e. do not keep them]\n"
         << " -m mis-identification probability, a value different from 0 will force '-t pions_kaons'"
         << " regardless of the user input [default: 0.0]\n"
         << " -h show this help" << std::endl;
@@ -761,6 +790,8 @@ int main(int argc, char* argv[])
     std::string strangehadrontype("kaons");
     float misid_ratio(0.0);
     bool accountforheavyflavoured = false;
+    float minkshortdecaylength(0.0);
+    float maxkshortdecaylength(0.0);
 
 	
     std::string cmndfile;
@@ -791,6 +822,18 @@ int main(int argc, char* argv[])
             misid_ratio = std::stof(argv[i+1]);
             ++i;
         }
+	else if( strcmp(argv[i],"-s") == 0 )
+	{
+	    minkshortdecaylength = std::stof(argv[i+1]);
+	    maxkshortdecaylength = std::stof(argv[i+2]);
+	    if( maxkshortdecaylength < minkshortdecaylength )
+	      {
+		const float dummy = maxkshortdecaylength;
+		maxkshortdecaylength = minkshortdecaylength;
+		minkshortdecaylength = dummy;
+	      }
+	    i+=2;
+	}
         else
         {
             // Check that the provided input name corresponds to an existing file.
@@ -894,6 +937,7 @@ int main(int argc, char* argv[])
         // Note: the extraction algorithm goes backwards: from a
         // final hadron, finding their parents and keeping the info
         // of the original quark and resonance
+
         for(int i= 0; i < pythia.event.size(); ++i)
         {
             if( ! pythia.event[i].isFinal() )
@@ -902,22 +946,63 @@ int main(int argc, char* argv[])
             }
             
             const int abspdgid = pythia.event[i].idAbs();            
-            
+
+	    // If demanded, find the K-shorts by checking the ancestors of charged pions
+	    // and require the decay to happen in the spherical shell given by min/maxkshortdecaylength
+	    // around the interaction point.
+	    // kshortcandidate is zero when no K-short was found, the pythia index
+	    // of the K-short otherwise.
+	    int kshortcandidate = 0;
+	    if( minkshortdecaylength < maxkshortdecaylength && abspdgid == 211 )
+	      {
+		const int fspion = pythia.event[i].iTopCopy();
+		const int candidateidx = pythia.event[fspion].mother1();
+		const double r2decay = (pythia.event[candidateidx].xDec()*pythia.event[candidateidx].xDec()+
+					pythia.event[candidateidx].yDec()*pythia.event[candidateidx].yDec()+
+					pythia.event[candidateidx].zDec()*pythia.event[candidateidx].zDec());
+		// When pion originates from a K_s that decays not too close to the interaction point
+		// check further if the K_s is kept. Otherwise go on and check if the pion passes the
+		// tobeprocessed routine
+		if ( pythia.event[candidateidx].idAbs() == 310 &&
+		     r2decay > minkshortdecaylength*minkshortdecaylength )
+		  {
+		    if( maxkshortdecaylength*maxkshortdecaylength > r2decay)
+		      {
+			kshortcandidate = candidateidx;
+		      }
+		    else // the K_s is decaying too far outside; ignore it and its  daughter pions
+		      {
+			continue;
+		      }
+		  }
+	      }
+
             // "Interesting" particles only! (here is taken into account the 
             // misid probability as well
-            if( ! particles.tobeprocessed(abspdgid) )
+            if( ! particles.tobeprocessed(abspdgid) && kshortcandidate == 0 )
             {
                 continue;
             }
 
             // Obtain the last "carbon" copy of the particle to work with it
-            const int currI = pythia.event[i].iBotCopy();
+	    // In the case of K-shorts do not use the pions produced from the decay
+	    // but rather the K-short itself
+	    int lastCC;
+	    if( kshortcandidate > 0 )
+	      {
+		lastCC = pythia.event[kshortcandidate].iBotCopy();
+	      }
+	    else
+	      {
+		lastCC = pythia.event[i].iBotCopy();
+	      }
+
+	    const int currI = lastCC;
             // If was already used, don't duplicate (note thet currI is the pythia code)
             if( particles.is_stored(currI) )
             {
                 continue;
             }
-
 
             Particle had = pythia.event[currI];
 
@@ -1013,7 +1098,9 @@ int main(int argc, char* argv[])
             // storing info in the rest-frame of the quark-bquark ref. system (except
             // for the vertex)
             const Particle & hadatlab = pythia.event[currI];
-            particles.filltreevar_finalhadron(currI,had.id(),
+	    if( kshortcandidate == 0 )
+	      {
+		particles.filltreevar_finalhadron(currI,had.id(),
                     particles.getlocalindex(quarkindex),
                     ancestorID,
                     hadron_multiplicity.size(),
@@ -1023,6 +1110,20 @@ int main(int argc, char* argv[])
                     had.phi(),hadatlab.phi(),
                     had.theta(), hadatlab.theta(),
                     hadatlab.xProd(),hadatlab.yProd(),hadatlab.zProd());
+	      }
+	    else
+	      {
+		particles.filltreevar_kshort(currI,had.id(),
+                    particles.getlocalindex(quarkindex),
+                    ancestorID,
+                    hadron_multiplicity.size(),
+		    isBCdaughter,particles.getlocalindex(bc_index),isPrimaryHadron,
+                    had.pAbs(),hadatlab.pAbs(),
+                    quarkatrest.pAbs(),
+                    had.phi(),hadatlab.phi(),
+                    had.theta(), hadatlab.theta(),
+                    hadatlab.xDec(),hadatlab.yDec(),hadatlab.zDec());
+	      }
 #ifdef DEBUG
             std::cout << std::endl;
 #endif

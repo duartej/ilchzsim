@@ -13,6 +13,8 @@ FIXME: MISSING DOCUMENTATION
 SUFFIXPLOTS='.pdf'
 KAON_ID = 321
 PION_ID = 211
+KSHORT_ID = 310
+USEKSHORTS=0
 
 import functools
 
@@ -49,14 +51,14 @@ class hadron(object):
 def get_opposite_charge(ref_hadron, the_other_list):
     for kref in ref_hadron:
         try:
-            opposite_other = filter(lambda kd: kref.charge*kd.charge < 1,the_other_list)[0]
+            opposite_other = filter(lambda kd: abs(kref.charge+kd.charge) < 1.5,the_other_list)[0]
             return (kref,opposite_other)
         except IndexError:
             pass
     # didn't found it
     return (-1,-1)
 
-def get_leading_kaons(tree,applycharge):
+def get_leading_kaons(tree,applycharge,useKshorts):
     """Obtain the leading kaons
     """
     from math import cos,sqrt,tan,sin,atan2
@@ -104,9 +106,20 @@ def get_leading_kaons(tree,applycharge):
             # just final hadrons
             if tree.catchall[k] != 25 or tree.isBCancestor[k] == 1:
                 continue
+            # only use the K-shorts if we want to
+            if tree.isKshort[k] == 1 and useKshorts == -1:
+                continue
+            # only use the K+- if we want to
+            if tree.isKshort[k] != 1 and useKshorts == 1:
+                continue
+            # get charge of the particle
+            if tree.isKshort[k] == 1:
+                particlecharge = 0;
+            else:
+                particlecharge = abs(tree.pdgId[k])/tree.pdgId[k];
             # parallel momentum with sign, and charge
             kaons_pm.append(  hadron(p=signed_pm(k),
-                                charge=abs(tree.pdgId[k])/tree.pdgId[k],
+                                charge=particlecharge,
                                 d0 = d0_f(k),
                                 z0 = z0_f(k),
                                 L  = L_f(k),
@@ -206,7 +219,7 @@ def store_hadrons(outname,hadronlist,old_tree,treename):
     # -- setting branch addresses
     _dumm = map(lambda (bname,vobject): tree.Branch(bname,vobject),sorted(containers.iteritems()))
     # -- and the new d0, z0 for hadrons
-    pseudoimpactpar = { 'd0': ROOT.std.vector("float")(), 'z0' : ROOT.std.vector("float")() }
+    pseudoimpactpar = { 'd0': ROOT.std.vector("float")(), 'z0' : ROOT.std.vector("float")(), 'R' : ROOT.std.vector("float")() }
     _dumm = map(lambda (bname,vobject): tree.Branch(bname,vobject),sorted(pseudoimpactpar.iteritems()))
 
     # -- old tree, set containers
@@ -252,7 +265,7 @@ def store_hadrons(outname,hadronlist,old_tree,treename):
     f.Close()
         
 
-def main(args,suffixout,is_charge_considered,outfilename):
+def main(args,suffixout,kshorts_considered,is_charge_considered,outfilename):
     """
     """
     import os
@@ -260,6 +273,8 @@ def main(args,suffixout,is_charge_considered,outfilename):
     if suffixout:
         suff = suffixout.replace('.','')
         globals()['SUFFIXPLOTS'] ='.'+suff
+    if kshorts_considered == None:
+        kshorts_considered = USEKSHORTS
     # evaluating a list of files
     absfilenames = map(lambda fname: os.path.abspath(fname),args)
     hc = None
@@ -270,7 +285,7 @@ def main(args,suffixout,is_charge_considered,outfilename):
         t = init_tree(fname)
         # get the leading kaons dict { event#: ((up_pm,k),(down,k)), ... } 
         # and multiplicity of hadrons per quark
-        leading_kaons,nM = get_leading_kaons(t,is_charge_considered)
+        leading_kaons,nM = get_leading_kaons(t,is_charge_considered,kshorts_considered)
         # put always higher pL in position 0
         ordered_lk = map(lambda x: sorted(x, reverse=True),leading_kaons.values())
         # persistency, copy of the original tree but keeping 
@@ -290,7 +305,12 @@ if __name__ == '__main__':
             help="output suffix for the plots [.pdf]")
     parser.add_option( '--no-charge', action='store_true',  dest='notcharge',\
             help="not applying the opposite charge requirement"\
-            "between leading kaons")
+                       " between leading kaons. When applying, the requirement is that"\
+                       " the absolute value of the summed charges is less than 2. In"\
+                       " this way the possible presence of K_shorts is taken into account.")
+    parser.add_option( '-k', '--kshorts', action='store', type='int', dest='usekshorts',\
+                       help="-1: do not use K_shorts; 0: use K_shorts and K+-; +1 use only K_shorts"\
+                       " and no K+-. [0]")
     
     (opt,args) = parser.parse_args()
 
@@ -298,5 +318,5 @@ if __name__ == '__main__':
         message = "\033[31mprocesshzroot ERROR\033[m Missing input file(s)"
         raise RuntimeError(message)
     
-    main(args,opt.suffixout,(not opt.notcharge),opt.outfname)
+    main(args,opt.suffixout,opt.usekshorts,(not opt.notcharge),opt.outfname)
 

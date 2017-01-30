@@ -9,6 +9,8 @@
 """
 KAON = 321
 PION = 211
+KSHORT = 310
+
 def isKaon(index):
     """check if the gen particle is kaon
 
@@ -18,6 +20,16 @@ def isKaon(index):
         the index of the gen-particle in the tree
     """
     return "abs(pdgId[{0}]) == {1}".format(index,KAON)
+
+def isKshort(index):
+    """check if the gen particle is K_short
+
+    Parameters
+    ----------
+    index: int
+        the index of the gen-particle in the tree
+    """
+    return "isKshort[{0}] == 1".format(index)
 
 def isPion(index):
     """check if the gen particle is kaon
@@ -29,9 +41,12 @@ def isPion(index):
     """
     return "abs(pdgId[{0}]) == {1}".format(index,PION)
 
-FS_CONDITION = { 'KK': '{0} && {1}'.format(isKaon(0),isKaon(1)), \
-        'KP': '({0} && {1} || {2} && {3})'.format(isKaon(0),isPion(1),isPion(0),isKaon(1)),
-                'PP': '{0} && {1}'.format(isPion(0),isPion(1)) 
+FS_CONDITION = { 'KK': '{0} && {1}'.format(isKaon(0),isKaon(1)),
+                 'KP': '({0} && {1} || {2} && {3})'.format(isKaon(0),isPion(1),isPion(0),isKaon(1)),
+                 'PP': '{0} && {1}'.format(isPion(0),isPion(1)),
+                 'KsKs': '{0} && {1}'.format(isKshort(0),isKshort(1)),
+                 'KsK': '({0} && {1} || {2} && {3})'.format(isKaon(0),isKshort(1),isKshort(0),isKaon(1)),
+                 'KsP': '({0} && {1} || {2} && {3})'.format(isPion(0),isKshort(1),isKshort(0),isPion(1))
                 }
 SUFFIXPLOTS='.pdf'
 SPINNING = [ "-","\\","|","/"]
@@ -219,8 +234,8 @@ def get_histo_name(th3names,decay_channel,hadron_state):
         the names of all the TH3 dicts found in a root processed file by the
         processedhzroot script
     hadron_state: str
-        the two opposite-hemisphere final state hadrons: KK, KP, PP (K-kaon,
-        P-pion)
+        the two opposite-hemisphere final state hadrons: KK, KP, PP, KsKs, KsK, KsP (K-kaon,
+        P-pion, K-short)
 
     Return
     ------
@@ -307,7 +322,8 @@ def get_cuts_eff(_obj,decay_channel,hadrons,\
         hadrons involved
     decay_channel: str
     hadrons: str, 
-        the hadrons to look at, which can be the: KK, KP, PP (K-kaon, P-pion)
+        the hadrons to look at, which can be the: KK, KP, PP, KsKs, KsK, KsP (K-kaon,
+        P-pion, K-short)
     pLcut: float, optional, incompatible with pLbin  
     d0cut: float, optional, incompatible with d0binL, d0binH
     pLbin: int, optional, incompatible with pLcut
@@ -493,7 +509,10 @@ class eff_cut_hadron(object):
         self.current_d0cut = None
         self.current_pLcut = None
         
-        self.final_state_hadrons = ['KK','KP','PP']
+        self.final_state_hadrons = ['KK','KP','PP', 'KsKs', 'KsK', 'KsP']
+        self.final_state_NN = ['KsKs']
+        self.final_state_CN = ['KsK', 'KsP']
+        self.final_state_CC = ['KK', 'KP', 'PP']
         self.__entrylist_hadrons = dict(map(lambda i: (i,None),self.final_state_hadrons))
         
         # optimization data-members
@@ -502,11 +521,18 @@ class eff_cut_hadron(object):
         self.__entrylist_pLcut = None
         # { treename: { 'pLcut': { 'actual cut' : ROOT.TEntryList, ...
         self.__entrylists_reservoir = {}
-        self.__finalhadrons_entries = { 'KK': None, 'KP': None, 'PP': None }
+        self.__finalhadrons_entries = { 'KK': None, 'KP': None, 'PP': None,
+                                        'KsKs': None, 'KsK': None, 'KsP': None}
         
         if z0cut:
-            self.pLcut_function = "sqrt( ({0})**2.0 + ({1})**2.0) < {2} && ".format(z0(0),z0(1),z0cut)
-            self.d0cut_function = "sqrt( ({0})**2.0 + ({1})**2.0) < {2} && ".format(z0(0),z0(1),z0cut)
+            self.pLcut_function = "(( !({0}) && !({1}) && sqrt( ({2})**2.0 + ({3})**2.0) < {4}) "\
+                                    "|| ( !({0}) &&  ({1}) && abs({2}) < {4}) "\
+                                    "|| (  ({0}) && !({1}) && abs({3}) < {4}) "\
+                                    "|| (  ({0}) &&  ({1}) ) ) && ".format(isKshort(0),isKshort(1),z0(0),z0(1),z0cut)
+            self.d0cut_function = "(( !({0}) && !({1}) && sqrt( ({2})**2.0 + ({3})**2.0) < {4}) "\
+                                    "|| ( !({0}) &&  ({1}) && abs({2}) < {4}) "\
+                                    "|| (  ({0}) && !({1}) && abs({3}) < {4}) "\
+                                    "|| (  ({0}) &&  ({1}) ) ) && ".format(isKshort(0),isKshort(1),z0(0),z0(1),z0cut)
         else:
             self.pLcut_function = ""
             self.d0cut_function = ""
@@ -526,9 +552,15 @@ class eff_cut_hadron(object):
             raise RuntimeError("Not a valid pL-cut functional: valid values:"\
                     " circular, square and line")
         if d0cut_type == "circular":
-            self.d0cut_function += "sqrt( ({0})**2.0 + ({1})**2.0) < {2}".format(d0(0),d0(1),"{0}")
+            self.d0cut_function += "(( !({0}) && !({1}) && sqrt( ({2})**2.0 + ({3})**2.0) < {4}) "\
+                                    " || ( !({0}) &&  ({1}) && abs({2}) < {4} ) "\
+                                    " || (  ({0}) && !({1}) && abs({3}) < {4} ) "\
+                                    " || (  ({0}) &&  ({1}) ) )".format(isKshort(0),isKshort(1),d0(0),d0(1),"{0}")
         elif d0cut_type == "square":
-            self.d0cut_function += "abs({0}) < {2} && abs({1}) < {2}".format(d0(0),d0(1),"{0}")
+            self.d0cut_function += "(( !({0}) && !({1}) && abs({2}) < {4} && abs({3}) < {4} ) "\
+                                    " || ( !({0}) &&  ({1}) && abs({2}) < {4} ) "\
+                                    " || (  ({0}) && !({1}) && abs({3}) < {4} ) "\
+                                    " || (  ({0}) &&  ({1}) ) )".format(isKshort(0),isKshort(1),d0(0),d0(1),"{0}")
         else:
             raise RuntimeError("Not a valid d0-cut functional: valid values:"\
                     " circular and square ")
@@ -560,7 +592,7 @@ class eff_cut_hadron(object):
         d0cut: float, optional
             the value of the impact parameter cut
         hadron_pairs: str
-            the leading hadrons final states: KK, KP or PP
+            the leading hadrons final states: KK, KP, PP, KsKs, KsK, KsP
         future_cuts: dict()
             not used now, but will allow to incorporate extra cuts
 
@@ -658,7 +690,7 @@ class eff_cut_hadron(object):
 
     def set_total_eff(self,treedict,pLcut,d0cut,verbose=False):
         """builds the total efficiency and evaluates it for the different 
-        final state cases KK, KP and PP (if exist)
+        final state cases KK, KP, PP, KsKs, KsK and KsP (if exist)
 
         Parameters
         ----------
@@ -785,6 +817,27 @@ class eff_cut_hadron(object):
             N += hiInstance.getEvents(self.decay_channel.split('_')[0])*\
                 getattr(self,'eff_cut_{0}'.format(hadrons))*\
                 getattr(self,'p_{0}'.format(hadrons))
+        return N
+
+    def get_total_events_by_FS(self,fs):
+        """
+        """
+        if not self.initialized:
+            raise AttributeError('eff_total ERROR: You need to call the '\
+                    'set_total_eff method before try to calculate the total fraction')
+        
+        N = 0
+        considered_fs = []
+        if fs == 'NN':
+            considered_fs = self.final_state_NN
+        elif fs == 'CN' or fs == 'NC':
+            considered_fs = self.final_state_CN
+        elif fs == 'CC':
+            considered_fs = self.final_state_CC
+        for hadrons in considered_fs:
+            N += hiInstance.getEvents(self.decay_channel.split('_')[0])*\
+                 getattr(self,'eff_cut_{0}'.format(hadrons))*\
+                 getattr(self,'p_{0}'.format(hadrons))
         return N
 
 def update_limits(d0_pLlist_dict,(x_ind,y_ind),pl_attr_inst):
@@ -1380,7 +1433,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     pLcut_type: str
         functional of the pL cut(pL1,pL2): circular|square|line
     d0cuts: list(float)
-        the list of d0-cuts to consider
+        the list of d0-cuts to consider, only apply to K+- and Pi+-
     d0cut_type: str
         functional of the d0cut(d01,d02): circular|square
     z0: float|None
@@ -1424,7 +1477,9 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     # { 'docut1': [ (pLcut1, eff_sig, significance, pion_rejection, purity, N_sig, N_bkg), ... ],  }
     observables = {}
     # Indices, see in line [MARK-1]
-    I_PL = 0; I_EFF_SIG = 1; I_SIGN=2; I_PION_REJEC = 3; I_PURITY = 4; I_N_SIGNAL = 5; I_N_BKG=6; I_EFF_BKG=7; I_N_BB=8; I_N_CC=9; I_N_GG=10;
+    I_PL = 0; I_EFF_SIG = 1; I_SIGN=2; I_PION_REJEC = 3; I_PURITY = 4; I_N_SIGNAL = 5; I_N_BKG=6; I_EFF_BKG=7; I_N_BB=8;
+    I_N_CC=9; I_N_GG=10; I_N_SS_CC=11; I_N_SS_NC=12; I_N_SS_NN=13; I_N_BB_CC=14; I_N_BB_NC=15; I_N_BB_NN=16;
+    I_N_CC_CC=17; I_N_CC_NC=18; I_N_CC_NN=19; I_N_GG_CC=20; I_N_GG_NC=21; I_N_GG_NN=22;
 
     for _d0 in d0cuts:
         d0str = '{0}'.format(_d0)
@@ -1441,9 +1496,21 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
             #eff_sig = eff[signal_channel].get_total_eff('KK') ?
             eff_sig = eff[signal_channel].get_total_eff()
             n_KK    = eff[signal_channel].get_total_events()
+            n_ss_CC = eff[signal_channel].get_total_events_by_FS('CC')
+            n_ss_NC = eff[signal_channel].get_total_events_by_FS('NC')
+            n_ss_NN = eff[signal_channel].get_total_events_by_FS('NN')
             n_bb    = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_events()
+            n_bb_CC = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_events_by_FS('CC')
+            n_bb_NC = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_events_by_FS('NC')
+            n_bb_NN = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_events_by_FS('NN')
             n_cc    = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_events()
+            n_cc_CC = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_events_by_FS('CC')
+            n_cc_NC = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_events_by_FS('NC')
+            n_cc_NN = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_events_by_FS('NN')
             n_gg    = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_events()
+            n_gg_CC = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_events_by_FS('CC')
+            n_gg_NC = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_events_by_FS('NC')
+            n_gg_NN = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_events_by_FS('NN')
             bkg_tot_evts = sum(map(lambda (x,y): y.get_total_events(),\
                     filter(lambda (x,y): x != signal_channel, eff.iteritems() )))
             bkg_tot_eff = sum(map(lambda (x,y): y.get_total_eff(),\
@@ -1458,10 +1525,15 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
             #pion_rejection = float(bkg_tot_evts)/float(n_KK)
             pion_rejection = -1 # dummy NOT IMPLEMNTED
             try:
-                purity = float(eff[signal_channel].get_events('KK'))/\
-                        (float(eff[signal_channel].get_events('KK'))+\
-                        float(eff[signal_channel].get_events('KP'))+\
-                        float(eff[signal_channel].get_events('PP')))
+                purity = (float(eff[signal_channel].get_events('KK'))+\
+                          float(eff[signal_channel].get_events('KsK'))+\
+                          float(eff[signal_channel].get_events('KsKs')))/\
+                          (float(eff[signal_channel].get_events('KK'))+\
+                           float(eff[signal_channel].get_events('KP'))+\
+                           float(eff[signal_channel].get_events('PP'))+\
+                           float(eff[signal_channel].get_events('KsKs'))+\
+                           float(eff[signal_channel].get_events('KsK'))+\
+                           float(eff[signal_channel].get_events('KsP')))
             except ZeroDivisionError:
                 purity = 0.0
             try:
@@ -1469,7 +1541,9 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
             except ZeroDivisionError:
                 significance   = 0.0
             # store it, note reference above [MARK-1]
-            observables[d0str].append( (pL,eff_sig,significance,pion_rejection,purity,n_KK,bkg_tot_evts,bkg_tot_eff,n_bb,n_cc,n_gg) )
+            observables[d0str].append( (pL,eff_sig,significance,pion_rejection,purity,n_KK,bkg_tot_evts,bkg_tot_eff,
+                                        n_bb,n_cc,n_gg, n_ss_CC, n_ss_NC, n_ss_NN, n_bb_CC, n_bb_NC, n_bb_NN, n_cc_CC,
+                                        n_cc_NC, n_cc_NN, n_gg_CC, n_gg_NC, n_gg_NN) )
             i+=1
     # plotting
     print
@@ -1519,7 +1593,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     # and the combined histograms
     plot_combined(hc,'H_h_d0')
     plot_combined(hc,'H_h_absd0')
-    plot_combined(hc,'H_h_pLcut15_absd0')
+    #plot_combined(hc,'H_h_pLcut15_absd0')
     plot_combined(hc,'H_h_z0')
     plot_combined(hc,'H_h_Lxy')
     plot_combined(hc,'H_h_R')
@@ -1574,12 +1648,89 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
             x0 = 0.0, y0 = 0.0 )
     make_plot(observables,(I_PL,I_SIGN),significance_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
 
+    Nevents_SS_attr = plot_attributes('N_ss_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_SIGNAL),Nevents_SS_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_SS_CC_attr = plot_attributes('N_ss_cc_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_SS_CC),Nevents_SS_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_SS_NC_attr = plot_attributes('N_ss_nc_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_SS_NC),Nevents_SS_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_SS_NN_attr = plot_attributes('N_ss_nn_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_SS_NN),Nevents_SS_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
     Nevents_BB_attr = plot_attributes('N_bb_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# events',
             x0 = 0.0, y0 = 1.,
             log=True)
     make_plot(observables,(I_PL,I_N_BB),Nevents_BB_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_BB_CC_attr = plot_attributes('N_bb_cc_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_BB_CC),Nevents_BB_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_BB_NC_attr = plot_attributes('N_bb_nc_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_BB_NC),Nevents_BB_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_BB_NN_attr = plot_attributes('N_bb_nn_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_BB_NN),Nevents_BB_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_CC_attr = plot_attributes('N_cc_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_CC),Nevents_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_CC_CC_attr = plot_attributes('N_cc_cc_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_CC_CC),Nevents_CC_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_CC_NC_attr = plot_attributes('N_cc_nc_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_CC_NC),Nevents_CC_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_CC_NN_attr = plot_attributes('N_cc_nn_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_CC_NN),Nevents_CC_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
 
     Nevents_GG_attr = plot_attributes('N_gg_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
@@ -1588,12 +1739,26 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
             log=True)
     make_plot(observables,(I_PL,I_N_GG),Nevents_GG_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
 
-    Nevents_CC_attr = plot_attributes('N_cc_events',
+    Nevents_GG_CC_attr = plot_attributes('N_gg_cc_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# events',
             x0 = 0.0, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_N_CC),Nevents_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_N_GG_CC),Nevents_GG_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_GG_NC_attr = plot_attributes('N_gg_nc_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_GG_NC),Nevents_GG_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_GG_NN_attr = plot_attributes('N_gg_nn_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_GG_NN),Nevents_GG_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
 
     
     # ROC curve
@@ -1902,12 +2067,30 @@ def plot_python(_x,ydict,plotname):
     ax.legend(loc=0,frameon=False)
     plt.savefig(plotname)
 
-COLORS_PLT_DET = [ 'black','darksage','indianred', 'goldenrod']
-LINESTYLES_DET = ['-', '-', '-', '-']
-LEGEND_DET     = { 'gg': 'gg', 'bb': 'bbbar', 'cc': 'ccbar', 'ss': 'ssbar' }
-ORDER_DET = { 'ss': 0, 'cc':3 , 'gg':1, 'bb':2 }
+COLORS_PLT_DET = [ 'black','darksage','indianred', 'goldenrod',
+                   'black', 'black', 'black',
+                   'indianred', 'indianred', 'indianred',
+                   'goldenrod', 'goldenrod', 'goldenrod',
+                   'darksage', 'darksage', 'darksage' ]
+                   
+LINESTYLES_DET = ['-', '-', '-', '-',
+                  '--', '-.', ':',
+                  '--', '-.', ':',
+                  '--', '-.', ':',
+                  '--', '-.', ':' ]
+LEGEND_DET     = { 'gg': 'gg', 'bb': 'bbbar', 'cc': 'ccbar', 'ss': 'ssbar',
+                   'ss_CC': 'ss_CC', 'ss_NC': 'ss_NC', 'ss_NN': 'ss_NN',
+                   'bb_CC': 'bb_CC', 'bb_NC': 'bb_NC', 'bb_NN': 'bb_NN',
+                   'cc_CC': 'cc_CC', 'cc_NC': 'cc_NC', 'cc_NN': 'cc_NN',
+                   'gg_CC': 'gg_CC', 'gg_NC': 'gg_NC', 'gg_NN': 'gg_NN'}
+ORDER_DET = { 'ss': 0, 'gg':1, 'bb':2, 'cc':3 ,
+              'ss_CC':4, 'ss_NC':5, 'ss_NN':6,
+              'bb_CC':7, 'bb_NC':8, 'bb_NN':9,
+              'cc_CC':10, 'cc_NC':11, 'cc_NN':12,
+              'gg_CC':13, 'gg_NC':14, 'gg_NN':15}
 
-def plot_python_detailed(_x,ydict,plotname):
+
+def plot_python_detailed(_x,ydict,plotname,ylabel,ylog=True):
     """
     """
     from matplotlib import pyplot as plt
@@ -1930,19 +2113,52 @@ def plot_python_detailed(_x,ydict,plotname):
         pidname = LEGEND_DET[pid]
         ymax = max(ymax,max(signlist))
         ymin = min(ymin,min(signlist))
+        if ylog:
+            ymin = max(ymin, 0.1)
         # Just to smooth a little the output lines
         significance_smooth = spline(x,np.array(signlist),xnew)
+        plotcolors = COLORS_PLT_DET[k]
+        plotlines  = LINESTYLES_DET[k]
+        if 'ss' in pidname:
+            plotcolors = 'black'
+        elif 'bb' in pidname:
+            plotcolors = 'indianred'
+        elif 'gg' in pidname:
+            plotcolors = 'goldenrod'
+        elif 'cc' in pidname:
+            plotcolors = 'darksage'
+
+        if '_CC' in pidname:
+            plotlines = '--'
+        elif '_NC' in pidname:
+            plotlines = '-.'
+        elif '_NN' in pidname:
+            plotlines = ':'
         plt.plot(xnew,significance_smooth,
-                linewidth=3,linestyle=LINESTYLES_DET[k],color=COLORS_PLT_DET[k], 
+                linewidth=3,
+                 linestyle=plotlines,
+                 color=plotcolors, 
                 label=pidname)
     ax.set_xlim(x[0],x[-1])
     plt.xlabel(r'Parallel momentum cut [GeV]')
-    plt.ylabel(r'# events')
-    ax.set_ylim(10,ymax*1.3)
-    ax.set_yscale('log')
-    ax.legend(loc=0,frameon=False)
-    plt.savefig(plotname)
+    plt.ylabel(r'{0}'.format(ylabel))
+    ax.set_ylim(ymin,ymax*1.3)
+    if ylog:
+        ax.set_yscale('log')
+    #ax.legend(loc=1,frameon=False)
+    handles, labels = ax.get_legend_handles_labels()
+    lgd = ax.legend(handles, labels, loc=2, bbox_to_anchor=(1.05,1))
+    #ax.legend(bbox_to_anchor=(1.05,1), loc=2, borderaxespad=0.)
+    plt.savefig(plotname, bbox_extra_artists=(lgd,), bbox_inches='tight')
+    plt.close('all')
 
+def save_divide(numerator,denominator,default):
+    result=1;
+    try:
+        result=1.*numerator/denominator
+    except ZeroDivisionError:
+        result=1
+    return result
 
 def main_cmp_pid(listpklfiles):
     """Steering function to plot equ....
@@ -1962,6 +2178,7 @@ def main_cmp_pid(listpklfiles):
     x = map(lambda x: x[0],pid_dict.values()[0].values()[0])
     y = {}
     n = {}
+    r = {}
     for d0cut in filter(lambda x: x != 'HEADER',pid_dict.values()[0].keys()):
         for pid,d0dict in pid_dict.iteritems():
             d0list = d0dict[d0cut]
@@ -1969,16 +2186,65 @@ def main_cmp_pid(listpklfiles):
             # Create the TGraphs/THistos
             y[pid] = []
             n['bb']=[]
+            n['bb_CC']=[]
+            n['bb_NC']=[]
+            n['bb_NN']=[]
             n['cc']=[]
+            n['cc_CC']=[]
+            n['cc_NC']=[]
+            n['cc_NN']=[]
             n['gg']=[]
+            n['gg_CC']=[]
+            n['gg_NC']=[]
+            n['gg_NN']=[]
             n['ss']=[]
-            for p,e_signal,significance,_x1,_x2,n_signal,n_bkg,e_bkg,n_bb,n_cc,n_gg in d0list:
+            n['ss_CC']=[]
+            n['ss_NC']=[]
+            n['ss_NN']=[]
+            r['bb_CC']=[]
+            r['bb_NC']=[]
+            r['bb_NN']=[]
+            r['cc_CC']=[]
+            r['cc_NC']=[]
+            r['cc_NN']=[]
+            r['gg_CC']=[]
+            r['gg_NC']=[]
+            r['gg_NN']=[]
+            r['ss_CC']=[]
+            r['ss_NC']=[]
+            r['ss_NN']=[]
+            for p,e_signal,significance,_x1,_x2,n_signal,n_bkg,e_bkg,n_bb,n_cc,n_gg,n_ss_cc,n_ss_nc,n_ss_nn,n_bb_cc,n_bb_nc,n_bb_nn,n_cc_cc,n_cc_nc,n_cc_nn,n_gg_cc,n_gg_nc,n_gg_nn in d0list:
                 y[pid].append(significance)
                 n['bb'].append(n_bb)
+                n['bb_CC'].append(n_bb_cc)
+                n['bb_NC'].append(n_bb_nc)
+                n['bb_NN'].append(n_bb_nn)
                 n['cc'].append(n_cc)
+                n['cc_CC'].append(n_cc_cc)
+                n['cc_NC'].append(n_cc_nc)
+                n['cc_NN'].append(n_cc_nn)
                 n['gg'].append(n_gg)
+                n['gg_CC'].append(n_gg_cc)
+                n['gg_NC'].append(n_gg_nc)
+                n['gg_NN'].append(n_gg_nn)
                 n['ss'].append(n_signal)
-            plot_python_detailed(x,n,'nevents_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS))
+                n['ss_CC'].append(n_ss_cc)
+                n['ss_NC'].append(n_ss_nc)
+                n['ss_NN'].append(n_ss_nn)
+            r['bb_CC']=map(lambda i: save_divide(n['bb_CC'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
+            r['bb_NC']=map(lambda i: save_divide(n['bb_NC'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
+            r['bb_NN']=map(lambda i: save_divide(n['bb_NN'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
+            r['cc_CC']=map(lambda i: save_divide(n['cc_CC'][i],n['cc'][i],1), xrange(0,len(n['cc'])))
+            r['cc_NC']=map(lambda i: save_divide(n['cc_NC'][i],n['cc'][i],1), xrange(0,len(n['cc'])))
+            r['cc_NN']=map(lambda i: save_divide(n['cc_NN'][i],n['cc'][i],1), xrange(0,len(n['cc'])))
+            r['gg_CC']=map(lambda i: save_divide(n['gg_CC'][i],n['gg'][i],1), xrange(0,len(n['gg'])))
+            r['gg_NC']=map(lambda i: save_divide(n['gg_NC'][i],n['gg'][i],1), xrange(0,len(n['gg'])))
+            r['gg_NN']=map(lambda i: save_divide(n['gg_NN'][i],n['gg'][i],1), xrange(0,len(n['gg'])))
+            r['ss_CC']=map(lambda i: save_divide(n['ss_CC'][i],n['ss'][i],1), xrange(0,len(n['ss'])))
+            r['ss_NC']=map(lambda i: save_divide(n['ss_NC'][i],n['ss'][i],1), xrange(0,len(n['ss'])))
+            r['ss_NN']=map(lambda i: save_divide(n['ss_NN'][i],n['ss'][i],1), xrange(0,len(n['ss'])))
+            plot_python_detailed(x,n,'nevents_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), '# events')
+            plot_python_detailed(x,r,'revents_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), 'fraction of events',False)
         plot_python(x,y,'significance_cmp_{0}{1}'.format(d0cut,SUFFIXPLOTS))
 
 

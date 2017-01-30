@@ -49,6 +49,7 @@
 #                       a Bottom or Charm hadron.
 #    'isPrimaryHadron': std::vector<int>   whether or not the hadron is decay directly
 #                       from a leg of the the q-qbar system (81-89 Phytia status)
+#    'isKshort'       : std::vector<int> whether or not this is a K-short or not
 #    'p'              : std::vector<float> momentum of the particle
 #    'p_lab'          : std::vector<float> momentum (at the lab. frame) of the particle
 #    'pmother'        : std::vector<float> momentum of its mother [to be deprecated]
@@ -56,9 +57,9 @@
 #    'phi_lab'        : std::vector<float> phi (at the lab. frame) of the particle
 #    'theta'          : std::vector<float> theta of the particle
 #    'theta_lab'      : std::vector<float> theta (at the lab. frame) of the particle
-#    'vx'             : std::vector<float> production vertex, x
-#    'vy'             : std::vector<float> production vertex, y
-#    'vz'             : std::vector<float> production vertex, z
+#    'vx'             : std::vector<float> production (decay) vertex of K+-,pi+- (K_s), x
+#    'vy'             : std::vector<float> production (decay) vertex of K+-,pi+- (K_s), y
+#    'vz'             : std::vector<float> production (decay) vertex of K+-,pi+- (K_s), z
 # Note that the some variables are defined with respect to the rest-frame of the q-qbar system (final state hadrons):
 #    >>> p,phi,theta,pmother
 # and others with respect to the Laboratory frame
@@ -68,6 +69,8 @@
 #  -o name of the ROOT output file [hzkin.root]
 #  -b flag to keep track if the final hadrons provenance is from charmed or bottom hadrons
 #  -f final state hadrons to keep: pions,kaons or pions_kaons [default:kaons])
+#  -s keep also k_shorts when their decay happens in a spherical shell around the interaction point
+#     with the inner and outer radii given in mm [defaut:0.0 0.0, i.e. do not keep them]
 #  -m mis-identification probability, a value different from 0 will force '-t pions_kaons' regardless of the user input [default: 0.0]
 #  -h show this help
 # 

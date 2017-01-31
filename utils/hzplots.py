@@ -1164,10 +1164,15 @@ def create_histos(suffix,description,res_int,hc=None):
             description=description,
             xtitle="L_{xy} [mm]",ytitle='A.U.',
             color=color)
-    hc.create_and_book_histo("{0}_h_R_{1}".format(resonance,suffix),\
+    hc.create_and_book_histo("{0}_h_R_KP_{1}".format(resonance,suffix),\
             "leading kaons production vertex",\
             100,0,5,description=description,
             xtitle="R [mm]", ytitle='A.U.',
+            color=color)
+    hc.create_and_book_histo("{0}_h_R_Ks_{1}".format(resonance,suffix),\
+            "leading K_s decay vertex",\
+            100,5,1000,description=description,
+            xtitle="R_{K_{s}} [mm]", ytitle='A.U.',
             color=color)
     
     hc.create_and_book_histo("{0}_h_nM_{1}".format(resonance,suffix),\
@@ -1558,7 +1563,8 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
         e.get_tree().Project("H_h_absd0_{0}".format(e.decay_channel),"abs(d0)+10**-3")
         e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"z0")
         e.get_tree().Project("H_h_Lxy_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy)")
-        e.get_tree().Project("H_h_R_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy+vz*vz)")
+        e.get_tree().Project("H_h_R_KP_{0}".format(e.decay_channel),"R",'isKshort==0')
+        e.get_tree().Project("H_h_R_Ks_{0}".format(e.decay_channel),"R",'isKshort==1')
         # two-dim
         e.get_tree().Project("H_h2_pL_{0}".format(e.decay_channel),"abs(p[1]*cos(theta[1])):abs(p[0]*cos(theta[0]))")
         e.get_tree().Project("H_h2_pL_d0_{0}".format(e.decay_channel),"d0:abs(p*cos(theta))")
@@ -1593,10 +1599,11 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     # and the combined histograms
     plot_combined(hc,'H_h_d0')
     plot_combined(hc,'H_h_absd0')
-    #plot_combined(hc,'H_h_pLcut15_absd0')
+    plot_combined(hc,'H_h_pLcut15_absd0')
     plot_combined(hc,'H_h_z0')
     plot_combined(hc,'H_h_Lxy')
-    plot_combined(hc,'H_h_R')
+    plot_combined(hc,'H_h_R_KP')
+    plot_combined(hc,'H_h_R_Ks')
     try:
         plot_combined(hc,'H_h_theta_lab',legposition="LEFT")
     except ZeroDivisionError:

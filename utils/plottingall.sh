@@ -41,7 +41,7 @@ n=0
 # collect the pkl files for the different PID modes
 pklfiles=""
 
-for i in noPID 010PID 005PID PID; 
+for i in noPID 010PID PID
 do
     #if (("$NCPU" <= "$n"));
     #then
@@ -52,14 +52,33 @@ do
     then
 	mkdir -p ${i} ;
 	cd ${i};
-	hzplots fixed_pid -s png -z 40.0 -p 40 --pLcut-type square ${i} ../processedhz_all.root #&
-	cd -;
+	for j in 'CC' 'NC' 'NN' 'all'
+	do
+	    mkdir -p ${j}
+	    cd ${j}
+	    hzplots fixed_pid -s png -z 40.0 -p 40 --pLcut-type square -R 100  -c ${j} ${i} ../../processedhz_all.root #&
+	    cd ..
+	done
+	cd ..
     fi
-    pklfiles=$pklfiles" $i/d0cut_dict_$i.pkl"
+    pklfilesall=$pklfilesall" ../$i/all/d0cut_dict_$i.pkl"
+    pklfilesNN=$pklfilesNN" ../$i/NN/d0cut_dict_$i.pkl"
+    pklfilesNC=$pklfilesNC" ../$i/NC/d0cut_dict_$i.pkl"
+    pklfilesCC=$pklfilesCC" ../$i/CC/d0cut_dict_$i.pkl"
     #n=$(($n+1))
 done;
 # Be sure everything finished
 #wait;
 
 # run hzplots in compare_pid mode
-hzplots compare_pid -s png `echo $pklfiles`
+
+for j in 'CC' 'NC' 'NN' 'all'
+do
+    mkdir -p ${j}
+    cd ${j}
+    pklfiles="pklfiles${j}"
+    pkl=${!pklfiles}
+    echo $pkl
+    hzplots compare_pid -s png `echo ${pkl}`
+    cd ..
+done

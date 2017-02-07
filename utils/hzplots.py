@@ -41,12 +41,16 @@ def isPion(index):
     """
     return "abs(pdgId[{0}]) == {1}".format(index,PION)
 
+# split charged-neutral channels in CN and NC to apply different cuts on neutral and charged part
+# while keeping the cutting function simple
 FS_CONDITION = { 'KK': '{0} && {1}'.format(isKaon(0),isKaon(1)),
-                 'KP': '({0} && {1} || {2} && {3})'.format(isKaon(0),isPion(1),isPion(0),isKaon(1)),
+                 'KP': '({0} && {1}) || ({2} && {3})'.format(isKaon(0),isPion(1),isPion(0),isKaon(1)),
                  'PP': '{0} && {1}'.format(isPion(0),isPion(1)),
                  'KsKs': '{0} && {1}'.format(isKshort(0),isKshort(1)),
-                 'KsK': '({0} && {1} || {2} && {3})'.format(isKaon(0),isKshort(1),isKshort(0),isKaon(1)),
-                 'KsP': '({0} && {1} || {2} && {3})'.format(isPion(0),isKshort(1),isKshort(0),isPion(1))
+                 'KsK': '{0} && {1}'.format(isKshort(0),isKaon(1)),
+                 'KKs': '{0} && {1}'.format(isKaon(0),isKshort(1)),
+                 'KsP': '{0} && {1}'.format(isKshort(0),isPion(1)),
+                 'PKs': '{0} && {1}'.format(isPion(0),isKshort(1))
                 }
 SUFFIXPLOTS='.pdf'
 SPINNING = [ "-","\\","|","/"]
@@ -234,8 +238,8 @@ def get_histo_name(th3names,decay_channel,hadron_state):
         the names of all the TH3 dicts found in a root processed file by the
         processedhzroot script
     hadron_state: str
-        the two opposite-hemisphere final state hadrons: KK, KP, PP, KsKs, KsK, KsP (K-kaon,
-        P-pion, K-short)
+        the two opposite-hemisphere final state hadrons: KK, KP, PP, KsKs, KsK, 
+        KKS, KsP, PKs (K-kaon, P-pion, K-short)
 
     Return
     ------
@@ -322,8 +326,8 @@ def get_cuts_eff(_obj,decay_channel,hadrons,\
         hadrons involved
     decay_channel: str
     hadrons: str, 
-        the hadrons to look at, which can be the: KK, KP, PP, KsKs, KsK, KsP (K-kaon,
-        P-pion, K-short)
+        the hadrons to look at, which can be the: KK, KP, PP, KsKs, KsK, KKs, KsP,
+        PKs (K-kaon, P-pion, Ks-K_short)
     pLcut: float, optional, incompatible with pLbin  
     d0cut: float, optional, incompatible with d0binL, d0binH
     pLbin: int, optional, incompatible with pLcut
@@ -415,6 +419,17 @@ def d0(index):
     #return "sin(atan(vy[{0}]/vx[{0}])-phi_lab[{0}])*sqrt(vx[{0}]**2+vy[{0}]**2)".format(index)
     return "d0[{0}]".format(index)
 
+def R(index):
+    """decay length
+
+    Parameters
+    ----------
+    index: int
+        the index of the gen-particle in the tree
+
+    """
+    return "R[{0}]".format(index)
+
 def z0_explicit_calculation(vx,vy,phi,vz,theta):
     """Longitudinal impact parameter extrapolation considering a straight line.
     Explicit calculation.
@@ -482,7 +497,8 @@ class eff_cut_hadron(object):
     .. math::\varepsilon_{AB}^{q\bar{q}} = P( d0^{c} p_{||}^c L_{AB} | 
                 (ee\rightarrow HZ\rightarrow q\bar{q}) I_0 )
     """
-    def __init__(self,decay_channel,z0cut=False,Ntrackcut=None,d0cut_type="circular",pLcut_type="circular"):
+    def __init__(self,decay_channel,z0cut=False,Ntrackcut=None,d0cut_type="circular",
+                 pLcut_type="circular",R0=500,charge_combination='all'):
         """Encapsulates the efficieny cut of a Hadron-hadron event
         Incorporates the cut in impact parameter and in parallel momentum
 
@@ -501,6 +517,10 @@ class eff_cut_hadron(object):
         pLcut_type: str, [default: circular]
             defines the function to be used to cut in parallel momentum, 
             valid values are circular, square and line
+        R0: float
+            the decay length cut for K_s
+        charge_combination: str
+            the combination of final state charges to be considered
 
         FIXME: The class should be associated to a tree!
         """
@@ -509,9 +529,10 @@ class eff_cut_hadron(object):
         self.current_d0cut = None
         self.current_pLcut = None
         
-        self.final_state_hadrons = ['KK','KP','PP', 'KsKs', 'KsK', 'KsP']
+        self.final_state_hadrons = ['KK','KP','PP', 'KsKs', 'KsK', 'KKs', 'KsP', 'PKs']
         self.final_state_NN = ['KsKs']
-        self.final_state_CN = ['KsK', 'KsP']
+        self.final_state_CN = ['KKs', 'PKs']
+        self.final_state_NC = ['KsK', 'KsP']
         self.final_state_CC = ['KK', 'KP', 'PP']
         self.__entrylist_hadrons = dict(map(lambda i: (i,None),self.final_state_hadrons))
         
@@ -522,50 +543,72 @@ class eff_cut_hadron(object):
         # { treename: { 'pLcut': { 'actual cut' : ROOT.TEntryList, ...
         self.__entrylists_reservoir = {}
         self.__finalhadrons_entries = { 'KK': None, 'KP': None, 'PP': None,
-                                        'KsKs': None, 'KsK': None, 'KsP': None}
-        
+                                        'KsKs': None, 'KsK': None, 'KsP': None,
+                                        'KKs': None, 'PKs': None }
+
+
+        if charge_combination not in ['CC', 'NC', 'NN', 'all']:
+            raise RuntimeError('{0} is not a valid charge combination. Valid values: CC, NC, NN, all'.format(charge_combination))
+        self.cuts = {}
+        self.cuts['NN'] = '( ({0}) &&  ({1}))'.format(isKshort(0),isKshort(1))
+        self.cuts['NC'] = '( ({0}) && !({1}))'.format(isKshort(0),isKshort(1))
+        self.cuts['CN'] = '(!({0}) &&  ({1}))'.format(isKshort(0),isKshort(1))
+        self.cuts['CC'] = '(!({0}) && !({1}))'.format(isKshort(0),isKshort(1))
+        self.cuts['all'] = ''
+
         if z0cut:
-            self.pLcut_function = "(( !({0}) && !({1}) && sqrt( ({2})**2.0 + ({3})**2.0) < {4}) "\
-                                    "|| ( !({0}) &&  ({1}) && abs({2}) < {4}) "\
-                                    "|| (  ({0}) && !({1}) && abs({3}) < {4}) "\
-                                    "|| (  ({0}) &&  ({1}) ) ) && ".format(isKshort(0),isKshort(1),z0(0),z0(1),z0cut)
-            self.d0cut_function = "(( !({0}) && !({1}) && sqrt( ({2})**2.0 + ({3})**2.0) < {4}) "\
-                                    "|| ( !({0}) &&  ({1}) && abs({2}) < {4}) "\
-                                    "|| (  ({0}) && !({1}) && abs({3}) < {4}) "\
-                                    "|| (  ({0}) &&  ({1}) ) ) && ".format(isKshort(0),isKshort(1),z0(0),z0(1),z0cut)
-        else:
-            self.pLcut_function = ""
-            self.d0cut_function = ""
-    
+            self.cuts['CC'] += "&& sqrt( ({0})**2.0 + ({1})**2.0) < {2} ".format(z0(0),z0(1),z0cut)
+            self.cuts['NC'] += "&& abs({0}) < {1} ".format(z0(1),z0cut)
+            self.cuts['CN'] += "&& abs({0}) < {1} ".format(z0(0),z0cut)
+            
         if Ntrackcut:
-            self.pLcut_function += "multiplicity[0] <= {0} && multiplicity[1] <= {0} && ".format(Ntrackcut)
-            self.d0cut_function += "multiplicity[0] <= {0} && multiplicity[1] <= {0} && ".format(Ntrackcut)
+            self.cuts['CC'] += "&& multiplicity[0] <= {0} && multiplicity[1] <= {0} ".format(Ntrackcut)
+            self.cuts['NC'] += "&& multiplicity[0] <= {0} && multiplicity[1] <= {0} ".format(Ntrackcut)
+            self.cuts['CN'] += "&& multiplicity[0] <= {0} && multiplicity[1] <= {0} ".format(Ntrackcut)
+            self.cuts['NN'] += "&& multiplicity[0] <= {0} && multiplicity[1] <= {0} ".format(Ntrackcut)
 
         # behaviour members
         if pLcut_type == "circular":
-            self.pLcut_function += "sqrt( (p[0]*cos(theta[0]))**2. + (p[1]*cos(theta[1]))**2.) > {0}"
+            self.pLcut_function = "sqrt( (p[0]*cos(theta[0]))**2. + (p[1]*cos(theta[1]))**2.) > {0}"
         elif pLcut_type == "square":
-            self.pLcut_function += "abs(p[0]*cos(theta[0])) > {0} && abs(p[1]*cos(theta[1])) > {0}"
+            self.pLcut_function = "abs(p[0]*cos(theta[0])) > {0} && abs(p[1]*cos(theta[1])) > {0}"
         elif pLcut_type == "line":
-            self.pLcut_function += "p[1]*cos(theta[1]) > (-{0}/30.0)*p[0]*cos(theta[0])+{0}"
+            self.pLcut_function = "p[1]*cos(theta[1]) > (-{0}/30.0)*p[0]*cos(theta[0])+{0}"
         else:
             raise RuntimeError("Not a valid pL-cut functional: valid values:"\
                     " circular, square and line")
-        if d0cut_type == "circular":
-            self.d0cut_function += "(( !({0}) && !({1}) && sqrt( ({2})**2.0 + ({3})**2.0) < {4}) "\
-                                    " || ( !({0}) &&  ({1}) && abs({2}) < {4} ) "\
-                                    " || (  ({0}) && !({1}) && abs({3}) < {4} ) "\
-                                    " || (  ({0}) &&  ({1}) ) )".format(isKshort(0),isKshort(1),d0(0),d0(1),"{0}")
-        elif d0cut_type == "square":
-            self.d0cut_function += "(( !({0}) && !({1}) && abs({2}) < {4} && abs({3}) < {4} ) "\
-                                    " || ( !({0}) &&  ({1}) && abs({2}) < {4} ) "\
-                                    " || (  ({0}) && !({1}) && abs({3}) < {4} ) "\
-                                    " || (  ({0}) &&  ({1}) ) )".format(isKshort(0),isKshort(1),d0(0),d0(1),"{0}")
-        else:
-            raise RuntimeError("Not a valid d0-cut functional: valid values:"\
-                    " circular and square ")
 
-        print "\033[1;34mhzplots INFO\033[1;m Using the following functional cuts:"
+        if charge_combination == 'CC':
+            self.pLcut_function = "({0}) && {1}".format(self.cuts['CC'],self.pLcut_function)
+        elif charge_combination == 'NC':
+            self.pLcut_function = "( ({0}) || ({1}) ) && {2}".format(self.cuts['NC'],self.cuts['CN'],self.pLcut_function)
+        elif charge_combination == 'NN':
+            self.pLcut_function = "({0}) && {1}".format(self.cuts['NN'],self.pLcut_function)
+        elif charge_combination == 'all':
+            self.pLcut_function = '( ({0}) || ({1}) || ({2}) || ({3}) ) && {4}'.format(self.cuts['CC'],self.cuts['NC'],self.cuts['CN'],self.cuts['NN'],self.pLcut_function)
+
+        if d0cut_type == "circular":
+            self.cuts['CC'] += "&& sqrt( ({0})**2.0 + ({1})**2.0) < {2} ".format(d0(0),d0(1),"{0}")
+        elif d0cut_type == "square":
+            self.cuts['CC'] += "&& ( abs({0}) < {2} && abs({1}) < {2}) ".format(d0(0),d0(1),"{0}")
+        else:
+            raise RuntimeError("Not a valid d0-cut functional: valid values: circular and square ")
+        self.cuts['NC'] += "&& ( abs({0}) < {1} && {2} > {3}) ".format(d0(1),"{0}",R(0),R0)
+        self.cuts['CN'] += "&& ( abs({0}) < {1} && {2} > {3}) ".format(d0(0),"{0}",R(1),R0)
+        self.cuts['NN'] += "&& ( {0} > {2} && {1} > {2} ) ".format(R(0),R(1),R0)
+            
+        if charge_combination == 'CC':
+            self.d0cut_function = self.cuts['CC']
+        elif charge_combination == 'NC':
+            self.d0cut_function = "({0}) || ({1})".format(self.cuts['NC'],self.cuts['CN'])
+        elif charge_combination == 'NN':
+            self.d0cut_function = "({0})".format(self.cuts['NN'])
+        elif charge_combination == 'all':
+            self.d0cut_function = "({0}) || ({1}) || ({2}) || ({3})".format(self.cuts['CC'],self.cuts['CN'],self.cuts['NC'],self.cuts['NN'])
+        else:
+            raise RuntimeError("Not a valid charge_combination: valid values: all|NN|NC|CC")
+
+        print "\033[1;34mhzplots INFO\033[1;m Using the following functional cuts for the charge combination: {0}:".format(charge_combination)
         print "   + pL: {0}".format(self.pLcut_function)
         print "   + d0: {0}".format(self.d0cut_function)
 
@@ -592,7 +635,7 @@ class eff_cut_hadron(object):
         d0cut: float, optional
             the value of the impact parameter cut
         hadron_pairs: str
-            the leading hadrons final states: KK, KP, PP, KsKs, KsK, KsP
+            the leading hadrons final states: KK, KP, PP, KsKs, KsK, KsP, KKs, PKs
         future_cuts: dict()
             not used now, but will allow to incorporate extra cuts
 
@@ -690,7 +733,7 @@ class eff_cut_hadron(object):
 
     def set_total_eff(self,treedict,pLcut,d0cut,verbose=False):
         """builds the total efficiency and evaluates it for the different 
-        final state cases KK, KP, PP, KsKs, KsK and KsP (if exist)
+        final state cases KK, KP, PP, KsKs, KsK, KsP, KKs, and PKs (if exist)
 
         Parameters
         ----------
@@ -770,14 +813,10 @@ class eff_cut_hadron(object):
             cut_entries = get_common_entries( [self.__entrylist_d0cut,\
                   self.__entrylist_pLcut, self.__entrylist_hadrons[i]] )
             _eff  = 0.0
-            _prob = 0.0
             if self.__tree_entries != 0:
                 _eff = float(cut_entries)/float(self.__tree_entries)
-                _prob= float(self.__finalhadrons_entries[i])/float(self.__tree_entries)
             # p ( d0 pL | L_AB decay_channel I0 )
             self.__setattr__('eff_cut_{0}'.format(i),_eff)
-            # p ( L_AB | decay_channel I0 )
-            self.__setattr__('p_{0}'.format(i),_prob)
         self.initialized=True
 
     def _get_total_eff(self):
@@ -791,8 +830,7 @@ class eff_cut_hadron(object):
         """
         if not hadrons:
             return self._get_total_eff()
-        return getattr(self,'eff_cut_{0}'.format(hadrons))*\
-                getattr(self,'p_{0}'.format(hadrons))
+        return getattr(self,'eff_cut_{0}'.format(hadrons))
 
 
     def get_events(self,hadrons):
@@ -815,8 +853,7 @@ class eff_cut_hadron(object):
         N = 0
         for hadrons in self.final_state_hadrons:
             N += hiInstance.getEvents(self.decay_channel.split('_')[0])*\
-                getattr(self,'eff_cut_{0}'.format(hadrons))*\
-                getattr(self,'p_{0}'.format(hadrons))
+                getattr(self,'eff_cut_{0}'.format(hadrons))
         return N
 
     def get_total_events_by_FS(self,fs):
@@ -830,14 +867,13 @@ class eff_cut_hadron(object):
         considered_fs = []
         if fs == 'NN':
             considered_fs = self.final_state_NN
-        elif fs == 'CN' or fs == 'NC':
-            considered_fs = self.final_state_CN
+        elif fs == 'NC':
+            considered_fs = self.final_state_CN + self.final_state_NC
         elif fs == 'CC':
             considered_fs = self.final_state_CC
         for hadrons in considered_fs:
             N += hiInstance.getEvents(self.decay_channel.split('_')[0])*\
-                 getattr(self,'eff_cut_{0}'.format(hadrons))*\
-                 getattr(self,'p_{0}'.format(hadrons))
+                 getattr(self,'eff_cut_{0}'.format(hadrons))
         return N
 
 def update_limits(d0_pLlist_dict,(x_ind,y_ind),pl_attr_inst):
@@ -1174,6 +1210,12 @@ def create_histos(suffix,description,res_int,hc=None):
             100,5,1000,description=description,
             xtitle="R_{K_{s}} [mm]", ytitle='A.U.',
             color=color)
+    hc.create_and_book_histo("{0}_h_pLcut15_R_Ks_{1}".format(resonance,suffix),\
+            "leading K_s decay vertex",100,10,1000,\
+            description=description,
+            xtitle="R_{K_{s}} [mm]",
+            ytitle="A.U.",
+            color=color)
     
     hc.create_and_book_histo("{0}_h_nM_{1}".format(resonance,suffix),\
             "charge particle multiplicity (per quark)",\
@@ -1412,7 +1454,8 @@ def getallinfo(filename):
     return d
 
 
-def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,Ntrackcut,wp_activated):
+def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z0cut,
+                   Ntrackcut,wp_activated,R0,charge_combination):
     """Main function steering the efficiency calculation and
     the plots creation.
     
@@ -1447,6 +1490,10 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
         whether activate or not multiplicity cut, if yes, the cut number
     wp_activated: bool
         whether or not to plot on the working points...
+    R0: float
+        the cut on the decay length of the K_s.
+    charge_combination: str
+        the charge combination of the final state to be chosen all|CC|NC|NN
     """
     import ROOT
     import sys
@@ -1476,7 +1523,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     
     # --- Ready to extract efficiencies
     # the eff. classes 
-    eff = dict(map(lambda x: (x,eff_cut_hadron(x,z0cut,Ntrackcut,d0cut_type=d0cut_type,pLcut_type=pLcut_type)), channels))
+    eff = dict(map(lambda x: (x,eff_cut_hadron(x,z0cut,Ntrackcut,d0cut_type=d0cut_type,pLcut_type=pLcut_type,R0=R0,charge_combination=charge_combination)), channels))
     
     message = "\r\033[1;34mhzplots INFO\033[1;m Obtaining efficiencies"
     # { 'docut1': [ (pLcut1, eff_sig, significance, pion_rejection, purity, N_sig, N_bkg), ... ],  }
@@ -1532,13 +1579,16 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
             try:
                 purity = (float(eff[signal_channel].get_events('KK'))+\
                           float(eff[signal_channel].get_events('KsK'))+\
+                          float(eff[signal_channel].get_events('KKs'))+\
                           float(eff[signal_channel].get_events('KsKs')))/\
                           (float(eff[signal_channel].get_events('KK'))+\
                            float(eff[signal_channel].get_events('KP'))+\
                            float(eff[signal_channel].get_events('PP'))+\
                            float(eff[signal_channel].get_events('KsKs'))+\
                            float(eff[signal_channel].get_events('KsK'))+\
-                           float(eff[signal_channel].get_events('KsP')))
+                           float(eff[signal_channel].get_events('KKs'))+\
+                           float(eff[signal_channel].get_events('KsP'))+\
+                           float(eff[signal_channel].get_events('PKs')))
             except ZeroDivisionError:
                 purity = 0.0
             try:
@@ -1554,38 +1604,46 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     print
     print "\033[1;34mhzplots INFO\033[1;m Plotting..."
     # --- filling uncutted observables
+    plotconstraint = ""
+    if charge_combination == 'CC':
+        plotconstraint = 'isKshort[0]==0 && isKshort[1]==0'
+    elif charge_combination == 'NN':
+        plotconstraint = 'isKshort[0]==1 && isKshort[1]==1'
+    elif charge_combination == 'NC':
+        plotconstraint = '(isKshort[0]==0 && isKshort[1]==1) || (isKshort[0]==1 && isKshort[1]==0)'
     hc = None
     for effname,e in eff.iteritems():
         hc = create_histos(e.decay_channel,e.decay_channel,25,hc)
         #e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"(vy-vx*tan(phi_lab))*cos(phi_lab)")
         #e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"-(vy-vz*tan(theta_lab))/tan(theta_lab)")
-        e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"d0")
-        e.get_tree().Project("H_h_absd0_{0}".format(e.decay_channel),"abs(d0)+10**-3")
-        e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"z0")
-        e.get_tree().Project("H_h_Lxy_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy)")
+        e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"d0","{0}".format(plotconstraint))
+        e.get_tree().Project("H_h_absd0_{0}".format(e.decay_channel),"abs(d0)+10**-3","{0}".format(plotconstraint))
+        e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"z0","{0}".format(plotconstraint))
+        e.get_tree().Project("H_h_Lxy_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy)","{0}".format(plotconstraint))
         e.get_tree().Project("H_h_R_KP_{0}".format(e.decay_channel),"R",'isKshort==0')
         e.get_tree().Project("H_h_R_Ks_{0}".format(e.decay_channel),"R",'isKshort==1')
         # two-dim
-        e.get_tree().Project("H_h2_pL_{0}".format(e.decay_channel),"abs(p[1]*cos(theta[1])):abs(p[0]*cos(theta[0]))")
-        e.get_tree().Project("H_h2_pL_d0_{0}".format(e.decay_channel),"d0:abs(p*cos(theta))")
+        e.get_tree().Project("H_h2_pL_{0}".format(e.decay_channel),"abs(p[1]*cos(theta[1])):abs(p[0]*cos(theta[0]))","{0}".format(plotconstraint))
+        e.get_tree().Project("H_h2_pL_d0_{0}".format(e.decay_channel),"d0:abs(p*cos(theta))","{0}".format(plotconstraint))
         e.get_tree().Project("H_h2_Resd0_theta_{0}".format(e.decay_channel),\
-                "5.+(10/(p_lab*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
+                "5.+(10/(p_lab*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi),"{0}".format(plotconstraint))
         e.get_tree().Project("H_h2_pL_theta_lab_{0}".format(e.decay_channel),\
-                "abs(p*cos(theta)):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
+                "abs(p*cos(theta)):acos(abs(cos(theta_lab)))*180./{0}".format(pi),"{0}".format(plotconstraint))
         # -- The new-multiplicity
-        e.get_tree().Project("H_h2_pL_multiplicity_0_{0}".format(e.decay_channel),"multiplicity[0]:abs(p[0]*cos(theta[0]))")
-        e.get_tree().Project("H_h2_pL_multiplicity_1_{0}".format(e.decay_channel),"multiplicity[1]:abs(p[1]*cos(theta[1]))") 
+        e.get_tree().Project("H_h2_pL_multiplicity_0_{0}".format(e.decay_channel),"multiplicity[0]:abs(p[0]*cos(theta[0]))","{0}".format(plotconstraint))
+        e.get_tree().Project("H_h2_pL_multiplicity_1_{0}".format(e.decay_channel),"multiplicity[1]:abs(p[1]*cos(theta[1]))","{0}".format(plotconstraint)) 
         e.get_tree().Project("H_h2_pL_multiplicity_Add_{0}".format(e.decay_channel),\
-                "multiplicity[0]+multiplicity[1]:sqrt( (p[0]*cos(theta[0]))**2.0+ (p[1]*cos(theta[1]))**2.0 )")
+                "multiplicity[0]+multiplicity[1]:sqrt( (p[0]*cos(theta[0]))**2.0+ (p[1]*cos(theta[1]))**2.0 )","{0}".format(plotconstraint))
         # cut-dependent
         e.activate_cuts(pLcut=20)
         e.get_tree().Project("H_h_theta_lab_{0}".format(e.decay_channel),\
-                "acos(abs(cos(theta_lab)))*180.0/{0}".format(pi))
+                "acos(abs(cos(theta_lab)))*180.0/{0}".format(pi),"{0}".format(plotconstraint))
         e.get_tree().Project("H_h2_pLcut20_Resd0_theta_{0}".format(e.decay_channel),\
-                "5.+(10/(p_lab*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi))
+                "5.+(10/(p_lab*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi),"{0}".format(plotconstraint))
         e.deactivate_cuts()
         e.activate_cuts(pLcut=15)        
-        e.get_tree().Project("H_h_pLcut15_absd0_{0}".format(e.decay_channel),"abs(d0)+10**-3")
+        e.get_tree().Project("H_h_pLcut15_absd0_{0}".format(e.decay_channel),"abs(d0)+10**-3","{0}".format(plotconstraint))
+        e.get_tree().Project("H_h_pLcut15_R_Ks_{0}".format(e.decay_channel),"R","{0}".format(plotconstraint))
         e.deactivate_cuts()
     # -- plotting ...
     for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL')==0 and \
@@ -1600,6 +1658,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     plot_combined(hc,'H_h_d0')
     plot_combined(hc,'H_h_absd0')
     plot_combined(hc,'H_h_pLcut15_absd0')
+    plot_combined(hc,'H_h_pLcut15_R_Ks')
     plot_combined(hc,'H_h_z0')
     plot_combined(hc,'H_h_Lxy')
     plot_combined(hc,'H_h_R_KP')
@@ -2307,18 +2366,23 @@ if __name__ == '__main__':
             help="Circular momentum maximum cut [30 GeV]")
     parser_pid.add_argument( '--pLcut-type', action='store', dest='pLcut_type',\
             metavar="circular|square|line",help="functional of the pL cut [circular]")
+    parser_pid.add_argument( '-R', '--R0', action='store', dest='R0',\
+            help="minimum decay length of the K_s [500]")
     parser_pid.add_argument( '-t', '--tables', action='store_true', dest='tables',\
             help="whether or not print the latex tables")
     parser_pid.add_argument( '-w','--working-points', action='store_true', dest='wp_activate',\
             help="whether or not plot the some working points in the plots")
     parser_pid.add_argument( '-l', '--ligth-channels',action='store_true',dest='light_channels',\
             help='whether or not add also the uubar and ddbar channels')
+    parser_pid.add_argument( '-c', '--charge_combination', action='store', dest='charge_combination',\
+            metavar="all|CC|NC|NN",help="Which final states to choose [all]")
     
     parser_pid.set_defaults(which='fixed_pid',
             pLMax=40,
             d0=[0.013,0.02,0.05],z0=None,
             pLcut_type='circular',d0cut_type='circular',
-            channel_mode='PID')    
+            channel_mode='PID',
+            charge_combination='all',R0=500)    
     
     # 2. decay chain for B/D ancestors
     parser_decaychain = subparsers.add_parser("decay_chain",help='Print the decay of the first'\
@@ -2362,7 +2426,9 @@ if __name__ == '__main__':
                 args.d0cut_type,
                 args.z0,
                 args.Ntrack,
-                args.wp_activate)
+                args.wp_activate,
+                args.R0,
+                args.charge_combination)
     elif args.which == 'decay_chain':
         main_decay_chain(args.rootfile,args.want_latex,args.nfirst,
                 pcut=args.pcut,d0cut=args.d0cut)

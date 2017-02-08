@@ -596,7 +596,6 @@ class eff_cut_hadron(object):
         self.cuts['NC'] += "&& ( abs({0}) < {1} && {2} > {3}) ".format(d0(1),"{0}",R(0),R0)
         self.cuts['CN'] += "&& ( abs({0}) < {1} && {2} > {3}) ".format(d0(0),"{0}",R(1),R0)
         self.cuts['NN'] += "&& ( {0} > {2} && {1} > {2} ) ".format(R(0),R(1),R0)
-            
         if charge_combination == 'CC':
             self.d0cut_function = self.cuts['CC']
         elif charge_combination == 'NC':
@@ -1109,7 +1108,8 @@ def create_histos(suffix,description,res_int,hc=None):
      * h2_Lxy_suffix: the vertex kaon production in the transverse
                       plane
      * h2_R_suffix  : the vertex kaon production
-
+     * h2_pL_R_suffix: the decay length vs the parallel momentum
+                      of the K_s
      * h_d0_suffix  : the impact parameter of the leading 
                       and subleading hadrons (extrapolated as
                       straight lines) in the same histogram (1D)
@@ -1168,6 +1168,11 @@ def create_histos(suffix,description,res_int,hc=None):
             100,0,65,npoints_y=100,ylow=0,yhigh=0.1,description=description,
             xtitle="p_{||} [GeV]",ytitle='d_{0} [mm]',
             color=color)
+    hc.create_and_book_histo("{0}_h2_pL_R_{1}".format(resonance,suffix),\
+            "K_s parallel momentum vs decay length",\
+            100,0,65,npoints_y=200,ylow=0,yhigh=1000,description=description,
+            xtitle="p_{||} [GeV]",ytitle='R [mm]',
+            color=color)
     hc.create_and_book_histo("{0}_h_d0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",100,-5,5,\
             description=description,
@@ -1210,7 +1215,7 @@ def create_histos(suffix,description,res_int,hc=None):
             100,5,1000,description=description,
             xtitle="R_{K_{s}} [mm]", ytitle='A.U.',
             color=color)
-    hc.create_and_book_histo("{0}_h_pLcut15_R_Ks_{1}".format(resonance,suffix),\
+    hc.create_and_book_histo("{0}_h_pLcut10_R_Ks_{1}".format(resonance,suffix),\
             "leading K_s decay vertex",100,10,1000,\
             description=description,
             xtitle="R_{K_{s}} [mm]",
@@ -1606,25 +1611,26 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     # --- filling uncutted observables
     plotconstraint = ""
     if charge_combination == 'CC':
-        plotconstraint = 'isKshort[0]==0 && isKshort[1]==0'
+        plotconstraint = 'isKshort[0] + isKshort[1] == 0'
     elif charge_combination == 'NN':
-        plotconstraint = 'isKshort[0]==1 && isKshort[1]==1'
+        plotconstraint = 'isKshort[0] + isKshort[1] == 2'
     elif charge_combination == 'NC':
-        plotconstraint = '(isKshort[0]==0 && isKshort[1]==1) || (isKshort[0]==1 && isKshort[1]==0)'
+        plotconstraint = 'isKshort[0] + isKshort[1] == 1'
     hc = None
     for effname,e in eff.iteritems():
         hc = create_histos(e.decay_channel,e.decay_channel,25,hc)
         #e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"(vy-vx*tan(phi_lab))*cos(phi_lab)")
         #e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"-(vy-vz*tan(theta_lab))/tan(theta_lab)")
-        e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"d0","{0}".format(plotconstraint))
-        e.get_tree().Project("H_h_absd0_{0}".format(e.decay_channel),"abs(d0)+10**-3","{0}".format(plotconstraint))
-        e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"z0","{0}".format(plotconstraint))
-        e.get_tree().Project("H_h_Lxy_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy)","{0}".format(plotconstraint))
+        e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"d0","isKshort!=1")
+        e.get_tree().Project("H_h_absd0_{0}".format(e.decay_channel),"abs(d0)+10**-3","isKshort!=1")
+        e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"z0","isKshort!=1")
+        e.get_tree().Project("H_h_Lxy_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy)","isKshort!=1")
         e.get_tree().Project("H_h_R_KP_{0}".format(e.decay_channel),"R",'isKshort==0')
         e.get_tree().Project("H_h_R_Ks_{0}".format(e.decay_channel),"R",'isKshort==1')
         # two-dim
         e.get_tree().Project("H_h2_pL_{0}".format(e.decay_channel),"abs(p[1]*cos(theta[1])):abs(p[0]*cos(theta[0]))","{0}".format(plotconstraint))
-        e.get_tree().Project("H_h2_pL_d0_{0}".format(e.decay_channel),"d0:abs(p*cos(theta))","{0}".format(plotconstraint))
+        e.get_tree().Project("H_h2_pL_d0_{0}".format(e.decay_channel),"d0:abs(p*cos(theta))","isKshort!=1 && {0}".format(plotconstraint))
+        e.get_tree().Project("H_h2_pL_R_{0}".format(e.decay_channel),"R:abs(p*cos(theta))","isKshort==1 && {0}".format(plotconstraint))
         e.get_tree().Project("H_h2_Resd0_theta_{0}".format(e.decay_channel),\
                 "5.+(10/(p_lab*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi),"{0}".format(plotconstraint))
         e.get_tree().Project("H_h2_pL_theta_lab_{0}".format(e.decay_channel),\
@@ -1641,9 +1647,11 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
         e.get_tree().Project("H_h2_pLcut20_Resd0_theta_{0}".format(e.decay_channel),\
                 "5.+(10/(p_lab*sin(theta_lab)**(3./2.))):acos(abs(cos(theta_lab)))*180./{0}".format(pi),"{0}".format(plotconstraint))
         e.deactivate_cuts()
+        e.activate_cuts(pLcut=10)
+        e.get_tree().Project("H_h_pLcut10_R_Ks_{0}".format(e.decay_channel),"R","isKshort==1")
+        e.deactivate_cuts()
         e.activate_cuts(pLcut=15)        
-        e.get_tree().Project("H_h_pLcut15_absd0_{0}".format(e.decay_channel),"abs(d0)+10**-3","{0}".format(plotconstraint))
-        e.get_tree().Project("H_h_pLcut15_R_Ks_{0}".format(e.decay_channel),"R","{0}".format(plotconstraint))
+        e.get_tree().Project("H_h_pLcut15_absd0_{0}".format(e.decay_channel),"abs(d0)+10**-3","isKshort!=1")
         e.deactivate_cuts()
     # -- plotting ...
     for k,h in filter(lambda (_k,_h): _k.find('H_h2_pL')==0 and \
@@ -1658,7 +1666,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     plot_combined(hc,'H_h_d0')
     plot_combined(hc,'H_h_absd0')
     plot_combined(hc,'H_h_pLcut15_absd0')
-    plot_combined(hc,'H_h_pLcut15_R_Ks')
+    plot_combined(hc,'H_h_pLcut10_R_Ks')
     plot_combined(hc,'H_h_z0')
     plot_combined(hc,'H_h_Lxy')
     plot_combined(hc,'H_h_R_KP')

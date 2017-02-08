@@ -19,8 +19,8 @@
 
 
 # variables
-samples="uubar ddbar ssbar ccbar bbbar gg"
-cmdfile=("1:onMode" "0:onMode" "2:onMode" "3:onMode" "4:onMode" "9:onMode")
+samples="ssbar ccbar bbbar gg"
+cmdfile=("2:onMode" "3:onMode" "4:onMode" "9:onMode")
 
 rmin=5
 rmax=1000

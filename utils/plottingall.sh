@@ -56,7 +56,7 @@ do
 	do
 	    mkdir -p ${j}
 	    cd ${j}
-	    hzplots fixed_pid -s png -z 40.0 -p 40 --pLcut-type square -R 100  -c ${j} ${i} ../../processedhz_all.root #&
+	    hzplots fixed_pid -s png -p 40 --pLcut-type square -R 5 -c ${j} ${i} ../../processedhz_all.root #&
 	    cd ..
 	done
 	cd ..

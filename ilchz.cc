@@ -947,13 +947,12 @@ int main(int argc, char* argv[])
             
             const int abspdgid = pythia.event[i].idAbs();            
 
-	    // If demanded, find the K-shorts by checking the ancestors of charged pions
-	    // and require the decay to happen in the spherical shell given by min/maxkshortdecaylength
-	    // around the interaction point.
-	    // kshortcandidate is zero when no K-short was found, the pythia index
-	    // of the K-short otherwise.
+	    // Find the K-shorts by checking the ancestors of charged pions and require the decay to
+	    // happen in the spherical shell given by min/maxkshortdecaylength around the
+	    // interaction point.  kshortcandidate is zero when no K-short was found, the pythia
+	    // index of the K-short otherwise.
 	    int kshortcandidate = 0;
-	    if( minkshortdecaylength < maxkshortdecaylength && abspdgid == 211 )
+	    if( abspdgid == 211 )
 	      {
 		const int fspion = pythia.event[i].iTopCopy();
 		const int candidateidx = pythia.event[fspion].mother1();
@@ -963,14 +962,15 @@ int main(int argc, char* argv[])
 		// When pion originates from a K_s that decays not too close to the interaction point
 		// check further if the K_s is kept. Otherwise go on and check if the pion passes the
 		// tobeprocessed routine
-		if ( pythia.event[candidateidx].idAbs() == 310 &&
-		     r2decay > minkshortdecaylength*minkshortdecaylength )
+		if ( r2decay > minkshortdecaylength*minkshortdecaylength )
 		  {
-		    if( maxkshortdecaylength*maxkshortdecaylength > r2decay)
+		    if ( pythia.event[candidateidx].idAbs() == 310 &&
+			 maxkshortdecaylength*maxkshortdecaylength > r2decay)
 		      {
 			kshortcandidate = candidateidx;
 		      }
-		    else // the K_s is decaying too far outside; ignore it and its  daughter pions
+		    else // it is not a K_s decay or the K_s is decaying too far outside; ignore it
+			 // and its daughter pions
 		      {
 			continue;
 		      }

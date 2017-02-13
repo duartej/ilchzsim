@@ -224,7 +224,7 @@ def get_tree_name(tree_names,decay_channel):
         raise AttributeError('Not found the tree "mctree_{0}_*"'\
                 ' in the root file. Note that the input file should '\
                 ' follows the standard notation: '\
-                ' "mctrue_nnnPID_channel_blahblbah" being nnn: mis-ident.'\
+                ' "mctrue_n-n-n-PID_channel_blahblbah" being nnn: mis-ident.'\
                 ' probability'.format(decay_channel))
 
 def get_histo_name(th3names,decay_channel,hadron_state):
@@ -1616,6 +1616,8 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
         plotconstraint = 'isKshort[0] + isKshort[1] == 2'
     elif charge_combination == 'NC':
         plotconstraint = 'isKshort[0] + isKshort[1] == 1'
+    else:
+        plotconstraint = 'true'
     hc = None
     for effname,e in eff.iteritems():
         hc = create_histos(e.decay_channel,e.decay_channel,25,hc)
@@ -2103,9 +2105,14 @@ def main_decay_chain(rootfiles,want_latex,nfirst=10,**kwargs):
 # compare_pid mode functions
 COLORS_PLT = [ 'black','darksage','indianred', 'goldenrod']
 LINESTYLES = ['-', '--', ':', '-.']
-LEGEND     = { 'noPID': 'no PID', 'PID': 'PID', '005PID': '5% mis-id. prob.',
-        '010PID': '10% mis-id prob.' }
-ORDER = { 'PID': 0, 'noPID': 3, '010PID':2, '005PID':1 }
+LEGEND     = { '1-1-1-PID': 'no PID',
+               '1-0-1-PID': 'ideal PID',
+               '0.5-0.08-0.75-PID': '($\epsilon_{K^\pm},\epsilon_{\pi^\pm},\epsilon_{K^0_s}$)=(0.5,0.08,0.75)',
+               '0.8-0.3-0.75-PID': '($\epsilon_{K^\pm},\epsilon_{\pi^\pm},\epsilon_{K^0_s}$)=(0.8,0.3,0.75)'}
+ORDER = { '1-1-1-PID': 0,
+          '1-0-1-PID': 1,
+          '0.5-0.08-0.75-PID':2,
+          '0.8-0.3-0.75-PID':3 }
 
 def plot_python(_x,ydict,plotname):
     """
@@ -2354,7 +2361,7 @@ if __name__ == '__main__':
             ' The tree \'middle\' name of the pre-processed file (with'\
             ' processedhz script) is then used. Note the tree name is created in the'\
             ' \'processhz script\' and should follow the standard: '\
-            ' "mctree_nnnPID_channel_blahblah.root"')
+            ' "mctree_n-n-n-PID_channel_blahblah.root"')
     parser_pid.add_argument('rootfile',nargs=1,help='Input root file, '\
             'created with processedhz script')
 
@@ -2389,7 +2396,7 @@ if __name__ == '__main__':
             pLMax=40,
             d0=[0.013,0.02,0.05],z0=None,
             pLcut_type='circular',d0cut_type='circular',
-            channel_mode='PID',
+            channel_mode='0.5-0.08-0.75-PID',
             charge_combination='all',R0=500)    
     
     # 2. decay chain for B/D ancestors

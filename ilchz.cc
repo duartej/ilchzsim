@@ -77,9 +77,14 @@ struct FinalStateHadrons
         return {PI_PLUS};
     }
     
-    static std::vector<int> getkaons()
+    static std::vector<int> get_kaons()
     {
         return {K_LONG, K_SHORT, K_PLUS };
+    }
+    
+    static std::vector<int> get_visible_kaons()
+    {
+        return {K_SHORT, K_PLUS };
     }
     
     static std::vector<int> get_charged_kaons()
@@ -102,7 +107,7 @@ struct FinalStateHadrons
         if(hadrontype == "kaons")
         {
             _selectedtype = "kaons";
-            _selected = get_charged_kaons();
+            _selected = get_visible_kaons();
         }
         else if(hadrontype == "pions")
         {
@@ -112,7 +117,7 @@ struct FinalStateHadrons
         else if(hadrontype == "kaons_pions" || hadrontype == "pions_kaons")
         {
             _selectedtype = "kaons_pions";
-            _selected = get_charged_kaons();
+            _selected = get_visible_kaons();
             std::vector<int> pions = get_charged_pions();
             _selected.insert(std::end(_selected), std::begin(pions), std::end(pions));
         }
@@ -171,14 +176,16 @@ struct ParticleKinRootAux
     // sorted string of type: particleName1::particleName2:: ... 
     std::vector<std::string> * decay_chain;
     // random devices and distributions for 
-    // misid probability
-    float misid_prob;
-    bool apply_misid;
+    // tagging/reco efficiencies
+    float kplus_eff;
+    float pion_eff;
+    float kshort_eff;
     std::mt19937 rdm_gen;
     std::uniform_real_distribution<float> uniform_dist;
 
     // Auxiliary
     std::vector<int> * _listofusedpartindex;
+    std::vector<int> * _listoftaggedpartindex;
     
     // list of vector (ints)
     std::vector<std::vector<int> **> _auxI = { 
@@ -186,7 +193,7 @@ struct ParticleKinRootAux
         &catchall, 
         &isBCancestor, &multiplicity,
         &ancestorBCindex, &isBCdaughter, &isPrimaryHadron,
-        &isKshort, &_listofusedpartindex } ;
+        &isKshort, &_listofusedpartindex, &_listoftaggedpartindex} ;
     // list of vectors (floats)
     std::vector<std::vector<float> **> _auxF = { 
         &p, &p_lab, &pmother, 
@@ -197,7 +204,8 @@ struct ParticleKinRootAux
     std::vector<int> strangehadrons;
 
     // Constructor
-    ParticleKinRootAux(const std::vector<int> & finalstatehadrons, const float & _misidprob): 
+    ParticleKinRootAux(const std::vector<int> & finalstatehadrons,
+		       const float & _kplus_eff, const float & _pion_eff, const float & _kshort_eff): 
         pdgId(nullptr),
         motherindex(nullptr),
         catchall(nullptr),
@@ -218,21 +226,18 @@ struct ParticleKinRootAux
         vy(nullptr),
         vz(nullptr),
         decay_chain(nullptr),
-        misid_prob(_misidprob),
-        apply_misid(false),
+        kplus_eff(_kplus_eff),
+        pion_eff(_pion_eff),
+        kshort_eff(_kshort_eff),
         // start ramdom machine
         rdm_gen(std::random_device()()),
         uniform_dist(0.0,1.0),
-       _listofusedpartindex(nullptr) 
+	_listofusedpartindex(nullptr),
+	_listoftaggedpartindex(nullptr) 
     {
         // User define the hadrons
         strangehadrons.insert(strangehadrons.end(),finalstatehadrons.begin(),
                 finalstatehadrons.end());
-        // apply misid or  not
-        if( std::fabs(misid_prob ) > 1e-15 )
-        {
-            apply_misid=true;
-        }
     }
 
     ~ParticleKinRootAux()
@@ -242,52 +247,37 @@ struct ParticleKinRootAux
 
     // whether or not a particle (given its pdgID) should be processed or
     // not 
-    bool tobeprocessed(const int & abspdgid)
+    bool tobeprocessed(const int & abspdgid, const int & currI)
     {
         // to be processed only if is in the strangehadrons list,
-        // i.e. usually means, pion or kaon
+        // i.e. usually means, pion or kaon (including ks)
         if( std::find(strangehadrons.begin(),strangehadrons.end(),
                         abspdgid) == strangehadrons.end() )
         {
             return false;
         }
 
-        // just return already if no misid has to be calculated
-        if( ! apply_misid )
-        {
-            return true;
-        }
-        
-        // Applying mis-identification probability (simple accepting-rejecting by value
-        // accepting when the uniform return a lower value than the misid probability
-        // (note it should be included better, a gaussian ?)
-        if( uniform_dist(rdm_gen) < misid_prob )
-        {
-            // Pion: accept the event although it shouldn't
-            // (misidentified as kaon)
-            if( abspdgid == 211 )
-            {
-                return true;
-            }
-            else
-            {
-                // Kaon: not accept the event although it should
-                // (misidentified as pion)
-                // [ Note at that point interesting particles are only 
-                //   kaons or  pions ]
-                return false;
-            }
-        }
-        else
-        {
-            // Pion should be rejected, the PID worked well
-            if( abspdgid == 211 )
-            {
-                return false;
-            }
-        }
+	this->taggedparticle(currI);
 
-        return true;
+        // Applying mis-identification probability (simple accepting-rejecting by value
+        // accepting when the uniform return a lower value than the tagging efficiency
+        // (note it should be included better, a gaussian ?)
+	if( abspdgid == 211 && uniform_dist(rdm_gen) < pion_eff )
+	  {
+	    // pion, misidentified as kaon
+	    return true;
+	  }
+	else if( abspdgid == 321 && uniform_dist(rdm_gen) < kplus_eff )
+	  {
+	    // kplus, correctly identified
+	    return true;
+	  }
+	else if( abspdgid == 310 && uniform_dist(rdm_gen) < kshort_eff )
+	  {
+	    // kshort, reconstruction worked
+	    return true;
+	  }
+        return false;
     }
 
     // Check if the particle was already stored (using as input the pythia code)
@@ -309,6 +299,25 @@ struct ParticleKinRootAux
         return _listofusedpartindex;
     }
 
+    // Check if the particle was already tagged (using as input the pythia code)
+    bool is_tagged(const int & pythia_index)
+    {
+        return (std::find(gettaggedid()->begin(),gettaggedid()->end(),pythia_index) != 
+                gettaggedid()->end());
+    }
+
+    // tagged particles in the generated event: to speed up the loop not 
+    // looking to particles already looked at and stored
+    void taggedparticle(const int & i)
+    {
+        _listoftaggedpartindex->push_back(i);
+    }
+
+    const std::vector<int> * gettaggedid()
+    {
+        return _listoftaggedpartindex;
+    }
+
     // preloop initialization
     void initloop()
     {
@@ -326,6 +335,7 @@ struct ParticleKinRootAux
         decay_chain = new std::vector<std::string>;
 
         _listofusedpartindex = new std::vector<int>;
+        _listoftaggedpartindex = new std::vector<int>;
     }
 
     // Delete before loop
@@ -769,8 +779,8 @@ void display_usage()
         << " -f final state hadrons to keep: pions,kaons or pions_kaons [default:kaons])\n"
 	<< " -s keep also k_shorts when their decay happens in a spherical shell around the interaction point\n"
 	<< "    with the inner and outer radii given in mm [defaut:0.0 0.0, i.e. do not keep them]\n"
-        << " -m mis-identification probability, a value different from 0 will force '-t pions_kaons'"
-        << " regardless of the user input [default: 0.0]\n"
+        << " -e efficiencies for tagging K+, Pi+ and Ks, pion efficiency different from 0 will\n"
+	<< "    force '-t pions_kaons' regardless of the user input [default: 0.5 0.05 0.75]\n"
         << " -h show this help" << std::endl;
 }
 
@@ -788,7 +798,9 @@ int main(int argc, char* argv[])
     // Declare option-related variables
     std::string outputfilename("hzkin.root");
     std::string strangehadrontype("kaons");
-    float misid_ratio(0.0);
+    float k_eff(0.5);
+    float pi_eff(0.08);
+    float ks_eff(0.75);
     bool accountforheavyflavoured = false;
     float minkshortdecaylength(0.0);
     float maxkshortdecaylength(0.0);
@@ -817,10 +829,12 @@ int main(int argc, char* argv[])
         {
             accountforheavyflavoured = true;
         }
-        else if( strcmp(argv[i],"-m") == 0 )
+        else if( strcmp(argv[i],"-e") == 0 )
         {
-            misid_ratio = std::stof(argv[i+1]);
-            ++i;
+            k_eff = std::stof(argv[i+1]);
+            pi_eff = std::stof(argv[i+2]);
+            ks_eff = std::stof(argv[i+3]);
+            i+=3;
         }
 	else if( strcmp(argv[i],"-s") == 0 )
 	{
@@ -849,10 +863,10 @@ int main(int argc, char* argv[])
     }
 
     // Force to kaons_pions whenever a misid_ratio != 0.0
-    if( std::fabs(misid_ratio) > 1e-20)
+    if( std::fabs(pi_eff) > 1e-20)
     {
         strangehadrontype = "kaons_pions";
-        std::cout << "ilchz: Kaon/pion mis-identification set to " << misid_ratio
+        std::cout << "ilchz: pion mis-identification set to " << pi_eff
             << "  Forcing 'kaons_pions' mode" << std::endl;
     }
     
@@ -883,7 +897,7 @@ int main(int argc, char* argv[])
     // selected hadrons:
     FinalStateHadrons fshadrons(strangehadrontype);
     // ROOT init tree
-    ParticleKinRootAux particles(fshadrons.getIDs(),misid_ratio);
+    ParticleKinRootAux particles(fshadrons.getIDs(), k_eff, pi_eff, ks_eff);
 
     TTree * thz = new TTree("mctrue","ee -> H Z -> s sbar s sbar");
     particles.inittree(thz);
@@ -945,7 +959,7 @@ int main(int argc, char* argv[])
                 continue;
             }
             
-            const int abspdgid = pythia.event[i].idAbs();            
+            int abspdgid = pythia.event[i].idAbs();            
 
 	    // Find the K-shorts by checking the ancestors of charged pions and require the decay to
 	    // happen in the spherical shell given by min/maxkshortdecaylength around the
@@ -968,6 +982,7 @@ int main(int argc, char* argv[])
 			 maxkshortdecaylength*maxkshortdecaylength > r2decay)
 		      {
 			kshortcandidate = candidateidx;
+			abspdgid = 310;
 		      }
 		    else // it is not a K_s decay or the K_s is decaying too far outside; ignore it
 			 // and its daughter pions
@@ -976,13 +991,6 @@ int main(int argc, char* argv[])
 		      }
 		  }
 	      }
-
-            // "Interesting" particles only! (here is taken into account the 
-            // misid probability as well
-            if( ! particles.tobeprocessed(abspdgid) && kshortcandidate == 0 )
-            {
-                continue;
-            }
 
             // Obtain the last "carbon" copy of the particle to work with it
 	    // In the case of K-shorts do not use the pions produced from the decay
@@ -996,8 +1004,21 @@ int main(int argc, char* argv[])
 	      {
 		lastCC = pythia.event[i].iBotCopy();
 	      }
-
 	    const int currI = lastCC;
+
+	    // if a particle was sent to the tagger before do not consider it again
+	    if( particles.is_tagged(currI) )
+	      {
+		continue;
+	      }
+	    
+            // "Interesting" particles only! (here is taken into account the 
+            // misid probability as well
+            if( ! particles.tobeprocessed(abspdgid, currI) )
+            {
+	      continue;
+            }
+
             // If was already used, don't duplicate (note thet currI is the pythia code)
             if( particles.is_stored(currI) )
             {

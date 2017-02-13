@@ -71,7 +71,7 @@
 #  -f final state hadrons to keep: pions,kaons or pions_kaons [default:kaons])
 #  -s keep also k_shorts when their decay happens in a spherical shell around the interaction point
 #     with the inner and outer radii given in mm [defaut:0.0 0.0, i.e. do not keep them]
-#  -m mis-identification probability, a value different from 0 will force '-t pions_kaons' regardless of the user input [default: 0.0]
+#  -e efficiencies for tagging K+, Pi+ and Ks, pion efficiency different from 0 will
+#     force '-t pions_kaons' regardless of the user input [default: 0.5 0.08 0.75]
 #  -h show this help
 # 
-

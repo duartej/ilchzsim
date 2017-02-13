@@ -32,13 +32,13 @@ do
     sed -i.bak "s/25:$mode = [01]/25:$mode = 1/g" ilchz.cmnd
     echo "Processing MODE:$mode"
     # Obtaining the Kaon-kaon background (assuming PID)
-    ilchz ilchz.cmnd -f "kaons" -b -s $rmin $rmax -o hz${s}_PID_kaons_only.root &
+    ilchz ilchz.cmnd -f "kaons" -b -s $rmin $rmax -e 1 0 1 -o hz${s}_1-0-1-PID_kaons_only.root &
     # Obtaining a 0.05 of mis-identification
-    ilchz ilchz.cmnd -f "kaons_pions" -b -s $rmin $rmax -m 0.05 -o hz${s}_005PID_kaons_pions.root &
+    ilchz ilchz.cmnd -f "kaons_pions" -b -s $rmin $rmax -e 0.5 0.08 0.75 -o hz${s}_0.5-0.08-0.75-PID_kaons_pions.root &
     # Obtaining a 0.05 of mis-identification
-    ilchz ilchz.cmnd -f "kaons_pions" -b -s $rmin $rmax -m 0.10 -o hz${s}_010PID_kaons_pions.root &
+    ilchz ilchz.cmnd -f "kaons_pions" -b -s $rmin $rmax -e 0.8 0.3 0.75 -o hz${s}_0.8-0.3-0.75-PID_kaons_pions.root &
     # Obtaining no PID (pions and kaons used indistinctly
-    ilchz ilchz.cmnd -f "kaons_pions" -b -s $rmin $rmax -o hz${s}_noPID_kaons_pions.root &
+    ilchz ilchz.cmnd -f "kaons_pions" -b -s $rmin $rmax -e 1 1 1 -o hz${s}_1-1-1-PID_kaons_pions.root &
     wait 
     n=$(($n+1))
 done;

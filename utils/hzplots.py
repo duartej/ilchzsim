@@ -1609,15 +1609,13 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     print
     print "\033[1;34mhzplots INFO\033[1;m Plotting..."
     # --- filling uncutted observables
-    plotconstraint = ""
+    plotconstraint = "1 == 1"
     if charge_combination == 'CC':
         plotconstraint = 'isKshort[0] + isKshort[1] == 0'
     elif charge_combination == 'NN':
         plotconstraint = 'isKshort[0] + isKshort[1] == 2'
     elif charge_combination == 'NC':
         plotconstraint = 'isKshort[0] + isKshort[1] == 1'
-    else:
-        plotconstraint = 'true'
     hc = None
     for effname,e in eff.iteritems():
         hc = create_histos(e.decay_channel,e.decay_channel,25,hc)

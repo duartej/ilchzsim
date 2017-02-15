@@ -2101,16 +2101,18 @@ def main_decay_chain(rootfiles,want_latex,nfirst=10,**kwargs):
 
 # =============================================================================================
 # compare_pid mode functions
-COLORS_PLT = [ 'black','darksage','indianred', 'goldenrod']
-LINESTYLES = ['-', '--', ':', '-.']
-LEGEND     = { '1-1-1-PID': 'no PID',
-               '1-0-1-PID': 'ideal PID',
-               '0.5-0.08-0.75-PID': '($\epsilon_{K^\pm},\epsilon_{\pi^\pm},\epsilon_{K^0_s}$)=(0.5,0.08,0.75)',
-               '0.8-0.3-0.75-PID': '($\epsilon_{K^\pm},\epsilon_{\pi^\pm},\epsilon_{K^0_s}$)=(0.8,0.3,0.75)'}
-ORDER = { '1-1-1-PID': 0,
-          '1-0-1-PID': 1,
-          '0.5-0.08-0.75-PID':2,
-          '0.8-0.3-0.75-PID':3 }
+COLORS_PLT = [ 'black','firebrick','seagreen', 'goldenrod', 'blue', 'orange', 'skyblue',
+               'black','firebrick','seagreen', 'goldenrod', 'blue', 'orange', 'skyblue']
+LINESTYLES = [ '-', '-', '-', '-', '-', '-', '-',
+               '--', '--', '--', '--', '--', '--', '--']
+
+def extractlegend(pid):
+    splitpid = pid.split('-')
+    return '($\epsilon_{{K^\pm}},\epsilon_{{\pi^\pm}},\epsilon_{{K^0_s}}$)=({0},{1},{2})'.format(splitpid[0], splitpid[1], splitpid[2])
+
+def ordering(pid):
+    splitpid = pid.split('-')
+    return float(splitpid[0])
 
 def plot_python(_x,ydict,plotname):
     """
@@ -2130,8 +2132,8 @@ def plot_python(_x,ydict,plotname):
     ax  = fig.add_subplot(1,1,1)
     ymax = 0.0
     ymin = 0.0
-    for k,(pid,signlist) in enumerate(sorted(ydict.iteritems(),key=lambda (x,y): ORDER[x])):
-        pidname = LEGEND[pid]
+    for k,(pid,signlist) in enumerate(sorted(ydict.iteritems(),key=lambda (x,y): ordering(x))):
+        pidname = extractlegend(pid)
         ymax = max(ymax,max(signlist))
         ymin = min(ymin,min(signlist))
         # Just to smooth a little the output lines

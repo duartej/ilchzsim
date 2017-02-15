@@ -41,7 +41,17 @@ n=0
 # collect the pkl files for the different PID modes
 pklfiles=""
 
-for i in 1-1-1-PID 1-0-1-PID 0.8-0.3-0.75-PID 0.5-0.08-0.75-PID
+# find all root files to know which efficiencies should be plotted
+l0=`ls | grep root | grep PID | grep ssbar`
+l1=(${l0//\ / })
+loop=""
+for element in "${l1[@]}"
+do
+    splitname=(${element//_/ })
+    loop="$loop ${splitname[1]}"
+done
+
+for i in $loop
 do
     #if (("$NCPU" <= "$n"));
     #then
@@ -52,17 +62,21 @@ do
     then
 	mkdir -p ${i} ;
 	cd ${i};
-	for j in 'CC' 'NC' 'NN' 'all'
+	for j in 'CC' 'NC' # 'NN' 'all'
 	do
-	    mkdir -p ${j}
-	    cd ${j}
-	    hzplots fixed_pid -s png -p 40 --pLcut-type square -R 5 -c ${j} ${i} ../../processedhz_all.root #&
-	    cd ..
+	    if [[ ! -e ${j} ]]
+	    then
+		echo "make directory ${i}/${j}"
+		mkdir -p ${j}
+		cd ${j}
+		hzplots fixed_pid -s png -p 40 --pLcut-type square -R 5 -c ${j} ${i} ../../processedhz_all.root #&
+		cd ..
+	    fi
 	done
 	cd ..
     fi
-    pklfilesall=$pklfilesall" ../$i/all/d0cut_dict_$i.pkl"
-    pklfilesNN=$pklfilesNN" ../$i/NN/d0cut_dict_$i.pkl"
+#    pklfilesall=$pklfilesall" ../$i/all/d0cut_dict_$i.pkl"
+#    pklfilesNN=$pklfilesNN" ../$i/NN/d0cut_dict_$i.pkl"
     pklfilesNC=$pklfilesNC" ../$i/NC/d0cut_dict_$i.pkl"
     pklfilesCC=$pklfilesCC" ../$i/CC/d0cut_dict_$i.pkl"
     #n=$(($n+1))
@@ -72,7 +86,7 @@ done;
 
 # run hzplots in compare_pid mode
 
-for j in 'CC' 'NC' 'NN' 'all'
+for j in 'CC' 'NC' # 'NN' 'all'
 do
     mkdir -p ${j}
     cd ${j}

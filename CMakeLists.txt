@@ -31,4 +31,7 @@ install(PROGRAMS utils/processhzroot.py
 install(PROGRAMS utils/hzplots.py 
     DESTINATION bin
     RENAME hzplots)
+install(PROGRAMS utils/kaonpionseparation.py 
+    DESTINATION bin
+    RENAME kaonpionseparation)
 

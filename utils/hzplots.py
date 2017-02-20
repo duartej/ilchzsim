@@ -2108,11 +2108,12 @@ LINESTYLES = [ '-', '-', '-', '-', '-', '-', '-',
 
 def extractlegend(pid):
     splitpid = pid.split('-')
-    return '($\epsilon_{{K^\pm}},\epsilon_{{\pi^\pm}},\epsilon_{{K^0_s}}$)=({0},{1},{2})'.format(splitpid[0], splitpid[1], splitpid[2])
+    return '($\epsilon_{{track}},\epsilon_{{K^\pm}},\epsilon_{{\pi^\pm}},\epsilon_{{K^0_s}}$)'\
+        '=({0}, {1}, {2}, {3})'.format(splitpid[0], splitpid[1], splitpid[2], splitpid[3])
 
 def ordering(pid):
     splitpid = pid.split('-')
-    return float(splitpid[0])
+    return float(splitpid[1])
 
 def plot_python(_x,ydict,plotname):
     """

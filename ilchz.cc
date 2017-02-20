@@ -800,7 +800,8 @@ int main(int argc, char* argv[])
     std::string strangehadrontype("kaons");
     float k_eff(0.5);
     float pi_eff(0.08);
-    float ks_eff(0.75);
+    float ks_eff(0.9);
+    float trackeff(0.95);
     bool accountforheavyflavoured = false;
     float minkshortdecaylength(0.0);
     float maxkshortdecaylength(0.0);
@@ -828,6 +829,11 @@ int main(int argc, char* argv[])
         else if( strcmp(argv[i],"-b") == 0 )
         {
             accountforheavyflavoured = true;
+        }
+        else if( strcmp(argv[i],"-t") == 0 )
+        {
+	    trackeff = std::stof(argv[i+1]);
+	    ++i;
         }
         else if( strcmp(argv[i],"-e") == 0 )
         {
@@ -897,7 +903,7 @@ int main(int argc, char* argv[])
     // selected hadrons:
     FinalStateHadrons fshadrons(strangehadrontype);
     // ROOT init tree
-    ParticleKinRootAux particles(fshadrons.getIDs(), k_eff, pi_eff, ks_eff);
+    ParticleKinRootAux particles(fshadrons.getIDs(), k_eff*trackeff, pi_eff*trackeff, ks_eff*trackeff);
 
     TTree * thz = new TTree("mctrue","ee -> H Z -> s sbar s sbar");
     particles.inittree(thz);

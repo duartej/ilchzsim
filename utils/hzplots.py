@@ -2242,7 +2242,7 @@ def save_divide(numerator,denominator,default):
         result=1
     return result
 
-def main_cmp_pid(listpklfiles):
+def main_cmp_pid(listpklfiles, verbose):
     """Steering function to plot equ....
     """
     import os
@@ -2262,7 +2262,11 @@ def main_cmp_pid(listpklfiles):
     n = {}
     r = {}
     for d0cut in filter(lambda x: x != 'HEADER',pid_dict.values()[0].keys()):
+        if verbose:
+            print '\nd0cut: {0}'.format(d0cut)
         for pid,d0dict in pid_dict.iteritems():
+            if verbose:
+                print 'pid: {0}'.format(pid)
             d0list = d0dict[d0cut]
             # the figure
             # Create the TGraphs/THistos
@@ -2327,6 +2331,12 @@ def main_cmp_pid(listpklfiles):
             r['ss_NN']=map(lambda i: save_divide(n['ss_NN'][i],n['ss'][i],1), xrange(0,len(n['ss'])))
             plot_python_detailed(x,n,'nevents_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), '# events')
             plot_python_detailed(x,r,'revents_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), 'fraction of events',False)
+            if verbose:
+                print 'x={0}'.format(x)
+                print 'n[bb_CC]={0}'.format(map(lambda i: int("{0:.0f}".format(i)), n['bb_CC']))
+                print 'n[gg_CC]={0}'.format(map(lambda i: int("{0:.0f}".format(i)), n['gg_CC']))
+                print 'n[cc_CC]={0}'.format(map(lambda i: int("{0:.0f}".format(i)), n['cc_CC']))
+                print 'n[ss_CC]={0}'.format(map(lambda i: int("{0:.0f}".format(i)), n['ss_CC']))
         plot_python(x,y,'significance_cmp_{0}{1}'.format(d0cut,SUFFIXPLOTS))
 
 
@@ -2420,7 +2430,10 @@ if __name__ == '__main__':
             ' previously by the command "fixed_pid" to be compared')
     parser_cmp_pid.add_argument( '-s', '--suffix', action='store', dest='suffixout',\
             help="output suffix for the plots [.pdf]")
-    parser_cmp_pid.set_defaults(which='compare_pid',suffixout='.pdf')
+    parser_cmp_pid.add_argument( '-v', '--verbose', action='store_true', dest='verbose',
+                                 help='Print lists that are plotted')
+    parser_cmp_pid.set_defaults(which='compare_pid',suffixout='.pdf',
+                                verbose=False)
     
     args = parser.parse_args()
     
@@ -2449,6 +2462,6 @@ if __name__ == '__main__':
         main_decay_chain(args.rootfile,args.want_latex,args.nfirst,
                 pcut=args.pcut,d0cut=args.d0cut)
     elif args.which == 'compare_pid':
-        main_cmp_pid(args.pickle_files)
+        main_cmp_pid(args.pickle_files, args.verbose)
 
 

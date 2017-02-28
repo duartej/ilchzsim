@@ -1117,6 +1117,8 @@ def create_histos(suffix,description,res_int,hc=None):
      * h_z0_suffix  : the longitudinal parameter of the leading 
                       and subleading hadrons (extrapolated as
                       straight lines) in the same histogram (1D)
+     * h_pL_pions   : the parallel momentum distribution of truth pions
+     * h_pL_kaons   : the parallel momentum distribution of truth kaons
 
      * h_nM_suffix  : the quark multiplicity (related with the number
                       of constituents of a jet) [FIXME: not well defined]
@@ -1199,6 +1201,18 @@ def create_histos(suffix,description,res_int,hc=None):
             xtitle="z_{0} [mm]",
             ytitle="A.U.",
             color=color)    
+    hc.create_and_book_histo("{0}_h_pL_pions_{1}".format(resonance,suffix),\
+            "Parallel momentum distribution of truth pions",40,0,40,\
+            description=description,
+            xtitle="p_{||} [GeV]",
+            ytitle="A.U.",
+            color=color)
+    hc.create_and_book_histo("{0}_h_pL_kaons_{1}".format(resonance,suffix),\
+            "Parallel momentum distribution of truth pions",40,0,40,\
+            description=description,
+            xtitle="p_{||} [GeV]",
+            ytitle="A.U.",
+            color=color)
     hc.create_and_book_histo("{0}_h_Lxy_{1}".format(resonance,suffix),\
             "leading kaons production vertex (transverse plane)",\
             100,0,5,
@@ -1624,6 +1638,8 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
         e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"d0","isKshort!=1")
         e.get_tree().Project("H_h_absd0_{0}".format(e.decay_channel),"abs(d0)+10**-3","isKshort!=1")
         e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"z0","isKshort!=1")
+        e.get_tree().Project("H_h_pL_pions_{0}".format(e.decay_channel),"abs(p*cos(theta))","pdgId==211")
+        e.get_tree().Project("H_h_pL_kaons_{0}".format(e.decay_channel),"abs(p*cos(theta))","pdgId==321")
         e.get_tree().Project("H_h_Lxy_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy)","isKshort!=1")
         e.get_tree().Project("H_h_R_KP_{0}".format(e.decay_channel),"R",'isKshort==0')
         e.get_tree().Project("H_h_R_Ks_{0}".format(e.decay_channel),"R",'isKshort==1')
@@ -1668,6 +1684,8 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     plot_combined(hc,'H_h_pLcut15_absd0')
     plot_combined(hc,'H_h_pLcut10_R_Ks')
     plot_combined(hc,'H_h_z0')
+    plot_combined(hc,'H_h_pL_pions')
+    plot_combined(hc,'H_h_pL_kaons')
     plot_combined(hc,'H_h_Lxy')
     plot_combined(hc,'H_h_R_KP')
     plot_combined(hc,'H_h_R_Ks')

@@ -525,6 +525,7 @@ class eff_cut_hadron(object):
         FIXME: The class should be associated to a tree!
         """
         self.decay_channel = decay_channel
+        self.short_name = decay_channel.split('_')[0]
         self.initialized = False
         self.current_d0cut = None
         self.current_pLcut = None
@@ -1632,7 +1633,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
         plotconstraint = 'isKshort[0] + isKshort[1] == 1'
     hc = None
     for effname,e in eff.iteritems():
-        hc = create_histos(e.decay_channel,e.decay_channel,25,hc)
+        hc = create_histos(e.decay_channel,e.short_name,25,hc)
         #e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"(vy-vx*tan(phi_lab))*cos(phi_lab)")
         #e.get_tree().Project("H_h_z0_{0}".format(e.decay_channel),"-(vy-vz*tan(theta_lab))/tan(theta_lab)")
         e.get_tree().Project("H_h_d0_{0}".format(e.decay_channel),"d0","isKshort!=1")

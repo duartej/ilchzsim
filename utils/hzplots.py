@@ -103,8 +103,8 @@ class higgsinputs:
         self.brccbar    = 2.85e-2
         self.brssbar    = 2.41e-4
         self.brgg       = 8.50e-2
-        self.bruubar    = 0.0  # just below 1e-4
-        self.brddbar    = 0.0  # just below 1e-4
+        self.bruubar    = 1.3e-7  # needed for number of events but actually negligible
+        self.brddbar    = 5.8e-8  # needed for number of events but actually negligible
         self.Lint       = 0 #(fb)
         self.higgsproduced = 0
 
@@ -1550,8 +1550,10 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
     observables = {}
     # Indices, see in line [MARK-1]
     I_PL = 0; I_EFF_SIG = 1; I_SIGN=2; I_PION_REJEC = 3; I_PURITY = 4; I_N_SIGNAL = 5; I_N_BKG=6; I_EFF_BKG=7; I_N_BB=8;
-    I_N_CC=9; I_N_GG=10; I_N_SS_CC=11; I_N_SS_NC=12; I_N_SS_NN=13; I_N_BB_CC=14; I_N_BB_NC=15; I_N_BB_NN=16;
-    I_N_CC_CC=17; I_N_CC_NC=18; I_N_CC_NN=19; I_N_GG_CC=20; I_N_GG_NC=21; I_N_GG_NN=22;
+    I_N_CC=9; I_N_GG=10; I_N_UU=11;  I_N_DD=12; I_N_SS_CC=13; I_N_SS_NC=14; I_N_SS_NN=15; I_N_BB_CC=16; I_N_BB_NC=17;
+    I_N_BB_NN=18; I_N_CC_CC=19; I_N_CC_NC=20; I_N_CC_NN=21; I_N_GG_CC=22; I_N_GG_NC=23; I_N_GG_NN=24;  I_N_UU_CC=25;
+    I_N_UU_NC=26; I_N_UU_NN=27; I_N_DD_CC=28; I_N_DD_NC=29; I_N_DD_NN=30; I_EFF_BB=31; I_EFF_CC=32; I_EFF_SS=33; I_EFF_UU=34;
+    I_EFF_DD=35; I_EFF_GG=36;
 
     for _d0 in d0cuts:
         d0str = '{0}'.format(_d0)
@@ -1567,22 +1569,36 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
             # Some needed values
             #eff_sig = eff[signal_channel].get_total_eff('KK') ?
             eff_sig = eff[signal_channel].get_total_eff()
+            eff_ss  = eff_sig
             n_KK    = eff[signal_channel].get_total_events()
             n_ss_CC = eff[signal_channel].get_total_events_by_FS('CC')
             n_ss_NC = eff[signal_channel].get_total_events_by_FS('NC')
             n_ss_NN = eff[signal_channel].get_total_events_by_FS('NN')
+            eff_bb  = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_eff()
             n_bb    = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_events()
             n_bb_CC = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_events_by_FS('CC')
             n_bb_NC = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_events_by_FS('NC')
             n_bb_NN = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_events_by_FS('NN')
+            eff_cc  = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_eff()
             n_cc    = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_events()
             n_cc_CC = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_events_by_FS('CC')
             n_cc_NC = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_events_by_FS('NC')
             n_cc_NN = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_events_by_FS('NN')
+            eff_gg  = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_eff()
             n_gg    = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_events()
             n_gg_CC = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_events_by_FS('CC')
             n_gg_NC = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_events_by_FS('NC')
             n_gg_NN = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_events_by_FS('NN')
+            eff_uu  = eff[filter(lambda x: x.find('uubar') != -1,channels)[0]].get_total_eff()
+            n_uu    = eff[filter(lambda x: x.find('uubar') != -1,channels)[0]].get_total_events()
+            n_uu_CC = eff[filter(lambda x: x.find('uubar') != -1,channels)[0]].get_total_events_by_FS('CC')
+            n_uu_NC = eff[filter(lambda x: x.find('uubar') != -1,channels)[0]].get_total_events_by_FS('NC')
+            n_uu_NN = eff[filter(lambda x: x.find('uubar') != -1,channels)[0]].get_total_events_by_FS('NN')
+            eff_dd  = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_total_eff()
+            n_dd    = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_total_events()
+            n_dd_CC = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_total_events_by_FS('CC')
+            n_dd_NC = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_total_events_by_FS('NC')
+            n_dd_NN = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_total_events_by_FS('NN')
             bkg_tot_evts = sum(map(lambda (x,y): y.get_total_events(),\
                     filter(lambda (x,y): x != signal_channel, eff.iteritems() )))
             bkg_tot_eff = sum(map(lambda (x,y): y.get_total_eff(),\
@@ -1617,8 +1633,10 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
                 significance   = 0.0
             # store it, note reference above [MARK-1]
             observables[d0str].append( (pL,eff_sig,significance,pion_rejection,purity,n_KK,bkg_tot_evts,bkg_tot_eff,
-                                        n_bb,n_cc,n_gg, n_ss_CC, n_ss_NC, n_ss_NN, n_bb_CC, n_bb_NC, n_bb_NN, n_cc_CC,
-                                        n_cc_NC, n_cc_NN, n_gg_CC, n_gg_NC, n_gg_NN) )
+                                        n_bb,n_cc,n_gg, n_uu, n_dd, n_ss_CC, n_ss_NC, n_ss_NN, n_bb_CC, n_bb_NC,
+                                        n_bb_NN, n_cc_CC, n_cc_NC, n_cc_NN, n_gg_CC, n_gg_NC, n_gg_NN, n_uu_CC,
+                                        n_uu_NC, n_uu_NN, n_dd_CC, n_dd_NC, n_dd_NN, eff_bb, eff_cc, eff_ss, eff_uu,
+                                        eff_dd, eff_gg) )
             i+=1
     # plotting
     print
@@ -1741,6 +1759,48 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
             x0 = 0.0, y0 = 0.0 )
     make_plot(observables,(I_PL,I_SIGN),significance_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
 
+    Eff_BB_attr = plot_attributes('Eff_bb',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='efficiency',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_EFF_BB),Eff_BB_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Eff_CC_attr = plot_attributes('Eff_cc',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='efficiency',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_EFF_CC),Eff_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Eff_SS_attr = plot_attributes('Eff_ss',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='efficiency',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_EFF_SS),Eff_SS_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Eff_UU_attr = plot_attributes('Eff_uu',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='efficiency',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_EFF_UU),Eff_UU_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Eff_DD_attr = plot_attributes('Eff_dd',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='efficiency',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_EFF_DD),Eff_DD_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Eff_GG_attr = plot_attributes('Eff_gg',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='efficiency',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_EFF_GG),Eff_GG_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
     Nevents_SS_attr = plot_attributes('N_ss_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# events',
@@ -1852,6 +1912,62 @@ def main_fixed_pid(rootfile,channels,tables,pLMax,pLcut_type,d0cuts,d0cut_type,z
             x0 = 0.0, y0 = 1.,
             log=True)
     make_plot(observables,(I_PL,I_N_GG_NN),Nevents_GG_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_UU_attr = plot_attributes('N_uu_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_UU),Nevents_UU_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_UU_CC_attr = plot_attributes('N_uu_cc_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_UU_CC),Nevents_UU_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_UU_NC_attr = plot_attributes('N_uu_nc_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_UU_NC),Nevents_UU_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_UU_NN_attr = plot_attributes('N_uu_nn_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_UU_NN),Nevents_UU_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_DD_attr = plot_attributes('N_dd_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_DD),Nevents_DD_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_DD_CC_attr = plot_attributes('N_dd_cc_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_DD_CC),Nevents_DD_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_DD_NC_attr = plot_attributes('N_dd_nc_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_DD_NC),Nevents_DD_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+
+    Nevents_DD_NN_attr = plot_attributes('N_dd_nn_events',
+            xtitle='p_{||}^{c}', xunit = '[GeV]', 
+            ytitle='# events',
+            x0 = 0.0, y0 = 1.,
+            log=True)
+    make_plot(observables,(I_PL,I_N_DD_NN),Nevents_DD_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
 
     
     # ROC curve
@@ -2154,7 +2270,7 @@ def plot_python(_x,ydict,plotname):
     ymin = 0.0
     for k,(pid,signlist) in enumerate(sorted(ydict.iteritems(),key=lambda (x,y): ordering(x))):
         pidname = extractlegend(pid)
-        ymax = max(ymax,max(signlist))
+        ymax = max(ymax,max(signlist[:20]))
         ymin = min(ymin,min(signlist))
         # Just to smooth a little the output lines
         significance_smooth = spline(x,np.array(signlist),xnew)
@@ -2168,27 +2284,37 @@ def plot_python(_x,ydict,plotname):
     ax.legend(loc=0,frameon=False)
     plt.savefig(plotname)
 
-COLORS_PLT_DET = [ 'black','darksage','indianred', 'goldenrod',
+COLORS_PLT_DET = [ 'black','indianred', 'goldenrod','darksage', 'royalblue', 'cadetblue',
                    'black', 'black', 'black',
                    'indianred', 'indianred', 'indianred',
                    'goldenrod', 'goldenrod', 'goldenrod',
-                   'darksage', 'darksage', 'darksage' ]
+                   'darksage', 'darksage', 'darksage',
+                   'royalblue', 'royalblue', 'royalblue',
+                   'cadetblue', 'cadetblue', 'cadetblue',
+                  ]
                    
-LINESTYLES_DET = ['-', '-', '-', '-',
+LINESTYLES_DET = ['-', '-', '-', '-', '-', '-',
+                  '--', '-.', ':',
+                  '--', '-.', ':',
                   '--', '-.', ':',
                   '--', '-.', ':',
                   '--', '-.', ':',
                   '--', '-.', ':' ]
-LEGEND_DET     = { 'gg': 'gg', 'bb': 'bbbar', 'cc': 'ccbar', 'ss': 'ssbar',
+LEGEND_DET     = { 'gg': 'gg', 'bb': 'bbbar', 'cc': 'ccbar',
+                   'ss': 'ssbar', 'uu': 'uubar', 'dd': 'ddbar',
                    'ss_CC': 'ss_CC', 'ss_NC': 'ss_NC', 'ss_NN': 'ss_NN',
                    'bb_CC': 'bb_CC', 'bb_NC': 'bb_NC', 'bb_NN': 'bb_NN',
                    'cc_CC': 'cc_CC', 'cc_NC': 'cc_NC', 'cc_NN': 'cc_NN',
-                   'gg_CC': 'gg_CC', 'gg_NC': 'gg_NC', 'gg_NN': 'gg_NN'}
-ORDER_DET = { 'ss': 0, 'gg':1, 'bb':2, 'cc':3 ,
-              'ss_CC':4, 'ss_NC':5, 'ss_NN':6,
-              'bb_CC':7, 'bb_NC':8, 'bb_NN':9,
-              'cc_CC':10, 'cc_NC':11, 'cc_NN':12,
-              'gg_CC':13, 'gg_NC':14, 'gg_NN':15}
+                   'gg_CC': 'gg_CC', 'gg_NC': 'gg_NC', 'gg_NN': 'gg_NN',
+                   'uu_CC': 'uu_CC', 'uu_NC': 'uu_NC', 'uu_NN': 'uu_NN',
+                   'dd_CC': 'dd_CC', 'dd_NC': 'dd_NC', 'dd_NN': 'dd_NN'}
+ORDER_DET = { 'ss': 0, 'gg':1, 'bb':2, 'cc':3 , 'uu':4, 'dd':5,
+              'ss_CC':6, 'ss_NC':7, 'ss_NN':8,
+              'bb_CC':9, 'bb_NC':10, 'bb_NN':11,
+              'cc_CC':12, 'cc_NC':13, 'cc_NN':14,
+              'gg_CC':15, 'gg_NC':16, 'gg_NN':17,
+              'uu_CC':18, 'uu_NC':19, 'uu_NN':20,
+              'dd_CC':21, 'dd_NC':22, 'dd_NN':23,}
 
 
 def plot_python_detailed(_x,ydict,plotname,ylabel,ylog=True):
@@ -2210,12 +2336,16 @@ def plot_python_detailed(_x,ydict,plotname,ylabel,ylog=True):
     ymax = 0.0
     ymin = 0.0
 
+    alreadyplotted=[]
     for k,(pid,signlist) in enumerate(sorted(ydict.iteritems(),key=lambda (x,y): ORDER_DET[x])):
         pidname = LEGEND_DET[pid]
         ymax = max(ymax,max(signlist))
         ymin = min(ymin,min(signlist))
         if ylog:
-            ymin = max(ymin, 0.1)
+            if 'eff' in plotname:
+                ymin = max(ymin, 0.001)
+            else:
+                ymin = max(ymin, 0.1)
         # Just to smooth a little the output lines
         significance_smooth = spline(x,np.array(signlist),xnew)
         plotcolors = COLORS_PLT_DET[k]
@@ -2228,6 +2358,10 @@ def plot_python_detailed(_x,ydict,plotname,ylabel,ylog=True):
             plotcolors = 'goldenrod'
         elif 'cc' in pidname:
             plotcolors = 'darksage'
+        elif 'uu' in pidname:
+            plotcolors = 'royalblue'
+        elif 'dd' in pidname:
+            plotcolors = 'cadetblue'
 
         if '_CC' in pidname:
             plotlines = '--'
@@ -2235,11 +2369,15 @@ def plot_python_detailed(_x,ydict,plotname,ylabel,ylog=True):
             plotlines = '-.'
         elif '_NN' in pidname:
             plotlines = ':'
-        plt.plot(xnew,significance_smooth,
-                linewidth=3,
-                 linestyle=plotlines,
-                 color=plotcolors, 
-                label=pidname)
+        # add only to plot when there is something to plot, i.e. not only 0 or 1
+        truefalse=map(lambda i: i==0. or i==1., signlist)
+        if (signlist not in alreadyplotted) and (False in truefalse):
+            alreadyplotted.append(signlist)
+            plt.plot(xnew,significance_smooth,
+                     linewidth=3,
+                     linestyle=plotlines,
+                     color=plotcolors, 
+                     label=pidname)
     ax.set_xlim(x[0],x[-1])
     plt.xlabel(r'Parallel momentum cut [GeV]')
     plt.ylabel(r'{0}'.format(ylabel))
@@ -2250,7 +2388,8 @@ def plot_python_detailed(_x,ydict,plotname,ylabel,ylog=True):
     handles, labels = ax.get_legend_handles_labels()
     lgd = ax.legend(handles, labels, loc=2, bbox_to_anchor=(1.05,1))
     #ax.legend(bbox_to_anchor=(1.05,1), loc=2, borderaxespad=0.)
-    plt.savefig(plotname, bbox_extra_artists=(lgd,), bbox_inches='tight')
+    if alreadyplotted != []:
+        plt.savefig(plotname, bbox_extra_artists=(lgd,), bbox_inches='tight')
     plt.close('all')
 
 def save_divide(numerator,denominator,default):
@@ -2280,6 +2419,7 @@ def main_cmp_pid(listpklfiles, verbose):
     y = {}
     n = {}
     r = {}
+    eff= {}
     for d0cut in filter(lambda x: x != 'HEADER',pid_dict.values()[0].keys()):
         if verbose:
             print '\nd0cut: {0}'.format(d0cut)
@@ -2302,6 +2442,14 @@ def main_cmp_pid(listpklfiles, verbose):
             n['gg_CC']=[]
             n['gg_NC']=[]
             n['gg_NN']=[]
+            n['uu']=[]
+            n['uu_CC']=[]
+            n['uu_NC']=[]
+            n['uu_NN']=[]
+            n['dd']=[]
+            n['dd_CC']=[]
+            n['dd_NC']=[]
+            n['dd_NN']=[]
             n['ss']=[]
             n['ss_CC']=[]
             n['ss_NC']=[]
@@ -2315,10 +2463,22 @@ def main_cmp_pid(listpklfiles, verbose):
             r['gg_CC']=[]
             r['gg_NC']=[]
             r['gg_NN']=[]
+            r['uu_CC']=[]
+            r['uu_NC']=[]
+            r['uu_NN']=[]
+            r['dd_CC']=[]
+            r['dd_NC']=[]
+            r['dd_NN']=[]
             r['ss_CC']=[]
             r['ss_NC']=[]
             r['ss_NN']=[]
-            for p,e_signal,significance,_x1,_x2,n_signal,n_bkg,e_bkg,n_bb,n_cc,n_gg,n_ss_cc,n_ss_nc,n_ss_nn,n_bb_cc,n_bb_nc,n_bb_nn,n_cc_cc,n_cc_nc,n_cc_nn,n_gg_cc,n_gg_nc,n_gg_nn in d0list:
+            eff['bb']=[]
+            eff['cc']=[]
+            eff['ss']=[]
+            eff['uu']=[]
+            eff['dd']=[]
+            eff['gg']=[]
+            for p,e_signal,significance,_x1,_x2,n_signal,n_bkg,e_bkg,n_bb,n_cc,n_gg,n_uu,n_dd,n_ss_cc,n_ss_nc,n_ss_nn,n_bb_cc,n_bb_nc,n_bb_nn,n_cc_cc,n_cc_nc,n_cc_nn,n_gg_cc,n_gg_nc,n_gg_nn,n_uu_cc,n_uu_nc,n_uu_nn,n_dd_cc,n_dd_nc,n_dd_nn, eff_bb, eff_cc, eff_ss, eff_uu, eff_dd, eff_gg in d0list:
                 y[pid].append(significance)
                 n['bb'].append(n_bb)
                 n['bb_CC'].append(n_bb_cc)
@@ -2332,10 +2492,24 @@ def main_cmp_pid(listpklfiles, verbose):
                 n['gg_CC'].append(n_gg_cc)
                 n['gg_NC'].append(n_gg_nc)
                 n['gg_NN'].append(n_gg_nn)
+                n['uu'].append(n_uu)
+                n['uu_CC'].append(n_uu_cc)
+                n['uu_NC'].append(n_uu_nc)
+                n['uu_NN'].append(n_uu_nn)
+                n['dd'].append(n_dd)
+                n['dd_CC'].append(n_dd_cc)
+                n['dd_NC'].append(n_dd_nc)
+                n['dd_NN'].append(n_dd_nn)
                 n['ss'].append(n_signal)
                 n['ss_CC'].append(n_ss_cc)
                 n['ss_NC'].append(n_ss_nc)
                 n['ss_NN'].append(n_ss_nn)
+                eff['bb'].append(eff_bb)
+                eff['cc'].append(eff_cc)
+                eff['ss'].append(eff_ss)
+                eff['uu'].append(eff_uu)
+                eff['dd'].append(eff_dd)
+                eff['gg'].append(eff_gg)
             r['bb_CC']=map(lambda i: save_divide(n['bb_CC'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
             r['bb_NC']=map(lambda i: save_divide(n['bb_NC'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
             r['bb_NN']=map(lambda i: save_divide(n['bb_NN'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
@@ -2345,17 +2519,50 @@ def main_cmp_pid(listpklfiles, verbose):
             r['gg_CC']=map(lambda i: save_divide(n['gg_CC'][i],n['gg'][i],1), xrange(0,len(n['gg'])))
             r['gg_NC']=map(lambda i: save_divide(n['gg_NC'][i],n['gg'][i],1), xrange(0,len(n['gg'])))
             r['gg_NN']=map(lambda i: save_divide(n['gg_NN'][i],n['gg'][i],1), xrange(0,len(n['gg'])))
+            r['uu_CC']=map(lambda i: save_divide(n['uu_CC'][i],n['uu'][i],1), xrange(0,len(n['uu'])))
+            r['uu_NC']=map(lambda i: save_divide(n['uu_NC'][i],n['uu'][i],1), xrange(0,len(n['uu'])))
+            r['uu_NN']=map(lambda i: save_divide(n['uu_NN'][i],n['uu'][i],1), xrange(0,len(n['uu'])))
+            r['dd_CC']=map(lambda i: save_divide(n['dd_CC'][i],n['dd'][i],1), xrange(0,len(n['dd'])))
+            r['dd_NC']=map(lambda i: save_divide(n['dd_NC'][i],n['dd'][i],1), xrange(0,len(n['dd'])))
+            r['dd_NN']=map(lambda i: save_divide(n['dd_NN'][i],n['dd'][i],1), xrange(0,len(n['dd'])))
             r['ss_CC']=map(lambda i: save_divide(n['ss_CC'][i],n['ss'][i],1), xrange(0,len(n['ss'])))
             r['ss_NC']=map(lambda i: save_divide(n['ss_NC'][i],n['ss'][i],1), xrange(0,len(n['ss'])))
             r['ss_NN']=map(lambda i: save_divide(n['ss_NN'][i],n['ss'][i],1), xrange(0,len(n['ss'])))
             plot_python_detailed(x,n,'nevents_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), '# events')
+            plot_python_detailed(x,eff,'eff_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), 'efficiency')
             plot_python_detailed(x,r,'revents_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), 'fraction of events',False)
             if verbose:
                 print 'x={0}'.format(x)
-                print 'n[bb_CC]={0}'.format(map(lambda i: int("{0:.0f}".format(i)), n['bb_CC']))
-                print 'n[gg_CC]={0}'.format(map(lambda i: int("{0:.0f}".format(i)), n['gg_CC']))
-                print 'n[cc_CC]={0}'.format(map(lambda i: int("{0:.0f}".format(i)), n['cc_CC']))
-                print 'n[ss_CC]={0}'.format(map(lambda i: int("{0:.0f}".format(i)), n['ss_CC']))
+                if False in map(lambda x: x==0., n['bb_CC']):
+                    print 'n[bb_CC]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['bb_CC'])).replace("'",""))
+                if False in map(lambda x: x==0., n['gg_CC']):
+                    print 'n[gg_CC]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['gg_CC'])).replace("'",""))
+                if False in map(lambda x: x==0., n['uu_CC']):
+                    print 'n[uu_CC]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['uu_CC'])).replace("'",""))
+                if False in map(lambda x: x==0., n['dd_CC']):
+                    print 'n[dd_CC]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['dd_CC'])).replace("'",""))
+                if False in map(lambda x: x==0., n['cc_CC']):
+                    print 'n[cc_CC]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['cc_CC'])).replace("'",""))
+                if False in map(lambda x: x==0., n['ss_CC']):
+                    print 'n[ss_CC]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['ss_CC'])).replace("'",""))
+                if False in map(lambda x: x==0., n['bb_NC']):
+                    print 'n[bb_NC]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['bb_NC'])).replace("'",""))
+                if False in map(lambda x: x==0., n['gg_NC']):
+                    print 'n[gg_NC]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['gg_NC'])).replace("'",""))
+                if False in map(lambda x: x==0., n['uu_NC']):
+                    print 'n[uu_NC]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['uu_NC'])).replace("'",""))
+                if False in map(lambda x: x==0., n['dd_NC']):
+                    print 'n[dd_NC]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['dd_NC'])).replace("'",""))
+                if False in map(lambda x: x==0., n['cc_NC']):
+                    print 'n[cc_NC]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['cc_NC'])).replace("'",""))
+                if False in map(lambda x: x==0., n['ss_NC']):
+                    print 'n[ss_NC]={0}'.format(str(map(lambda i: float("{0:.2e}".format(i)), n['ss_NC'])).replace("'",""))
+                print 'eff[bb]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['bb'])).replace("'",""))
+                print 'eff[cc]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['cc'])).replace("'",""))
+                print 'eff[ss]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['ss'])).replace("'",""))
+                print 'eff[uu]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['uu'])).replace("'",""))
+                print 'eff[dd]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['dd'])).replace("'",""))
+                print 'eff[gg]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['gg'])).replace("'",""))
         plot_python(x,y,'significance_cmp_{0}{1}'.format(d0cut,SUFFIXPLOTS))
 
 

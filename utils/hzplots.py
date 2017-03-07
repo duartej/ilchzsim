@@ -2370,7 +2370,7 @@ def plot_python_detailed(_x,ydict,plotname,ylabel,ylog=True):
         elif '_NN' in pidname:
             plotlines = ':'
         # add only to plot when there is something to plot, i.e. not only 0 or 1
-        truefalse=map(lambda i: i==0. or i==1., signlist)
+        truefalse=map(lambda i: abs(i)<1e-7 or abs(i-1)<1e-7, signlist)
         if (signlist not in alreadyplotted) and (False in truefalse):
             alreadyplotted.append(signlist)
             plt.plot(xnew,significance_smooth,
@@ -2557,6 +2557,18 @@ def main_cmp_pid(listpklfiles, verbose):
                     print 'n[cc_NC]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['cc_NC'])).replace("'",""))
                 if False in map(lambda x: x==0., n['ss_NC']):
                     print 'n[ss_NC]={0}'.format(str(map(lambda i: float("{0:.2e}".format(i)), n['ss_NC'])).replace("'",""))
+                if False in map(lambda x: x==0., n['bb_NN']):
+                    print 'n[bb_NN]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['bb_NN'])).replace("'",""))
+                if False in map(lambda x: x==0., n['gg_NN']):
+                    print 'n[gg_NN]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['gg_NN'])).replace("'",""))
+                if False in map(lambda x: x==0., n['uu_NN']):
+                    print 'n[uu_NN]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['uu_NN'])).replace("'",""))
+                if False in map(lambda x: x==0., n['dd_NN']):
+                    print 'n[dd_NN]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['dd_NN'])).replace("'",""))
+                if False in map(lambda x: x==0., n['cc_NN']):
+                    print 'n[cc_NN]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), n['cc_NN'])).replace("'",""))
+                if False in map(lambda x: x==0., n['ss_NN']):
+                    print 'n[ss_NN]={0}'.format(str(map(lambda i: float("{0:.2e}".format(i)), n['ss_NN'])).replace("'",""))
                 print 'eff[bb]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['bb'])).replace("'",""))
                 print 'eff[cc]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['cc'])).replace("'",""))
                 print 'eff[ss]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['ss'])).replace("'",""))

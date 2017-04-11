@@ -58,12 +58,22 @@ def get_opposite_charge(ref_hadron, the_other_list):
     # didn't found it
     return (-1,-1)
 
+def smear(value, sigma):
+    """ Smear value with gaussian
+    """
+    import numpy as np
+
+    return np.random.normal(value, sigma)
+
 def get_leading_kaons(tree,applycharge,useKshorts):
     """Obtain the leading kaons
     """
     from math import cos,sqrt,tan,sin,atan2
     import os
     import sys
+    
+    # resoltuion of the IP reconstruction
+    IP_resolution = 0.005 # mm
 
     # FIXME: As the d0 and z0 are calculated here, it could be useful to
     #        included them in the trees later
@@ -82,6 +92,8 @@ def get_leading_kaons(tree,applycharge,useKshorts):
     d0_f      = lambda _k: sin(atan2(tree.vy[_k],tree.vx[_k])-tree.phi_lab[_k])*L_f(_k)
     # longitudinal impact parameter
     z0_f      = lambda _k: (d0_f(_k)-L_f(_k))/tan(tree.theta_lab[_k])+tree.vz[_k]
+    # resolution of impact parameter d0 in mm
+    d0_resolution = lambda _k: 0.001*(5.0+10.0/(tree.p_lab[_k]*sin(tree.theta_lab[_k])**(3./2.)))
     nentries = tree.getentries()
     leading_kaons = {}
     ## count the particle multiplicity per quark
@@ -120,7 +132,7 @@ def get_leading_kaons(tree,applycharge,useKshorts):
             # parallel momentum with sign, and charge
             kaons_pm.append(  hadron(p=signed_pm(k),
                                 charge=particlecharge,
-                                d0 = d0_f(k),
+                                d0 = smear(d0_f(k), sqrt(d0_resolution(k)**2 + IP_resolution**2)),
                                 z0 = z0_f(k),
                                 L  = L_f(k),
                                 R  = R_f(k),

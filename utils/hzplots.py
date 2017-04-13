@@ -2266,7 +2266,7 @@ def ordering(pid):
     splitpid = pid.split('-')
     return float(splitpid[1])
 
-def plot_python(_x,ydict,plotname):
+def plot_python(_x,ydict,plotname, x_label):
     """
     """
     from matplotlib import pyplot as plt
@@ -2276,8 +2276,8 @@ def plot_python(_x,ydict,plotname):
     # Convert to numpy arrays
     x = np.array(_x)
     # and smooth the final lines
-    xnew = np.linspace(x.min(),x.max(),300)
-
+    xnew = np.linspace(x.min(),x.max(),5)
+    
     # the figure
     #plt.rc('text', usetex=True)
     fig = plt.figure()
@@ -2293,8 +2293,8 @@ def plot_python(_x,ydict,plotname):
         plt.plot(xnew,significance_smooth,
                 linewidth=3,linestyle=LINESTYLES[k],color=COLORS_PLT[k], 
                 label=pidname)
-    ax.set_xlim(x[0],x[-1])
-    plt.xlabel(r'Parallel momentum cut [GeV]')
+    ax.set_xlim(x.min(),x.max())
+    plt.xlabel(r'{0}'.format(x_label))
     plt.ylabel(r'Significance')
     ax.set_ylim(ymin,ymax*1.3)
     ax.legend(loc=0,frameon=False)
@@ -2416,7 +2416,7 @@ def save_divide(numerator,denominator,default):
         result=1
     return result
 
-def main_cmp_pid(listpklfiles, verbose):
+def main_cmp_pid(listpklfiles, verbose, pLcut):
     """Steering function to plot equ....
     """
     import os
@@ -2432,11 +2432,19 @@ def main_cmp_pid(listpklfiles, verbose):
     # Choose a d0cut to be plotted  XXX
     # FIXME use numpy arrays
     x = map(lambda x: x[0],pid_dict.values()[0].values()[0])
+    d0values_tmp = filter(lambda x: x != 'HEADER',pid_dict.values()[0].keys())
+    d0values = map(lambda x: float(x), d0values_tmp)
+    d0values.sort()
     y = {}
     n = {}
     r = {}
-    eff= {}
-    for d0cut in filter(lambda x: x != 'HEADER',pid_dict.values()[0].keys()):
+    eff = {}
+    sigd0 = {}
+    # make empty lists for significances of each pid 
+    for pid,d0dict in pid_dict.iteritems():
+        sigd0[pid]=[]
+
+    for d0cut in map(lambda x: str(x), d0values):
         if verbose:
             print '\nd0cut: {0}'.format(d0cut)
         for pid,d0dict in pid_dict.iteritems():
@@ -2526,6 +2534,8 @@ def main_cmp_pid(listpklfiles, verbose):
                 eff['uu'].append(eff_uu)
                 eff['dd'].append(eff_dd)
                 eff['gg'].append(eff_gg)
+                if p==pLcut:
+                    sigd0[pid].append(significance)
             r['bb_CC']=map(lambda i: save_divide(n['bb_CC'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
             r['bb_NC']=map(lambda i: save_divide(n['bb_NC'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
             r['bb_NN']=map(lambda i: save_divide(n['bb_NN'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
@@ -2591,8 +2601,8 @@ def main_cmp_pid(listpklfiles, verbose):
                 print 'eff[uu]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['uu'])).replace("'",""))
                 print 'eff[dd]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['dd'])).replace("'",""))
                 print 'eff[gg]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['gg'])).replace("'",""))
-        plot_python(x,y,'significance_cmp_{0}{1}'.format(d0cut,SUFFIXPLOTS))
-
+        plot_python(x,y,'significance_cmp_{0}{1}'.format(d0cut,SUFFIXPLOTS),'Parallel momentum cut [GeV]')
+    plot_python(d0values, sigd0, 'significance_cmp_d0_{0}{1}'.format(pLcut,SUFFIXPLOTS), 'd0 cut in $\mu$m')
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
@@ -2686,8 +2696,13 @@ if __name__ == '__main__':
             help="output suffix for the plots [.pdf]")
     parser_cmp_pid.add_argument( '-v', '--verbose', action='store_true', dest='verbose',
                                  help='Print lists that are plotted')
-    parser_cmp_pid.set_defaults(which='compare_pid',suffixout='.pdf',
-                                verbose=False)
+    parser_cmp_pid.add_argument( '-p', action='store', dest='pLcut', type=float,
+            help='the value of the p_|| cut in GeV used for significance plot when looping over'\
+            ' d0 cuts [Default:15]')
+    parser_cmp_pid.set_defaults(which='compare_pid',
+                                suffixout='.pdf',
+                                verbose=False,
+                                pLcut=15)
     
     args = parser.parse_args()
     
@@ -2716,6 +2731,6 @@ if __name__ == '__main__':
         main_decay_chain(args.rootfile,args.want_latex,args.nfirst,
                 pcut=args.pcut,d0cut=args.d0cut)
     elif args.which == 'compare_pid':
-        main_cmp_pid(args.pickle_files, args.verbose)
+        main_cmp_pid(args.pickle_files, args.verbose, args.pLcut)
 
 

@@ -2907,7 +2907,7 @@ def main_cmp_pid(listpklfiles, verbose, pLcut):
                 print 'eff[dd]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['dd'])).replace("'",""))
                 print 'eff[gg]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['gg'])).replace("'",""))
         plot_python(x,y,'significance_cmp_{0}{1}'.format(d0cut,SUFFIXPLOTS),'Parallel momentum cut [GeV]')
-    plot_python(d0values, sigd0, 'significance_cmp_d0_{0}{1}'.format(pLcut,SUFFIXPLOTS), 'd0 cut in $\mu$m')
+    plot_python(map(lambda x: 1000*x,d0values), sigd0, 'significance_cmp_d0_{0}{1}'.format(pLcut,SUFFIXPLOTS), 'd0 cut in $\mu$m')
 
 if __name__ == '__main__':
     from argparse import ArgumentParser

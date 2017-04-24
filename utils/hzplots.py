@@ -2516,7 +2516,7 @@ def ordering(pid):
     splitpid = pid.split('-')
     return float(splitpid[1])
 
-def plot_python(_x,ydict,plotname, x_label):
+def plot_python(_x,ydict,plotname, x_label, y_label):
     """
     """
     from matplotlib import pyplot as plt
@@ -2545,7 +2545,7 @@ def plot_python(_x,ydict,plotname, x_label):
                 label=pidname)
     ax.set_xlim(x.min(),x.max())
     plt.xlabel(r'{0}'.format(x_label))
-    plt.ylabel(r'Significance')
+    plt.ylabel(r'{0}'.format(y_label))
     ax.set_ylim(ymin,ymax*1.3)
     ax.legend(loc=0,frameon=False)
     plt.savefig(plotname)
@@ -2694,10 +2694,12 @@ def main_cmp_pid(listpklfiles, verbose, pLcut):
     r = {}
     eff = {}
     sigd0 = {}
+    total_bcdf = {}
     bcdf = {}
     # make empty lists for significances of each pid 
     for pid,d0dict in pid_dict.iteritems():
         sigd0[pid]=[]
+        total_bcdf[pid]=[]
 
     for d0cut in map(lambda x: str(x), d0values):
         if verbose:
@@ -2839,6 +2841,10 @@ def main_cmp_pid(listpklfiles, verbose, pLcut):
                 eff['gg'].append(eff_gg)
                 if p==pLcut:
                     sigd0[pid].append(significance)
+                    total_bcdf[pid].append(
+                        save_divide(sum(map(lambda ch: n[ch][-1] * bcdf[ch][-1], ['bb','cc','gg','uu','dd'])),
+                                    sum(map(lambda ch: n[ch][-1],  ['bb','cc','gg','uu','dd'])),0))
+
             r['bb_CC']=map(lambda i: save_divide(n['bb_CC'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
             r['bb_NC']=map(lambda i: save_divide(n['bb_NC'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
             r['bb_NN']=map(lambda i: save_divide(n['bb_NN'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
@@ -2906,8 +2912,9 @@ def main_cmp_pid(listpklfiles, verbose, pLcut):
                 print 'eff[uu]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['uu'])).replace("'",""))
                 print 'eff[dd]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['dd'])).replace("'",""))
                 print 'eff[gg]={0}'.format(str(map(lambda i: "{0:.2e}".format(i), eff['gg'])).replace("'",""))
-        plot_python(x,y,'significance_cmp_{0}{1}'.format(d0cut,SUFFIXPLOTS),'Parallel momentum cut [GeV]')
-    plot_python(map(lambda x: 1000*x,d0values), sigd0, 'significance_cmp_d0_{0}{1}'.format(pLcut,SUFFIXPLOTS), 'd0 cut in $\mu$m')
+        plot_python(x,y,'significance_cmp_{0}{1}'.format(d0cut,SUFFIXPLOTS),'Parallel momentum cut [GeV]','Significance')
+    plot_python(map(lambda x: 1000*x,d0values), sigd0, 'significance_cmp_d0_{0}{1}'.format(pLcut,SUFFIXPLOTS), 'd0 cut in $\mu$m','Significance')
+    plot_python(map(lambda x: 1000*x,d0values), total_bcdf, 'total_BCdf_cmp_d0_{0}{1}'.format(pLcut,SUFFIXPLOTS), 'd0 cut in $\mu$m','BC daughter fraction in bkg')
 
 if __name__ == '__main__':
     from argparse import ArgumentParser

@@ -38,5 +38,5 @@ if __name__ == '__main__':
     args=parser.parse_args()
     [eff, sep] = args.eff_and_sep
 
-    print '{0:.{1}f}'.format(effpi(eff,sep),2)
+    print '{0:.{1}f}'.format(effpi(eff,sep),4)
     

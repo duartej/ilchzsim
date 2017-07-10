@@ -1171,6 +1171,8 @@ def create_histos(suffix,description,res_int,hc=None):
      * h_pL_kaons   : the parallel momentum distribution of truth kaons
      * h_pL_candidates: the parallel momentum distribution of the kaon 
                       candidates
+     * h_plab_candidates: the lab frame momentum distribution of the kaon 
+                      candidates
      * h_nM_suffix  : the quark multiplicity (related with the number
                       of constituents of a jet) [FIXME: not well defined]
      * XXX: THE MULTIPLICITY:: MISSING!!!
@@ -1271,15 +1273,21 @@ def create_histos(suffix,description,res_int,hc=None):
             ytitle="A.U.",
             color=color)
     hc.create_and_book_histo("{0}_h_pL_kaons_{1}".format(resonance,suffix),\
-            "Parallel momentum distribution of truth pions",40,0,40,\
+            "Parallel momentum distribution of truth kaons",40,0,40,\
             description=description,
             xtitle="p_{||} [GeV]",
             ytitle="A.U.",
             color=color)
     hc.create_and_book_histo("{0}_h_pL_candidates_{1}".format(resonance,suffix),\
-            "Parallel momentum distribution of truth pions",40,0,40,\
+            "Parallel momentum distribution of kaon candidates",40,0,40,\
             description=description,
             xtitle="p_{||} [GeV]",
+            ytitle="A.U.",
+            color=color)
+    hc.create_and_book_histo("{0}_h_plab_candidates_{1}".format(resonance,suffix),\
+            "Lab frame momentum distribution of kaon candidates",40,0,40,\
+            description=description,
+            xtitle="p_{lab} [GeV]",
             ytitle="A.U.",
             color=color)
     hc.create_and_book_histo("{0}_h_Lxy_{1}".format(resonance,suffix),\
@@ -1762,6 +1770,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
         e.get_tree().Project("H_h_pL_pions_{0}".format(e.decay_channel),"abs(p*cos(theta))","pdgId==211")
         e.get_tree().Project("H_h_pL_kaons_{0}".format(e.decay_channel),"abs(p*cos(theta))","pdgId==321")
         e.get_tree().Project("H_h_pL_candidates_{0}".format(e.decay_channel),"abs(p*cos(theta))")
+        e.get_tree().Project("H_h_plab_candidates_{0}".format(e.decay_channel),"abs(p_lab)")
         e.get_tree().Project("H_h_Lxy_{0}".format(e.decay_channel),"sqrt(vx*vx+vy*vy)","isKshort!=1")
         e.get_tree().Project("H_h_R_KP_{0}".format(e.decay_channel),"R",'isKshort==0')
         e.get_tree().Project("H_h_R_Ks_{0}".format(e.decay_channel),"R",'isKshort==1')
@@ -1812,6 +1821,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
     plot_combined(hc,'H_h_pL_pions')
     plot_combined(hc,'H_h_pL_kaons')
     plot_combined(hc,'H_h_pL_candidates')
+    plot_combined(hc,'H_h_plab_candidates')
     plot_combined(hc,'H_h_Lxy')
     plot_combined(hc,'H_h_R_KP')
     plot_combined(hc,'H_h_R_Ks')

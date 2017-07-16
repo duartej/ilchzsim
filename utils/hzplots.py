@@ -1285,7 +1285,7 @@ def create_histos(suffix,description,res_int,hc=None):
             ytitle="A.U.",
             color=color)
     hc.create_and_book_histo("{0}_h_plab_candidates_{1}".format(resonance,suffix),\
-            "Lab frame momentum distribution of kaon candidates",40,0,40,\
+            "Lab frame momentum distribution of kaon candidates",40,0,50,\
             description=description,
             xtitle="p_{lab} [GeV]",
             ytitle="A.U.",
@@ -2887,6 +2887,16 @@ def main_cmp_pid(listpklfiles, verbose, pLcut):
             plot_python_detailed(x,r,'revents_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), 'fraction of events',False)
             plot_python_detailed(x,bcdf,'BCdaughterfraction_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), 'BC daughter fraction',False)
             plot_python_detailed(x,bcdf,'BCdaughterfraction_{0}_{1}_log{2}'.format(d0cut,pid,SUFFIXPLOTS), 'BC daughter fraction')
+
+            #write efficiencies to file
+            outfile='efficiencies_{0}_{1}.txt'.format(d0cut,pid)
+            f = open(outfile, 'w')
+            for i in range(0,len(x)):
+                f.write('{0:3}   {1:.4e}   {2:.4e}   {3:.4e}   {4:.4e}   {5:.4e}   {6:.4e}\n'.format(
+                    x[i], eff['bb'][i], eff['cc'][i], eff['ss'][i], eff['uu'][i],
+                    eff['dd'][i], eff['gg'][i]))
+            f.close()
+            
             if verbose:
                 print 'x={0}'.format(x)
                 if False in map(lambda x: x==0., n['bb_CC']):

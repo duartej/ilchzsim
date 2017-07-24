@@ -1627,16 +1627,11 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
     # { 'docut1': [ (pLcut1, eff_sig, significance, pion_rejection, purity, N_sig, N_bkg), ... ],  }
     observables = {}
     # Indices, see in line [MARK-1]
-    I_PL = 0; I_EFF_SIG = 1; I_SIGN=2; I_PION_REJEC = 3; I_PURITY = 4; I_N_SIGNAL = 5; I_N_BKG=6; I_EFF_BKG=7; I_N_BB=8;
-    I_N_CC=9; I_N_GG=10; I_N_UU=11;  I_N_DD=12; I_N_SS_CC=13; I_N_SS_NC=14; I_N_SS_NN=15; I_N_BB_CC=16; I_N_BB_NC=17;
-    I_N_BB_NN=18; I_N_CC_CC=19; I_N_CC_NC=20; I_N_CC_NN=21; I_N_GG_CC=22; I_N_GG_NC=23; I_N_GG_NN=24;  I_N_UU_CC=25;
-    I_N_UU_NC=26; I_N_UU_NN=27; I_N_DD_CC=28; I_N_DD_NC=29; I_N_DD_NN=30; I_EFF_BB=31; I_EFF_CC=32; I_EFF_SS=33; I_EFF_UU=34;
-    I_EFF_DD=35; I_EFF_GG=36;
-    I_BCDF_BB=37; I_BCDF_CC=38; I_BCDF_SS=39; I_BCDF_UU=40; I_BCDF_DD=41; I_BCDF_GG=42;
-    I_BCDF_BB_CC=43; I_BCDF_BB_NC=44; I_BCDF_BB_NN=45; I_BCDF_CC_CC=46; I_BCDF_CC_NC=47; I_BCDF_CC_NN=48;
-    I_BCDF_SS_CC=49; I_BCDF_SS_NC=50; I_BCDF_SS_NN=51; I_BCDF_UU_CC=52; I_BCDF_UU_NC=53; I_BCDF_UU_NN=54;
-    I_BCDF_DD_CC=55; I_BCDF_DD_NC=56; I_BCDF_DD_NN=57; I_BCDF_GG_CC=58; I_BCDF_GG_NC=59; I_BCDF_GG_NN=60;
-
+    I_PL = 0; I_EFF_SIG = 1; I_SIGN=2; I_PION_REJEC = 3; I_PURITY = 4; I_N_SIGNAL = 5; I_N_BKG=6; I_EFF_BKG=7;
+    I_N_BB=8;    I_N_CC=9; I_N_GG=10; I_N_UU=11;  I_N_DD=12;
+    I_EFF_BB=13; I_EFF_CC=14; I_EFF_SS=15; I_EFF_UU=16; I_EFF_DD=17; I_EFF_GG=18;
+    I_BCDF_BB=19; I_BCDF_CC=20; I_BCDF_SS=21; I_BCDF_UU=22; I_BCDF_DD=23; I_BCDF_GG=24;
+ 
     for _d0 in d0cuts:
         d0str = '{0}'.format(_d0)
         observables[d0str] = []
@@ -1653,58 +1648,22 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
             eff_sig = eff[signal_channel].get_total_eff()
             eff_ss  = eff_sig
             n_KK    = eff[signal_channel].get_total_events()
-            n_ss_CC = eff[signal_channel].get_total_events_by_FS('CC')
-            n_ss_NC = eff[signal_channel].get_total_events_by_FS('NC')
-            n_ss_NN = eff[signal_channel].get_total_events_by_FS('NN')
             bcdf_ss = eff[signal_channel].get_BCdaughter_fraction()
-            bcdf_ss_CC = eff[signal_channel].get_BCdaughter_fraction_by_FS('CC')
-            bcdf_ss_NC = eff[signal_channel].get_BCdaughter_fraction_by_FS('NC')
-            bcdf_ss_NN = eff[signal_channel].get_BCdaughter_fraction_by_FS('NN')
             eff_bb  = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_eff()
             n_bb    = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_events()
-            n_bb_CC = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_events_by_FS('CC')
-            n_bb_NC = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_events_by_FS('NC')
-            n_bb_NN = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_total_events_by_FS('NN')
             bcdf_bb = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_BCdaughter_fraction()
-            bcdf_bb_CC = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('CC')
-            bcdf_bb_NC = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('NC')
-            bcdf_bb_NN = eff[filter(lambda x: x.find('bbbar') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('NN')
             eff_cc  = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_eff()
             n_cc    = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_events()
-            n_cc_CC = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_events_by_FS('CC')
-            n_cc_NC = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_events_by_FS('NC')
-            n_cc_NN = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_total_events_by_FS('NN')
             bcdf_cc = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_BCdaughter_fraction()
-            bcdf_cc_CC = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('CC')
-            bcdf_cc_NC = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('NC')
-            bcdf_cc_NN = eff[filter(lambda x: x.find('ccbar') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('NN')
             eff_gg  = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_eff()
             n_gg    = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_events()
-            n_gg_CC = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_events_by_FS('CC')
-            n_gg_NC = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_events_by_FS('NC')
-            n_gg_NN = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_total_events_by_FS('NN')
             bcdf_gg = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_BCdaughter_fraction()
-            bcdf_gg_CC = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('CC')
-            bcdf_gg_NC = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('NC')
-            bcdf_gg_NN = eff[filter(lambda x: x.find('gg') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('NN')
             eff_uu  = eff[filter(lambda x: x.find('uubar') != -1,channels)[0]].get_total_eff()
             n_uu    = eff[filter(lambda x: x.find('uubar') != -1,channels)[0]].get_total_events()
-            n_uu_CC = eff[filter(lambda x: x.find('uubar') != -1,channels)[0]].get_total_events_by_FS('CC')
-            n_uu_NC = eff[filter(lambda x: x.find('uubar') != -1,channels)[0]].get_total_events_by_FS('NC')
-            n_uu_NN = eff[filter(lambda x: x.find('uubar') != -1,channels)[0]].get_total_events_by_FS('NN')
             bcdf_uu = eff[filter(lambda x: x.find('uubar') != -1,channels)[0]].get_BCdaughter_fraction()
-            bcdf_uu_CC = eff[filter(lambda x: x.find('uubar') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('CC')
-            bcdf_uu_NC = eff[filter(lambda x: x.find('uubar') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('NC')
-            bcdf_uu_NN = eff[filter(lambda x: x.find('uubar') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('NN')
             eff_dd  = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_total_eff()
             n_dd    = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_total_events()
-            n_dd_CC = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_total_events_by_FS('CC')
-            n_dd_NC = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_total_events_by_FS('NC')
-            n_dd_NN = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_total_events_by_FS('NN')
             bcdf_dd = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_BCdaughter_fraction()
-            bcdf_dd_CC = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('CC')
-            bcdf_dd_NC = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('NC')
-            bcdf_dd_NN = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_BCdaughter_fraction_by_FS('NN')
             bkg_tot_evts = sum(map(lambda (x,y): y.get_total_events(),\
                     filter(lambda (x,y): x != signal_channel, eff.iteritems() )))
             bkg_tot_eff = sum(map(lambda (x,y): y.get_total_eff(),\
@@ -1739,13 +1698,8 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
                 significance   = 0.0
             # store it, note reference above [MARK-1]
             observables[d0str].append( (pL,eff_sig,significance,pion_rejection,purity,n_KK,bkg_tot_evts,bkg_tot_eff,
-                                        n_bb,n_cc,n_gg, n_uu, n_dd, n_ss_CC, n_ss_NC, n_ss_NN, n_bb_CC, n_bb_NC,
-                                        n_bb_NN, n_cc_CC, n_cc_NC, n_cc_NN, n_gg_CC, n_gg_NC, n_gg_NN, n_uu_CC,
-                                        n_uu_NC, n_uu_NN, n_dd_CC, n_dd_NC, n_dd_NN, eff_bb, eff_cc, eff_ss, eff_uu,
-                                        eff_dd, eff_gg, bcdf_bb, bcdf_cc, bcdf_ss, bcdf_uu, bcdf_dd, bcdf_gg,
-                                        bcdf_bb_CC, bcdf_bb_NC, bcdf_bb_NN, bcdf_cc_CC, bcdf_cc_NC, bcdf_cc_NN,
-                                        bcdf_ss_CC, bcdf_ss_NC, bcdf_ss_NN, bcdf_uu_CC, bcdf_uu_NC, bcdf_uu_NN,
-                                        bcdf_dd_CC, bcdf_dd_NC, bcdf_dd_NN, bcdf_gg_CC, bcdf_gg_NC, bcdf_gg_NN ) )
+                                        n_bb,n_cc,n_gg, n_uu, n_dd, eff_bb, eff_cc, eff_ss, eff_uu,
+                                        eff_dd, eff_gg, bcdf_bb, bcdf_cc, bcdf_ss, bcdf_uu, bcdf_dd, bcdf_gg) )
             i+=1
     # plotting
     print
@@ -1925,54 +1879,12 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
             log=True)
     make_plot(observables,(I_PL,I_N_SIGNAL),Nevents_SS_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
 
-    Nevents_SS_CC_attr = plot_attributes('N_ss_cc_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_SS_CC),Nevents_SS_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_SS_NC_attr = plot_attributes('N_ss_nc_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_SS_NC),Nevents_SS_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_SS_NN_attr = plot_attributes('N_ss_nn_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_SS_NN),Nevents_SS_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
     Nevents_BB_attr = plot_attributes('N_bb_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# events',
             x0 = pLMin, y0 = 1.,
             log=True)
     make_plot(observables,(I_PL,I_N_BB),Nevents_BB_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_BB_CC_attr = plot_attributes('N_bb_cc_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_BB_CC),Nevents_BB_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_BB_NC_attr = plot_attributes('N_bb_nc_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_BB_NC),Nevents_BB_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_BB_NN_attr = plot_attributes('N_bb_nn_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_BB_NN),Nevents_BB_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
 
     Nevents_CC_attr = plot_attributes('N_cc_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
@@ -1981,54 +1893,12 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
             log=True)
     make_plot(observables,(I_PL,I_N_CC),Nevents_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
 
-    Nevents_CC_CC_attr = plot_attributes('N_cc_cc_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_CC_CC),Nevents_CC_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_CC_NC_attr = plot_attributes('N_cc_nc_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_CC_NC),Nevents_CC_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_CC_NN_attr = plot_attributes('N_cc_nn_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_CC_NN),Nevents_CC_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
     Nevents_GG_attr = plot_attributes('N_gg_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# events',
             x0 = pLMin, y0 = 1.,
             log=True)
     make_plot(observables,(I_PL,I_N_GG),Nevents_GG_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_GG_CC_attr = plot_attributes('N_gg_cc_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_GG_CC),Nevents_GG_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_GG_NC_attr = plot_attributes('N_gg_nc_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_GG_NC),Nevents_GG_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_GG_NN_attr = plot_attributes('N_gg_nn_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_GG_NN),Nevents_GG_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
 
     Nevents_UU_attr = plot_attributes('N_uu_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
@@ -2037,54 +1907,12 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
             log=True)
     make_plot(observables,(I_PL,I_N_UU),Nevents_UU_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
 
-    Nevents_UU_CC_attr = plot_attributes('N_uu_cc_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_UU_CC),Nevents_UU_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_UU_NC_attr = plot_attributes('N_uu_nc_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_UU_NC),Nevents_UU_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_UU_NN_attr = plot_attributes('N_uu_nn_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_UU_NN),Nevents_UU_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
     Nevents_DD_attr = plot_attributes('N_dd_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# events',
             x0 = pLMin, y0 = 1.,
             log=True)
     make_plot(observables,(I_PL,I_N_DD),Nevents_DD_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_DD_CC_attr = plot_attributes('N_dd_cc_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_DD_CC),Nevents_DD_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_DD_NC_attr = plot_attributes('N_dd_nc_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_DD_NC),Nevents_DD_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-
-    Nevents_DD_NN_attr = plot_attributes('N_dd_nn_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_DD_NN),Nevents_DD_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
 
     BCdf_BB_attr = plot_attributes('BCDF_BB',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
@@ -2093,54 +1921,12 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
             log=False)
     make_plot(observables,(I_PL,I_BCDF_BB),BCdf_BB_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
         
-    BCdf_BB_CC_attr = plot_attributes('BCDF_BB_CC',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_BB_CC),BCdf_BB_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_BB_NC_attr = plot_attributes('BCDF_BB_NC',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_BB_NC),BCdf_BB_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_BB_NN_attr = plot_attributes('BCDF_BB_NN',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_BB_NN),BCdf_BB_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
     BCdf_CC_attr = plot_attributes('BCDF_CC',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# fraction of BC daughters',
             x0 = pLMin, y0 = 0.,
             log=False)
     make_plot(observables,(I_PL,I_BCDF_CC),BCdf_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_CC_CC_attr = plot_attributes('BCDF_CC_CC',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_CC_CC),BCdf_CC_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_CC_NC_attr = plot_attributes('BCDF_CC_NC',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_CC_NC),BCdf_CC_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_CC_NN_attr = plot_attributes('BCDF_CC_NN',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_CC_NN),BCdf_CC_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
         
     BCdf_SS_attr = plot_attributes('BCDF_SS',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
@@ -2149,54 +1935,12 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
             log=False)
     make_plot(observables,(I_PL,I_BCDF_SS),BCdf_SS_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
         
-    BCdf_SS_CC_attr = plot_attributes('BCDF_SS_CC',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_SS_CC),BCdf_SS_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_SS_NC_attr = plot_attributes('BCDF_SS_NC',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_SS_NC),BCdf_SS_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_SS_NN_attr = plot_attributes('BCDF_SS_NN',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_SS_NN),BCdf_SS_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
     BCdf_UU_attr = plot_attributes('BCDF_UU',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# fraction of BC daughters',
             x0 = pLMin, y0 = 0.,
             log=False)
     make_plot(observables,(I_PL,I_BCDF_UU),BCdf_UU_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_UU_CC_attr = plot_attributes('BCDF_UU_CC',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_UU_CC),BCdf_UU_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_UU_NC_attr = plot_attributes('BCDF_UU_NC',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_UU_NC),BCdf_UU_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_UU_NN_attr = plot_attributes('BCDF_UU_NN',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_UU_NN),BCdf_UU_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
         
     BCdf_DD_attr = plot_attributes('BCDF_DD',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
@@ -2205,54 +1949,12 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
             log=False)
     make_plot(observables,(I_PL,I_BCDF_DD),BCdf_DD_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
         
-    BCdf_DD_CC_attr = plot_attributes('BCDF_DD_CC',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_DD_CC),BCdf_DD_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_DD_NC_attr = plot_attributes('BCDF_DD_NC',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_DD_NC),BCdf_DD_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_DD_NN_attr = plot_attributes('BCDF_DD_NN',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_DD_NN),BCdf_DD_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
     BCdf_GG_attr = plot_attributes('BCDF_GG',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# fraction of BC daughters',
             x0 = pLMin, y0 = 0.,
             log=False)
     make_plot(observables,(I_PL,I_BCDF_GG),BCdf_GG_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_GG_CC_attr = plot_attributes('BCDF_GG_CC',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_GG_CC),BCdf_GG_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_GG_NC_attr = plot_attributes('BCDF_GG_NC',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_GG_NC),BCdf_GG_NC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
-        
-    BCdf_GG_NN_attr = plot_attributes('BCDF_GG_NN',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_GG_NN),BCdf_GG_NN_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
         
     
     # ROC curve
@@ -2569,37 +2271,12 @@ def plot_python(_x,ydict,plotname, x_label, y_label):
     ax.legend(loc=0,frameon=False)
     plt.savefig(plotname)
 
-COLORS_PLT_DET = [ 'black','indianred', 'goldenrod','darksage', 'royalblue', 'cadetblue',
-                   'black', 'black', 'black',
-                   'indianred', 'indianred', 'indianred',
-                   'goldenrod', 'goldenrod', 'goldenrod',
-                   'darksage', 'darksage', 'darksage',
-                   'royalblue', 'royalblue', 'royalblue',
-                   'cadetblue', 'cadetblue', 'cadetblue',
-                  ]
+COLORS_PLT_DET = [ 'black','indianred', 'goldenrod','darksage', 'royalblue', 'cadetblue']
                    
-LINESTYLES_DET = ['-', '-', '-', '-', '-', '-',
-                  '--', '-.', ':',
-                  '--', '-.', ':',
-                  '--', '-.', ':',
-                  '--', '-.', ':',
-                  '--', '-.', ':',
-                  '--', '-.', ':' ]
+LINESTYLES_DET = ['-', '-', '-', '-', '-', '-']
 LEGEND_DET     = { 'gg': 'gg', 'bb': 'bbbar', 'cc': 'ccbar',
-                   'ss': 'ssbar', 'uu': 'uubar', 'dd': 'ddbar',
-                   'ss_CC': 'ss_CC', 'ss_NC': 'ss_NC', 'ss_NN': 'ss_NN',
-                   'bb_CC': 'bb_CC', 'bb_NC': 'bb_NC', 'bb_NN': 'bb_NN',
-                   'cc_CC': 'cc_CC', 'cc_NC': 'cc_NC', 'cc_NN': 'cc_NN',
-                   'gg_CC': 'gg_CC', 'gg_NC': 'gg_NC', 'gg_NN': 'gg_NN',
-                   'uu_CC': 'uu_CC', 'uu_NC': 'uu_NC', 'uu_NN': 'uu_NN',
-                   'dd_CC': 'dd_CC', 'dd_NC': 'dd_NC', 'dd_NN': 'dd_NN'}
-ORDER_DET = { 'ss': 0, 'gg':1, 'bb':2, 'cc':3 , 'uu':4, 'dd':5,
-              'ss_CC':6, 'ss_NC':7, 'ss_NN':8,
-              'bb_CC':9, 'bb_NC':10, 'bb_NN':11,
-              'cc_CC':12, 'cc_NC':13, 'cc_NN':14,
-              'gg_CC':15, 'gg_NC':16, 'gg_NN':17,
-              'uu_CC':18, 'uu_NC':19, 'uu_NN':20,
-              'dd_CC':21, 'dd_NC':22, 'dd_NN':23,}
+                   'ss': 'ssbar', 'uu': 'uubar', 'dd': 'ddbar'}
+ORDER_DET = { 'ss': 0, 'gg':1, 'bb':2, 'cc':3 , 'uu':4, 'dd':5}
 
 
 def plot_python_detailed(_x,ydict,plotname,ylabel,ylog=True):
@@ -2646,7 +2323,7 @@ def plot_python_detailed(_x,ydict,plotname,ylabel,ylog=True):
         elif 'gg' in pidname:
             plotcolors = 'goldenrod'
         elif 'cc' in pidname:
-            plotcolors = 'darksage'
+            plotcolors = 'forestgreen'
         elif 'uu' in pidname:
             plotcolors = 'royalblue'
         elif 'dd' in pidname:
@@ -2710,7 +2387,6 @@ def main_cmp_pid(listpklfiles, verbose, pLcut):
     d0values.sort()
     y = {}
     n = {}
-    r = {}
     eff = {}
     sigd0 = {}
     total_bcdf = {}
@@ -2731,47 +2407,11 @@ def main_cmp_pid(listpklfiles, verbose, pLcut):
             # Create the TGraphs/THistos
             y[pid] = []
             n['bb']=[]
-            n['bb_CC']=[]
-            n['bb_NC']=[]
-            n['bb_NN']=[]
             n['cc']=[]
-            n['cc_CC']=[]
-            n['cc_NC']=[]
-            n['cc_NN']=[]
             n['gg']=[]
-            n['gg_CC']=[]
-            n['gg_NC']=[]
-            n['gg_NN']=[]
             n['uu']=[]
-            n['uu_CC']=[]
-            n['uu_NC']=[]
-            n['uu_NN']=[]
             n['dd']=[]
-            n['dd_CC']=[]
-            n['dd_NC']=[]
-            n['dd_NN']=[]
             n['ss']=[]
-            n['ss_CC']=[]
-            n['ss_NC']=[]
-            n['ss_NN']=[]
-            r['bb_CC']=[]
-            r['bb_NC']=[]
-            r['bb_NN']=[]
-            r['cc_CC']=[]
-            r['cc_NC']=[]
-            r['cc_NN']=[]
-            r['gg_CC']=[]
-            r['gg_NC']=[]
-            r['gg_NN']=[]
-            r['uu_CC']=[]
-            r['uu_NC']=[]
-            r['uu_NN']=[]
-            r['dd_CC']=[]
-            r['dd_NC']=[]
-            r['dd_NN']=[]
-            r['ss_CC']=[]
-            r['ss_NC']=[]
-            r['ss_NN']=[]
             eff['bb']=[]
             eff['cc']=[]
             eff['ss']=[]
@@ -2784,74 +2424,20 @@ def main_cmp_pid(listpklfiles, verbose, pLcut):
             bcdf['uu']=[]
             bcdf['dd']=[]
             bcdf['gg']=[]
-            bcdf['bb_CC']=[]
-            bcdf['bb_NC']=[]
-            bcdf['bb_NN']=[]
-            bcdf['cc_CC']=[]
-            bcdf['cc_NC']=[]
-            bcdf['cc_NN']=[]
-            bcdf['ss_CC']=[]
-            bcdf['ss_NC']=[]
-            bcdf['ss_NN']=[]
-            bcdf['uu_CC']=[]
-            bcdf['uu_NC']=[]
-            bcdf['uu_NN']=[]
-            bcdf['dd_CC']=[]
-            bcdf['dd_NC']=[]
-            bcdf['dd_NN']=[]
-            bcdf['gg_CC']=[]
-            bcdf['gg_NC']=[]
-            bcdf['gg_NN']=[]
-            for p,e_signal,significance,_x1,_x2,n_signal,n_bkg,e_bkg,n_bb,n_cc,n_gg,n_uu,n_dd,n_ss_cc,n_ss_nc,n_ss_nn,n_bb_cc,n_bb_nc,n_bb_nn,n_cc_cc,n_cc_nc,n_cc_nn,n_gg_cc,n_gg_nc,n_gg_nn,n_uu_cc,n_uu_nc,n_uu_nn,n_dd_cc,n_dd_nc,n_dd_nn, eff_bb, eff_cc, eff_ss, eff_uu, eff_dd, eff_gg, bcdf_bb, bcdf_cc, bcdf_ss, bcdf_uu, bcdf_dd, bcdf_gg, bcdf_bb_CC, bcdf_bb_NC, bcdf_bb_NN, bcdf_cc_CC, bcdf_cc_NC, bcdf_cc_NN, bcdf_ss_CC, bcdf_ss_NC, bcdf_ss_NN, bcdf_uu_CC, bcdf_uu_NC, bcdf_uu_NN, bcdf_dd_CC, bcdf_dd_NC, bcdf_dd_NN, bcdf_gg_CC, bcdf_gg_NC, bcdf_gg_NN in d0list:
+            for p,e_signal,significance,_x1,_x2,n_signal,n_bkg,e_bkg,n_bb,n_cc,n_gg,n_uu,n_dd, eff_bb, eff_cc, eff_ss, eff_uu, eff_dd, eff_gg, bcdf_bb, bcdf_cc, bcdf_ss, bcdf_uu, bcdf_dd, bcdf_gg in d0list:
                 y[pid].append(significance)
                 n['bb'].append(n_bb)
-                n['bb_CC'].append(n_bb_cc)
-                n['bb_NC'].append(n_bb_nc)
-                n['bb_NN'].append(n_bb_nn)
                 n['cc'].append(n_cc)
-                n['cc_CC'].append(n_cc_cc)
-                n['cc_NC'].append(n_cc_nc)
-                n['cc_NN'].append(n_cc_nn)
                 n['gg'].append(n_gg)
-                n['gg_CC'].append(n_gg_cc)
-                n['gg_NC'].append(n_gg_nc)
-                n['gg_NN'].append(n_gg_nn)
                 n['uu'].append(n_uu)
-                n['uu_CC'].append(n_uu_cc)
-                n['uu_NC'].append(n_uu_nc)
-                n['uu_NN'].append(n_uu_nn)
                 n['dd'].append(n_dd)
-                n['dd_CC'].append(n_dd_cc)
-                n['dd_NC'].append(n_dd_nc)
-                n['dd_NN'].append(n_dd_nn)
                 n['ss'].append(n_signal)
-                n['ss_CC'].append(n_ss_cc)
-                n['ss_NC'].append(n_ss_nc)
-                n['ss_NN'].append(n_ss_nn)
                 bcdf['bb'].append(bcdf_bb)
                 bcdf['cc'].append(bcdf_cc)
                 bcdf['gg'].append(bcdf_gg)
                 bcdf['uu'].append(bcdf_uu)
                 bcdf['dd'].append(bcdf_dd)
                 bcdf['ss'].append(bcdf_ss)
-                bcdf['bb_CC'].append(bcdf_bb_CC)
-                bcdf['bb_NC'].append(bcdf_bb_NC)
-                bcdf['bb_NN'].append(bcdf_bb_NN)
-                bcdf['cc_CC'].append(bcdf_cc_CC)
-                bcdf['cc_NC'].append(bcdf_cc_NC)
-                bcdf['cc_NN'].append(bcdf_cc_NN)
-                bcdf['gg_CC'].append(bcdf_gg_CC)
-                bcdf['gg_NC'].append(bcdf_gg_NC)
-                bcdf['gg_NN'].append(bcdf_gg_NN)
-                bcdf['uu_CC'].append(bcdf_uu_CC)
-                bcdf['uu_NC'].append(bcdf_uu_NC)
-                bcdf['uu_NN'].append(bcdf_uu_NN)
-                bcdf['dd_CC'].append(bcdf_dd_CC)
-                bcdf['dd_NC'].append(bcdf_dd_NC)
-                bcdf['dd_NN'].append(bcdf_dd_NN)
-                bcdf['ss_CC'].append(bcdf_ss_CC)
-                bcdf['ss_NC'].append(bcdf_ss_NC)
-                bcdf['ss_NN'].append(bcdf_ss_NN)
                 eff['bb'].append(eff_bb)
                 eff['cc'].append(eff_cc)
                 eff['ss'].append(eff_ss)
@@ -2864,27 +2450,8 @@ def main_cmp_pid(listpklfiles, verbose, pLcut):
                         save_divide(sum(map(lambda ch: n[ch][-1] * bcdf[ch][-1], ['bb','cc','gg','uu','dd'])),
                                     sum(map(lambda ch: n[ch][-1],  ['bb','cc','gg','uu','dd'])),0))
 
-            r['bb_CC']=map(lambda i: save_divide(n['bb_CC'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
-            r['bb_NC']=map(lambda i: save_divide(n['bb_NC'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
-            r['bb_NN']=map(lambda i: save_divide(n['bb_NN'][i],n['bb'][i],1), xrange(0,len(n['bb'])))
-            r['cc_CC']=map(lambda i: save_divide(n['cc_CC'][i],n['cc'][i],1), xrange(0,len(n['cc'])))
-            r['cc_NC']=map(lambda i: save_divide(n['cc_NC'][i],n['cc'][i],1), xrange(0,len(n['cc'])))
-            r['cc_NN']=map(lambda i: save_divide(n['cc_NN'][i],n['cc'][i],1), xrange(0,len(n['cc'])))
-            r['gg_CC']=map(lambda i: save_divide(n['gg_CC'][i],n['gg'][i],1), xrange(0,len(n['gg'])))
-            r['gg_NC']=map(lambda i: save_divide(n['gg_NC'][i],n['gg'][i],1), xrange(0,len(n['gg'])))
-            r['gg_NN']=map(lambda i: save_divide(n['gg_NN'][i],n['gg'][i],1), xrange(0,len(n['gg'])))
-            r['uu_CC']=map(lambda i: save_divide(n['uu_CC'][i],n['uu'][i],1), xrange(0,len(n['uu'])))
-            r['uu_NC']=map(lambda i: save_divide(n['uu_NC'][i],n['uu'][i],1), xrange(0,len(n['uu'])))
-            r['uu_NN']=map(lambda i: save_divide(n['uu_NN'][i],n['uu'][i],1), xrange(0,len(n['uu'])))
-            r['dd_CC']=map(lambda i: save_divide(n['dd_CC'][i],n['dd'][i],1), xrange(0,len(n['dd'])))
-            r['dd_NC']=map(lambda i: save_divide(n['dd_NC'][i],n['dd'][i],1), xrange(0,len(n['dd'])))
-            r['dd_NN']=map(lambda i: save_divide(n['dd_NN'][i],n['dd'][i],1), xrange(0,len(n['dd'])))
-            r['ss_CC']=map(lambda i: save_divide(n['ss_CC'][i],n['ss'][i],1), xrange(0,len(n['ss'])))
-            r['ss_NC']=map(lambda i: save_divide(n['ss_NC'][i],n['ss'][i],1), xrange(0,len(n['ss'])))
-            r['ss_NN']=map(lambda i: save_divide(n['ss_NN'][i],n['ss'][i],1), xrange(0,len(n['ss'])))
             plot_python_detailed(x,n,'nevents_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), '# events')
             plot_python_detailed(x,eff,'eff_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), 'efficiency')
-            plot_python_detailed(x,r,'revents_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), 'fraction of events',False)
             plot_python_detailed(x,bcdf,'BCdaughterfraction_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), 'BC daughter fraction',False)
             plot_python_detailed(x,bcdf,'BCdaughterfraction_{0}_{1}_log{2}'.format(d0cut,pid,SUFFIXPLOTS), 'BC daughter fraction')
 

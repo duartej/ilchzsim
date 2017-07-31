@@ -34,4 +34,7 @@ install(PROGRAMS utils/hzplots.py
 install(PROGRAMS utils/kaonpionseparation.py 
     DESTINATION bin
     RENAME kaonpionseparation)
+install(PROGRAMS utils/UpperLimits.py 
+    DESTINATION bin
+    RENAME UpperLimits)
 

@@ -2402,7 +2402,12 @@ def main_cmp_pid(listpklfiles, verbose, pLcut):
         for pid,d0dict in pid_dict.iteritems():
             if verbose:
                 print 'pid: {0}'.format(pid)
-            d0list = d0dict[d0cut]
+            try:
+                d0list = d0dict[d0cut]
+            except KeyError:
+                d0cut+='0'
+                d0list = d0dict[d0cut]
+                
             # the figure
             # Create the TGraphs/THistos
             y[pid] = []

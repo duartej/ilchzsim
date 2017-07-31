@@ -32,8 +32,9 @@ Zddbar = Zddbar/total
 
     
 # create static class for collider scenarios
-scenarios={'CLIC350', 'CLIC1400', 'CLIC3000'}
-
+scenarios=['CLIC350', 'CLIC1400', 'CLIC3000']
+scenarios=['FCCeePerfect']
+    
 def Possible_SubAnalyses(scenario):
     """ Return the possible analysis channels for a given collider scenario
     """
@@ -90,6 +91,13 @@ class colliderscenarios(object):
             self.analysischannel = 'Hnunu'
             self.NHiggs = (120000./Hbbbar + 6380./Hccbar)/2
             self.NnHiggs= 47400+52200+118000+394000+207000
+
+        elif collider=='FCCeePerfect':
+            self.analysischannel = 'HZ'
+            self.NHiggs = 10**7
+            self.NnHiggs= 0
+
+        
                 
 def Expected_UpperLimit(SB, CL=0.95):
     """ Return the expected upper limit on the signal strength
@@ -185,8 +193,9 @@ def LogPlot(x, ys, xlabel, ylabel, plotname):
 
     ax.set_xlim(min(x), max(x))
 
-    # remove 0 out of the list before determining the y range
+    # remove 0 out of the list before determining the y range and remove empty lists
     dummy=map(lambda sublist: [x for x in sublist if x != 0], ys)
+    dummy=filter(None, dummy)
     ymin=0.5*min(map(lambda x: min(x), dummy))
     ymax=1.3*max(map(lambda x: max(x), ys))
     ax.set_ylim(ymin, ymax)
@@ -443,16 +452,19 @@ if __name__ == '__main__':
 
                     # get signal and background numbers
                     dummy = transpose(Nevents)
-                    SignalBackground[d0, eK, ePi] = list(map(lambda x: [x[2], sum(x)-x[2]], dummy))
                     SignalBackgroundOnlyHiggs[d0,eK,ePi] = list(map(lambda x: [x[2], sum(x)-x[2]-x[6]], dummy))
-                    significance[d0, eK, ePi] = list(map(lambda x: Expected_Significance(x),
-                                                    SignalBackground[d0, eK, ePi]))
+                    if NnHiggs != 0:
+                        SignalBackground[d0, eK, ePi] = list(map(lambda x: [x[2], sum(x)-x[2]], dummy))
+
                     significanceOnlyHiggs[d0, eK, ePi] = list(map(lambda x: Expected_Significance(x),
-                                                    SignalBackgroundOnlyHiggs[d0, eK, ePi]))
-                    UpperLimit[d0, eK, ePi] = list(map(lambda x: Expected_UpperLimit(x),
-                                                    SignalBackground[d0, eK, ePi]))
+                                                                  SignalBackgroundOnlyHiggs[d0, eK, ePi]))
                     UpperLimitOnlyHiggs[d0, eK, ePi] = list(map(lambda x: Expected_UpperLimit(x),
-                                                    SignalBackgroundOnlyHiggs[d0, eK, ePi]))
+                                                                SignalBackgroundOnlyHiggs[d0, eK, ePi]))
+                    if NnHiggs !=0:
+                        UpperLimit[d0, eK, ePi] = list(map(lambda x: Expected_UpperLimit(x),
+                                                           SignalBackground[d0, eK, ePi]))
+                        significance[d0, eK, ePi] = list(map(lambda x: Expected_Significance(x),
+                                                             SignalBackground[d0, eK, ePi]))
 
                     progress1.next()
 
@@ -472,25 +484,27 @@ if __name__ == '__main__':
                     upperlimitOnlyHiggslist=[]
                     plotlabels=[]
                     for pid in pidlist:
-                        significancelist.append(significance[d0, pid[0], pid[1]])
                         significanceOnlyHiggslist.append(significanceOnlyHiggs[d0, pid[0], pid[1]])
-                        upperlimitlist.append(UpperLimit[d0, pid[0], pid[1]])
                         upperlimitOnlyHiggslist.append(UpperLimitOnlyHiggs[d0, pid[0], pid[1]])
+                        if NnHiggs != 0:
+                            significancelist.append(significance[d0, pid[0], pid[1]])
+                            upperlimitlist.append(UpperLimit[d0, pid[0], pid[1]])
                         plotlabels.append(PIDlabel(pid))
 
-                    LinPlot(pcutlist, significancelist, '$p_{||}^{\mathrm{cut}}$ [GeV]', 'significance',
-                            plotlabels, 'Significance_{0}_{1}_{2}_{3}{4}'.format(
-                                scenario, subAnalysis, channel, d0, suffix))
                     LinPlot(pcutlist, significanceOnlyHiggslist, '$p_{||}^{\mathrm{cut}}$ [GeV]', 'significance',
                             plotlabels, 'SignificanceOnlyHiggs_{0}_{1}_{2}_{3}{4}'.format(
-                                scenario, subAnalysis, channel, d0, suffix))
-                    LinPlot(pcutlist, upperlimitlist, '$p_{||}^{\mathrm{cut}}$ [GeV]', '95\% CL on $\mu$',
-                            plotlabels, 'UpperLimit_{0}_{1}_{2}_{3}{4}'.format(
                                 scenario, subAnalysis, channel, d0, suffix))
                     LinPlot(pcutlist, upperlimitOnlyHiggslist, '$p_{||}^{\mathrm{cut}}$ [GeV]',
                             '95\% CL on $\mu$', plotlabels,
                             'UpperLimitOnlyHiggs_{0}_{1}_{2}_{3}{4}'.format(
                                 scenario, subAnalysis, channel, d0, suffix))
+                    if NnHiggs != 0:
+                        LinPlot(pcutlist, significancelist, '$p_{||}^{\mathrm{cut}}$ [GeV]', 'significance',
+                                plotlabels, 'Significance_{0}_{1}_{2}_{3}{4}'.format(
+                                    scenario, subAnalysis, channel, d0, suffix))
+                        LinPlot(pcutlist, upperlimitlist, '$p_{||}^{\mathrm{cut}}$ [GeV]', '95\% CL on $\mu$',
+                                plotlabels, 'UpperLimit_{0}_{1}_{2}_{3}{4}'.format(
+                                    scenario, subAnalysis, channel, d0, suffix))
 
                     progress2.next()
 
@@ -502,23 +516,24 @@ if __name__ == '__main__':
                     for y in range(0, len(contourY)):
                         dummy=[]
                         for x in range(0, len(contourX)):
-                            dummy.append(UpperLimit[X[0][x], pid[0], pid[1]][y])
-                        Z.append(dummy)
-                    
-                    Plot2D(X, Y, np.array(Z), '$d_{0}$ [mm]', '$p_{||}^{\mathrm{cut}}$ [GeV]', '95\% CL on $\mu$',
-                           '2Dupperlimit_{0}_{1}_{2}_{3}_{4}{5}'.format(
-                                scenario, subAnalysis, channel, pid[0], pid[1], suffix))
-
-                    Z=[]
-                    for y in range(0, len(contourY)):
-                        dummy=[]
-                        for x in range(0, len(contourX)):
                             dummy.append(UpperLimitOnlyHiggs[X[0][x], pid[0], pid[1]][y])
                         Z.append(dummy)
                     
-                    Plot2D(X, Y, np.array(Z), '$d_{0}$ [mm]', '$p_{||}^{\mathrm{cut}}$ [GeV]', '95\% CL on $\mu$',
-                           '2DupperlimitOnlyHiggs_{0}_{1}_{2}_{3}_{4}{5}'.format(
-                                scenario, subAnalysis, channel, pid[0], pid[1], suffix))
+                    Plot2D(X, Y, np.array(Z), '$d_{0}$ [mm]', '$p_{||}^{\mathrm{cut}}$ [GeV]',
+                           '95\% CL on $\mu$', '2DupperlimitOnlyHiggs_{0}_{1}_{2}_{3}_{4}{5}'.format(
+                               scenario, subAnalysis, channel, pid[0], pid[1], suffix))
+
+                    if NnHiggs != 0:
+                        Z=[]
+                        for y in range(0, len(contourY)):
+                            dummy=[]
+                            for x in range(0, len(contourX)):
+                                dummy.append(UpperLimit[X[0][x], pid[0], pid[1]][y])
+                            Z.append(dummy)
+                    
+                        Plot2D(X, Y, np.array(Z), '$d_{0}$ [mm]', '$p_{||}^{\mathrm{cut}}$ [GeV]',
+                               '95\% CL on $\mu$', '2Dupperlimit_{0}_{1}_{2}_{3}_{4}{5}'.format(
+                                   scenario, subAnalysis, channel, pid[0], pid[1], suffix))
 
                     progress2.next()
                 progress2.stop()

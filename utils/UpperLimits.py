@@ -58,7 +58,8 @@ class progressbar(object):
         import sys
         self.counter+=1
         sys.stdout.write('\r')
-        sys.stdout.write(self.progressstring.format('='*self.counter, int(round(100./self.nsteps*self.counter))))
+        sys.stdout.write(self.progressstring.format(
+            '='*self.counter, int(round(100./self.nsteps*self.counter))))
         sys.stdout.flush()
 
     def stop(self):
@@ -206,7 +207,7 @@ def LogPlot(x, ys, xlabel, ylabel, plotname):
     plt.ylabel(r'{0}'.format(ylabel))
     ax.legend(loc=0, frameon=False)
 
-    plt.savefig(plotname)
+    plt.savefig(plotname.replace('_None',''))
     plt.close()
 
     
@@ -250,7 +251,7 @@ def LinPlot(x, ys, xlabel, ylabel, plotlabels, plotname):
     plt.ylabel(r'{0}'.format(ylabel))
     ax.legend(loc=0, frameon=False)
 
-    plt.savefig(plotname)
+    plt.savefig(plotname.replace('_None',''))
     plt.close()
 
 def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname):
@@ -280,7 +281,7 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname):
     plt.ylabel(ylabel)
     cbar = plt.colorbar(contour)
     cbar.ax.set_ylabel(zlabel)
-    plt.savefig(plotname)
+    plt.savefig(plotname.replace('_None',''))
     plt.close()
     
     
@@ -429,14 +430,16 @@ if __name__ == '__main__':
                     # where each entry is a list as funcion of pcut
                     efflist=[]
                     for pcut in pcutlist:
-                        dummy = list(map(lambda x: eff[channel, x, etrack, eK, ePi, eK0, d0, pcut], ['bb', 'cc', 'ss', 'uu', 'dd', 'gg']))
+                        dummy = list(map(lambda x: eff[channel, x, etrack, eK, ePi, eK0, d0, pcut],
+                                         ['bb', 'cc', 'ss', 'uu', 'dd', 'gg']))
                         dummy.append(nonHiggsEff(scenario, subAnalysis, channel, dummy))
                         efflist.append(dummy)
                     efflist=np.array(transpose(efflist))
                     if firstScenario:
                         LogPlot(pcutlist, efflist, '$p_{||}^{\mathrm{cut}}$ [GeV]',
                                 '$\epsilon_{s\mathrm{-tag}}$',
-                                'eff_{0}_{1}_{2}_{3}_{4}_{5}{6}'.format(channel, d0, etrack, eK, ePi, eK0, suffix))
+                                'eff_{0}_{1}_{2}_{3}_{4}_{5}{6}'.format(
+                                    channel, d0, etrack, eK, ePi, eK0, suffix))
 
                     # get number of events
                     NHiggs =collider.NHiggs
@@ -448,7 +451,8 @@ if __name__ == '__main__':
 
                     LogPlot(pcutlist, Nevents,  '$p_{||}^{\mathrm{cut}}$ [GeV]',
                                 '\# events',
-                                'Nevents_{0}_{1}_{2}_{3}_{4}_{5}_{6}_{7}{8}'.format(scenario, subAnalysis, channel, d0, etrack, eK, ePi, eK0, suffix))
+                                'Nevents_{0}_{1}_{2}_{3}_{4}_{5}_{6}_{7}{8}'.format(
+                                    scenario, subAnalysis, channel, d0, etrack, eK, ePi, eK0, suffix))
 
                     # get signal and background numbers
                     dummy = transpose(Nevents)
@@ -491,8 +495,8 @@ if __name__ == '__main__':
                             upperlimitlist.append(UpperLimit[d0, pid[0], pid[1]])
                         plotlabels.append(PIDlabel(pid))
 
-                    LinPlot(pcutlist, significanceOnlyHiggslist, '$p_{||}^{\mathrm{cut}}$ [GeV]', 'significance',
-                            plotlabels, 'SignificanceOnlyHiggs_{0}_{1}_{2}_{3}{4}'.format(
+                    LinPlot(pcutlist, significanceOnlyHiggslist, '$p_{||}^{\mathrm{cut}}$ [GeV]',
+                            'significance', plotlabels, 'SignificanceOnlyHiggs_{0}_{1}_{2}_{3}{4}'.format(
                                 scenario, subAnalysis, channel, d0, suffix))
                     LinPlot(pcutlist, upperlimitOnlyHiggslist, '$p_{||}^{\mathrm{cut}}$ [GeV]',
                             '95\% CL on $\mu$', plotlabels,

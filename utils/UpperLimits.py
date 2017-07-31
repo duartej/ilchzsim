@@ -4,9 +4,6 @@
 
    usage: 
 """
-# format of plots
-suffix='.png'
-
 # Final states in the Higgs channel
 HiggsChannels=['CC', 'NC', 'NN']
 
@@ -67,7 +64,6 @@ class progressbar(object):
         import sys
         sys.stdout.write('\n')
 
-        
 class colliderscenarios(object):
     def __init__(self, collider, analysischannel=None):
         if collider=='CLIC350':
@@ -96,7 +92,6 @@ class colliderscenarios(object):
             self.NnHiggs= 47400+52200+118000+394000+207000
                 
 def Expected_UpperLimit(SB, CL=0.95):
-    
     """ Return the expected upper limit on the signal strength
     
     Parameters
@@ -145,14 +140,30 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 def Print_Fail(message):
-    print bcolors.FAIL + bcolors.BOLD + 'WARNING: ' + message + bcolors.ENDC
+    print (bcolors.FAIL + bcolors.BOLD + 'WARNING: ' + message + bcolors.ENDC)
 
 def Print_Warning(message):
-    print bcolors.WARNING + bcolors.BOLD + 'WARNING: ' + message + bcolors.ENDC
+    print (bcolors.WARNING + bcolors.BOLD + 'WARNING: ' + message + bcolors.ENDC)
 
 COLORS=['crimson', 'blue', 'forestgreen', 'darkorange', 'skyblue', 'm', 'darkgrey']
 
 def LogPlot(x, ys, xlabel, ylabel, plotname):
+    """ make a logplot 
+
+    parameters:
+    -----------
+    x: [floats]
+           the x values of all points
+    ys [lists of floats]
+           a list containing lists of the y values. the order is bb, cc, ss, uu, dd, gg, (non-Higgs)
+    xlabel: str
+           the label of the x axis
+    ylabel: str
+           the label of the y axis
+    plotname: str
+           the file name under which the plot is saved.
+    """
+    
     import matplotlib.pyplot as plt
 
     plt.rc('text', usetex=True)
@@ -174,7 +185,9 @@ def LogPlot(x, ys, xlabel, ylabel, plotname):
 
     ax.set_xlim(min(x), max(x))
 
-    ymin=0.5*min(map(lambda x: min(x), ys))
+    # remove 0 out of the list before determining the y range
+    dummy=map(lambda sublist: [x for x in sublist if x != 0], ys)
+    ymin=0.5*min(map(lambda x: min(x), dummy))
     ymax=1.3*max(map(lambda x: max(x), ys))
     ax.set_ylim(ymin, ymax)
     ax.set_yscale('log')
@@ -189,6 +202,23 @@ def LogPlot(x, ys, xlabel, ylabel, plotname):
 
     
 def LinPlot(x, ys, xlabel, ylabel, plotlabels, plotname):
+    """ make a plot 
+
+    parameters:
+    -----------
+    x: [floats]
+           the x values of all points
+    ys [lists of floats]
+           a list containing lists of the y values. the order is bb, cc, ss, uu, dd, gg, (non-Higgs)
+    xlabel: str
+           the label of the x axis
+    ylabel: str
+           the label of the y axis
+    plotlabels: [str]
+           the labels for the different ys[i] (in the same order)
+    plotname: str
+           the file name under which the plot is saved.
+    """
     import matplotlib.pyplot as plt
 
     plt.rc('text', usetex=True)
@@ -215,6 +245,22 @@ def LinPlot(x, ys, xlabel, ylabel, plotlabels, plotname):
     plt.close()
 
 def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname):
+    """ contour plot
+
+    parameters:
+    -----------
+    X, Y, Z: mesh grids
+           contain the x, y, and z values
+    xlabel: str
+           the label of the x axis
+    ylabel: str
+           the label of the y axis
+    zlabel: str
+           the label of the z axis
+    plotname: str
+           the file name under which the plot is saved.
+    """
+
     import matplotlib.pyplot as plt
  
     fig=plt.figure()
@@ -244,12 +290,12 @@ def nonHiggsEff(scenario, subAnalysis, channel, effs):
               the efficiencies of [bb, cc, ss, uu, dd, gg] final states
     """
 
-    relativeBRs=[Zbbbar, Zccbar, Zssbar, Zuubar, Zddbar, 0]
-    return sum( map(lambda x: x[0]*x[1], zip(relativeBRs, effs)) )
+    relativeBRs=np.array([Zbbbar, Zccbar, Zssbar, Zuubar, Zddbar, 0])
+    return sum(effs*relativeBRs)
 
 
 def transpose(listoflist):
-    return map(list, zip(*listoflist))
+    return list(map(list, zip(*listoflist)))
 
 def PIDlabel(pid):
     return r'$\epsilon_{0}={1},~\epsilon_{2}={3}$'.format('K^\pm',pid[0],'\pi^\pm',pid[1])
@@ -265,36 +311,45 @@ if __name__ == '__main__':
 
     usage = "Significance and upper limit for collider scenarios"
     parser = ArgumentParser(prog='UpperLimits', description=usage)
-    parser.add_argument('basedir', help='The base directory from '\
-                        'where the input files are found')
+    parser.add_argument('-b', '--basedir', action='store', dest='basedir',
+                        help='The base directory from where the input files are found [pwd]')
+    parser.add_argument( '-s', '--suffix', action='store', dest='suffix',\
+                         help="output suffix for the plots [.png]")
 
+    pwd=os.getcwd()
+    parser.set_defaults(suffix='.png', basedir=pwd)
     args = parser.parse_args()
+
     basedir = args.basedir
-    print 'run in directory {0}\n'.format(basedir)
+    suffix  = args.suffix
+    print('\nrun in directory {0}'.format(basedir))
+    print('save plots as {0}'.format(suffix))
 
     # test if basedir exists
-    basedirentries = os.listdir(basedir)
-
+    try:
+        basedirentries = os.listdir(basedir)
+    except OSError:
+        Print_Fail('Could not open {0}'.format(basedir))
+        exit()
 
     # Read all the efficiencies
-    parameters =[] # (d0, etrack, eK, ePi, eK0)
-    pcutlist   =[]
-    firstFile=True
-    firstChannel=True
-    
-    eff={}
-    processedChannels=[]
+    parameters = [] # (d0, etrack, eK, ePi, eK0)
+    pcutlist   = []
+    eff        = {}
+    firstFile  = True
+    firstChannel      = True
+    processedChannels = []
     for channel in HiggsChannels:
         if channel in basedirentries and os.path.isdir(basedir+'/'+channel):
             processedChannels.append(channel)
             effFiles = filter(lambda x: 'efficiencies' in x and 'txt' in x, os.listdir(basedir+'/'+channel))
 
             for effFile in effFiles:
-                # print 'file: {0}/{1}'.format(channel, effFile)
                 # extract information out of the file name
+                # print('file: {0}/{1}'.format(channel, effFile))
                 try:
                     [dummy2, d0cut, etrack, eK, ePi, eK0, dummy2] = effFile.replace('_','-').split('-')
-                    parameter = map(lambda x: float(x), [ d0cut, etrack, eK, ePi, eK0 ])
+                    parameter = list(map(lambda x: float(x), [d0cut, etrack, eK, ePi, eK0]))
                     [d0cut, etrack, eK, ePi, eK0] = parameter
                 except:
                     Print_Warning('failed with file {0}'.format(effFile))
@@ -334,17 +389,15 @@ if __name__ == '__main__':
     firstScenario=True
     for scenario in scenarios:
         for subAnalysis in Possible_SubAnalyses(scenario):
-            print ""
-            print "##########################################"
-            print "##########################################"
-            print "      {0}           {1}       ".format(scenario, subAnalysis)
-            print "##########################################"
-            print "##########################################"
+            print("")
+            print("##########################################")
+            print("##########################################")
+            print("      {0}           {1}       ".format(scenario, subAnalysis))
             collider=colliderscenarios(scenario, subAnalysis)
 
             for channel in processedChannels:
-                print "##########################################"
-                print '            {0}'.format(channel)
+                print("==========================================")
+                print('            {0}'.format(channel))
                 SignalBackground={}
                 SignalBackgroundOnlyHiggs={}
                 significance={}
@@ -353,12 +406,12 @@ if __name__ == '__main__':
                 UpperLimitOnlyHiggs={}
                 d0cutlist=[]
                 pidlist=[]
-                print 'getting the efficiency and Nevent plots, calculate upper limits'
+                print('getting the efficiency and Nevent plots, calculate upper limits')
 
                 progress1=progressbar(len(parameters))
                 
                 for (d0, etrack, eK, ePi, eK0) in parameters:
-                    # print (d0, etrack, eK, ePi, eK0)
+                    # print((d0, etrack, eK, ePi, eK0))
 
                     d0cutlist.append(d0)
                     pidlist.append([eK, ePi])
@@ -367,10 +420,10 @@ if __name__ == '__main__':
                     # where each entry is a list as funcion of pcut
                     efflist=[]
                     for pcut in pcutlist:
-                        dummy = map(lambda x: eff[channel, x, etrack, eK, ePi, eK0, d0, pcut], ['bb', 'cc', 'ss', 'uu', 'dd', 'gg'])
+                        dummy = list(map(lambda x: eff[channel, x, etrack, eK, ePi, eK0, d0, pcut], ['bb', 'cc', 'ss', 'uu', 'dd', 'gg']))
                         dummy.append(nonHiggsEff(scenario, subAnalysis, channel, dummy))
                         efflist.append(dummy)
-                    efflist=transpose(efflist)
+                    efflist=np.array(transpose(efflist))
                     if firstScenario:
                         LogPlot(pcutlist, efflist, '$p_{||}^{\mathrm{cut}}$ [GeV]',
                                 '$\epsilon_{s\mathrm{-tag}}$',
@@ -379,40 +432,36 @@ if __name__ == '__main__':
                     # get number of events
                     NHiggs =collider.NHiggs
                     NnHiggs=collider.NnHiggs
-                    Nevents=[]
-                    Nevents.append(map(lambda x: x*NHiggs*Hbbbar, efflist[0]))
-                    Nevents.append(map(lambda x: x*NHiggs*Hccbar, efflist[1]))
-                    Nevents.append(map(lambda x: x*NHiggs*Hssbar, efflist[2]))
-                    Nevents.append(map(lambda x: x*NHiggs*Huubar, efflist[3]))
-                    Nevents.append(map(lambda x: x*NHiggs*Hddbar, efflist[4]))
-                    Nevents.append(map(lambda x: x*NHiggs*Hgg, efflist[5]))
-                    Nevents.append(map(lambda x: x*NnHiggs, efflist[6]))
+                    effT=transpose(efflist)
+                    pureNumbers=np.append(NHiggs*np.array([Hbbbar, Hccbar, Hssbar, Huubar, Hddbar, Hgg]),
+                                          NnHiggs)
+                    Nevents=transpose(effT*pureNumbers)
+
                     LogPlot(pcutlist, Nevents,  '$p_{||}^{\mathrm{cut}}$ [GeV]',
                                 '\# events',
                                 'Nevents_{0}_{1}_{2}_{3}_{4}_{5}_{6}_{7}{8}'.format(scenario, subAnalysis, channel, d0, etrack, eK, ePi, eK0, suffix))
 
                     # get signal and background numbers
                     dummy = transpose(Nevents)
-                    SignalBackground[d0, eK, ePi] = map(lambda x: [x[2], sum(x)-x[2]], dummy)
-                    SignalBackgroundOnlyHiggs[d0,eK,ePi] = map(lambda x: [x[2], sum(x)-x[2]-x[6]], dummy)
-                    significance[d0, eK, ePi] = map(lambda x: Expected_Significance(x),
-                                                    SignalBackground[d0, eK, ePi])
-                    significanceOnlyHiggs[d0, eK, ePi] = map(lambda x: Expected_Significance(x),
-                                                    SignalBackgroundOnlyHiggs[d0, eK, ePi])
-                    UpperLimit[d0, eK, ePi] = map(lambda x: Expected_UpperLimit(x),
-                                                    SignalBackground[d0, eK, ePi])
-                    UpperLimitOnlyHiggs[d0, eK, ePi] = map(lambda x: Expected_UpperLimit(x),
-                                                    SignalBackgroundOnlyHiggs[d0, eK, ePi])
+                    SignalBackground[d0, eK, ePi] = list(map(lambda x: [x[2], sum(x)-x[2]], dummy))
+                    SignalBackgroundOnlyHiggs[d0,eK,ePi] = list(map(lambda x: [x[2], sum(x)-x[2]-x[6]], dummy))
+                    significance[d0, eK, ePi] = list(map(lambda x: Expected_Significance(x),
+                                                    SignalBackground[d0, eK, ePi]))
+                    significanceOnlyHiggs[d0, eK, ePi] = list(map(lambda x: Expected_Significance(x),
+                                                    SignalBackgroundOnlyHiggs[d0, eK, ePi]))
+                    UpperLimit[d0, eK, ePi] = list(map(lambda x: Expected_UpperLimit(x),
+                                                    SignalBackground[d0, eK, ePi]))
+                    UpperLimitOnlyHiggs[d0, eK, ePi] = list(map(lambda x: Expected_UpperLimit(x),
+                                                    SignalBackgroundOnlyHiggs[d0, eK, ePi]))
 
                     progress1.next()
 
                 progress1.stop()
                 d0cutlist=list(set(d0cutlist))
                 d0cutlist.sort()
-                pidlist  =map(list, set(map(tuple, pidlist)))
-                pidlist.sort()
+                pidlist  =sorted(map(list, set(map(tuple, pidlist))))
 
-                print 'getting the significance, upper limit and 2D plots'
+                print('getting the significance, upper limit and 2D plots')
                 progress2=progressbar(len(d0cutlist)+ len(pidlist))
                 
                 # Plot significance and upper limits

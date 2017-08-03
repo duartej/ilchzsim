@@ -31,19 +31,6 @@ Zuubar = Zuubar/total
 Zddbar = Zddbar/total
 
     
-# create static class for collider scenarios
-scenarios=['CLIC350', 'CLIC1400', 'CLIC3000']
-scenarios=['FCCeePerfect']
-    
-def Possible_SubAnalyses(scenario):
-    """ Return the possible analysis channels for a given collider scenario
-    """
-
-    if scenario == 'CLIC350':
-        return ['Ztoinv', 'Ztohad']
-    else:
-        return [None]
-
 class progressbar(object):
     def __init__(self, nsteps):
         import sys
@@ -65,6 +52,20 @@ class progressbar(object):
     def stop(self):
         import sys
         sys.stdout.write('\n')
+
+def Possible_SubAnalyses(scenario):
+    """ Return the possible analysis channels for a given collider scenario
+    """
+
+    if scenario == 'CLIC350':
+        return ['Ztoinv', 'Ztohad']
+    elif scenario in ['ILC250', 'ILC350',]:
+        return ['inv', 'had', 'electron', 'muon']
+    elif scenario in ['FCCee']:
+        return ['inv', 'had', 'electron', 'muon']
+    else:
+        return [None]
+
 
 class colliderscenarios(object):
     def __init__(self, collider, analysischannel=None):
@@ -92,6 +93,50 @@ class colliderscenarios(object):
             self.analysischannel = 'Hnunu'
             self.NHiggs = (120000./Hbbbar + 6380./Hccbar)/2
             self.NnHiggs= 47400+52200+118000+394000+207000
+
+        elif collider == 'ILC250':
+            # numbers from 1207.0300
+            if analysischannel == 'inv':
+                self.analysischannel = 'inv'
+                self.NHiggs  = 9293
+                self.NnHiggs = 10940
+            elif analysischannel == 'had':
+                self.analysischannel = 'had'
+                self.NHiggs  = 13726
+                self.NnHiggs = 166807
+            elif analysischannel == 'electron':
+                self.analysischannel = 'electron'
+                self.NHiggs  = 1184
+                self.NnHiggs = 1607
+            elif analysischannel == 'muon':
+                self.analysischannel = 'muon'
+                self.NHiggs  = 1365
+                self.NnHiggs = 983
+
+        elif collider == 'ILC350':
+            if analysischannel == 'inv':
+                self.analysischannel = 'inv'
+                self.NHiggs  = 9543
+                self.NnHiggs = 11092
+            elif analysischannel == 'had':
+                self.analysischannel = 'had'
+                self.NHiggs  = 8686
+                self.NnHiggs = 25393
+            elif analysischannel == 'electron':
+                self.analysischannel = 'electron'
+                self.NHiggs  = 567
+                self.NnHiggs = 590
+            elif analysischannel == 'muon':
+                self.analysischannel = 'muon'
+                self.NHiggs  = 638
+                self.NnHiggs = 465
+            
+        elif collider == 'FCCee':
+            # numbers from 1207.0300
+            lumiratio=0.95*10**7/77921. # ratio of #events FCCee/ILC
+            ILC250=colliderscenarios('ILC250', analysischannel)
+            self.NHiggs = ILC250.NHiggs*lumiratio
+            self.NnHiggs= ILC250.NnHiggs*lumiratio
 
         elif collider=='FCCeePerfect':
             self.analysischannel = 'HZ'
@@ -310,6 +355,9 @@ def transpose(listoflist):
 def PIDlabel(pid):
     return r'$\epsilon_{0}={1},~\epsilon_{2}={3}$'.format('K^\pm',pid[0],'\pi^\pm',pid[1])
 
+# create static class for collider scenarios
+includedscenarios=['CLIC350', 'CLIC1400', 'CLIC3000', 'ILC250', 'ILC350', 'FCCeePerfect', 'FCCee']
+    
 
 #############################################################################
 #############################################################################
@@ -325,14 +373,28 @@ if __name__ == '__main__':
                         help='The base directory from where the input files are found [pwd]')
     parser.add_argument( '-s', '--suffix', action='store', dest='suffix',\
                          help="output suffix for the plots [.png]")
-
+    parser.add_argument( '-c', '--colliders', action='store', nargs='*', dest='scenarios',\
+                         help=r'collider scenarios which should be analyzed. Possible choices '\
+                         'are: \n{}\n default: all'.format(includedscenarios))
+                         
     pwd=os.getcwd()
-    parser.set_defaults(suffix='.png', basedir=pwd)
+    parser.set_defaults(suffix='.png', basedir=pwd, scenarios=includedscenarios)
     args = parser.parse_args()
 
-    basedir = args.basedir
-    suffix  = args.suffix
+    if args.scenarios == []:
+        Print_Warning('Flag for collider scenarios raised but not used. Run with all scenarios')
+        scenarios=includedscenarios
+    elif not all([(x in includedscenarios) for x in args.scenarios]):
+        Print_Fail('At least one chosen collider scenario is not included in the code.'\
+                   ' Possible choices are {}'.format(includedscenarios))
+        exit()
+    else:
+        scenarios = args.scenarios
+    basedir   = args.basedir
+    suffix    = args.suffix
+
     print('\nrun in directory {0}'.format(basedir))
+    print('run on scenarios {}'.format(scenarios))
     print('save plots as {0}'.format(suffix))
 
     # test if basedir exists

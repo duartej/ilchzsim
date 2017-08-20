@@ -394,6 +394,8 @@ def nonHiggsEff(process, effs):
     if process == 'ZZstarInv':
         relativeBRs=np.array([Zbbbar, Zccbar, Zssbar, Zuubar, Zddbar, 0])
         return sum(effs*relativeBRs)
+    elif process == 'WWstarInv':
+        return 0.5*np.sqrt(effs[1]*effs[2]) + 0.5*np.sqrt(effs[3]*effs[4])
     else:
         relativeBRs=np.array([Zbbbar, Zccbar, Zssbar, Zuubar, Zddbar, 0])
         return sum(effs*relativeBRs)
@@ -660,11 +662,12 @@ if __name__ == '__main__':
 
 
     # Find best cuts for varying S/B numbers
-    NHiggs=np.logspace(np.log10(100), np.log10(10**7), num=10)
-    NnHiggs=np.logspace(np.log10(100), np.log10(10**8), num=10)
+    nraster=40
+    NHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
+    NnHiggs=np.logspace(np.log10(100), np.log10(10**8), num=nraster)
     NH,NnH = np.meshgrid(NHiggs, NnHiggs)
 
-    for analysischannel in ['ZZstarInv']:
+    for analysischannel in ['ZZstarInv', 'WWstarInv']:
         Bestd0cut=[]
         BestpLcut=[]
         Bestpid  =[]

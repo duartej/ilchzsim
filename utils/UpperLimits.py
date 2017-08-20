@@ -14,6 +14,13 @@ Hssbar = 2.41e-4
 Hgg    = 8.50e-2
 Huubar = 1.3e-7
 Hddbar = 5.8e-8
+HBR={}
+HBR['bb']=Hbbbar
+HBR['cc']=Hccbar
+HBR['ss']=Hssbar
+HBR['gg']=Hgg
+HBR['uu']=Huubar
+HBR['dd']=Hddbar
 Hbr=[Hbbbar, Hccbar, Hssbar, Huubar, Hddbar, Hgg]
 
 #Z branching ratios into hadrons
@@ -130,7 +137,11 @@ class colliderscenarios(object):
                 self.analysischannel = 'muon'
                 self.NHiggs  = 638
                 self.NnHiggs = 465
-            
+        elif collider == 'CEPC':
+            if analysischannel == 'inv':
+                self.analysischannel = 'inv'
+                self.NHiggs =(69820./Hbbbar+3029./Hccbar + 9522./Hgg)/3
+                self.NnHiggs=1.*(6637+285+630+931+1097+1609)
         elif collider == 'FCCee':
             # numbers from 1207.0300
             lumiratio=0.95*10**7/77921. # ratio of #events FCCee/ILC
@@ -299,7 +310,7 @@ def LinPlot(x, ys, xlabel, ylabel, plotlabels, plotname):
     plt.savefig(plotname.replace('_None',''))
     plt.close()
 
-def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname):
+def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname, loglog=False):
     """ contour plot
 
     parameters:
@@ -314,39 +325,78 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname):
            the label of the z axis
     plotname: str
            the file name under which the plot is saved.
+    loglog: Boolean
+           if it is a loglog plot or not
     """
 
     import matplotlib.pyplot as plt
- 
+    from matplotlib import colors
+
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif', size=13)
+    
     fig=plt.figure()
     ax = fig.add_subplot(1,1,1)
     ax.tick_params(top=True, right=True)
-    contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis)
+    if 'BestMu' in plotname:
+        levels=[1,2,5,10,20,50,100,200,500]
+        contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels, norm=colors.LogNorm())
+        cbar=plt.colorbar(ticks=levels)
+        cbar.set_ticklabels(levels)
+    elif 'Bestd0' in plotname:
+        levels=[0.005, 0.01, 0.015, 0.02, 0.025, 0.03]
+        contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels)
+        cbar=plt.colorbar(ticks=levels)
+        cbar.set_ticklabels(levels)
+    elif 'BestPID' in plotname:
+        levels=[0.8,0.95,1]
+        contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels)
+        cbar=plt.colorbar(ticks=levels)
+        cbar.set_ticklabels(levels)
+    elif 'BestpL' in plotname:
+        levels=range(3,16)
+        contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels)
+        cbar=plt.colorbar(ticks=levels)
+        cbar.set_ticklabels(levels)
+    else:
+        contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis)    
+        cbar = plt.colorbar(contour)
+    if 'Best' in plotname:
+        FCCee=colliderscenarios('FCCee', 'inv')
+        plt.plot(FCCee.NHiggs, FCCee.NnHiggs, 'r+', markersize=13, label='FCCee')
+        CEPC=colliderscenarios('CEPC', 'inv')
+        plt.plot(CEPC.NHiggs, CEPC.NnHiggs, 'mP', markersize=13, label='CEPC')
+        ILC=colliderscenarios('ILC250', 'inv')
+        plt.plot(ILC.NHiggs, ILC.NnHiggs, 'b*', markersize=13, label='ILC 250')
+        plt.plot([100,10**7],[100,10**7],'--k')
+        plt.legend(loc=2)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    cbar = plt.colorbar(contour)
     cbar.ax.set_ylabel(zlabel)
+    if loglog:
+        ax.set_yscale('log')
+        ax.set_xscale('log')
     plt.savefig(plotname.replace('_None',''))
     plt.close()
     
     
-def nonHiggsEff(scenario, subAnalysis, channel, effs):
+def nonHiggsEff(process, effs):
     """ calculate the efficiency for the non-higgs Background
     
     Parameters
     ----------
-    scenario: string
-              the collider scenario in consideration
-    subAnalysis: string
-              the sub analysis in consideration, e.g. HZ, with Z to invisible or Z to hadronic
-    channel:  string
-              the channel in consideration, CC, NC, or NN
+    process: string
+              the background process in consideration
     effs:     [float*6]
               the efficiencies of [bb, cc, ss, uu, dd, gg] final states
     """
 
-    relativeBRs=np.array([Zbbbar, Zccbar, Zssbar, Zuubar, Zddbar, 0])
-    return sum(effs*relativeBRs)
+    if process == 'ZZstarInv':
+        relativeBRs=np.array([Zbbbar, Zccbar, Zssbar, Zuubar, Zddbar, 0])
+        return sum(effs*relativeBRs)
+    else:
+        relativeBRs=np.array([Zbbbar, Zccbar, Zssbar, Zuubar, Zddbar, 0])
+        return sum(effs*relativeBRs)
 
 
 def transpose(listoflist):
@@ -460,6 +510,8 @@ if __name__ == '__main__':
 
     firstScenario=True
     for scenario in scenarios:
+        break # Fixme: Remove
+
         for subAnalysis in Possible_SubAnalyses(scenario):
             print("")
             print("##########################################")
@@ -494,7 +546,7 @@ if __name__ == '__main__':
                     for pcut in pcutlist:
                         dummy = list(map(lambda x: eff[channel, x, etrack, eK, ePi, eK0, d0, pcut],
                                          ['bb', 'cc', 'ss', 'uu', 'dd', 'gg']))
-                        dummy.append(nonHiggsEff(scenario, subAnalysis, channel, dummy))
+                        dummy.append(nonHiggsEff('generic', dummy))
                         efflist.append(dummy)
                     efflist=np.array(transpose(efflist))
                     if firstScenario:
@@ -605,3 +657,69 @@ if __name__ == '__main__':
                 progress2.stop()
                 
             firstScenario=False
+
+
+    # Find best cuts for varying S/B numbers
+    NHiggs=np.logspace(np.log10(100), np.log10(10**7), num=10)
+    NnHiggs=np.logspace(np.log10(100), np.log10(10**8), num=10)
+    NH,NnH = np.meshgrid(NHiggs, NnHiggs)
+
+    for analysischannel in ['ZZstarInv']:
+        Bestd0cut=[]
+        BestpLcut=[]
+        Bestpid  =[]
+        Bestmu   =[]
+
+        progress2 =progressbar(len(NnHiggs))
+
+        for y in range(len(NnHiggs)):
+            NonHiggsEvents=NnHiggs[y]
+
+            d0cutdummy =[]
+            pLcutdummy =[]
+            piddummy   =[]
+            mudummy    =[]
+
+            for x in range(len(NHiggs)):
+                HiggsEvents=NHiggs[x]
+
+                currentbest=[10**10, -1, -1, -1]
+                for (d0, etrack, eK, ePi, eK0) in parameters:
+                    for pLcut in pcutlist:
+                        signal=HiggsEvents*Hssbar*eff['CC', 'ss',etrack, eK, ePi, eK0, d0, pLcut]
+                        background=HiggsEvents*sum(list(map(lambda x:
+                                                       HBR[x]*eff['CC', x, etrack, eK, ePi, eK0, d0, pLcut],
+                                                       ['bb', 'cc', 'uu', 'dd', 'gg'])))
+                        background+=(NonHiggsEvents *
+                                     nonHiggsEff(analysischannel, list(map(lambda c:
+                                        eff['CC', c, etrack, eK, ePi, eK0, d0, pLcut],
+                                                                      ['bb', 'cc', 'ss', 'uu', 'dd', 'gg']))))
+                        
+                        mutmp=Expected_UpperLimit([signal, background])
+                        if mutmp < currentbest[0]:
+                            currentbest=[mutmp, d0, pLcut, eK]
+                d0cutdummy.append(currentbest[1])
+                pLcutdummy.append(currentbest[2])
+                piddummy.append(currentbest[3])
+                mudummy.append(currentbest[0])
+
+            Bestd0cut.append(d0cutdummy)
+            BestpLcut.append(pLcutdummy)
+            Bestpid.append(piddummy)
+            Bestmu.append(mudummy)
+            progress2.next()
+
+        progress2.stop()
+
+        Plot2D(NH, NnH, np.array(Bestmu), '\# Higgs events', '\# non-Higgs events',
+                               '95\% CL on $\mu$', 'BestMu_{0}{1}'.format(
+                                   analysischannel, suffix), True)
+        Plot2D(NH, NnH, np.array(Bestd0cut), '\# Higgs events', '\# non-Higgs events',
+                               '$d_0^\mathrm{cut}|_\mathrm{best}$ [$\mu$m]', 'Bestd0_{0}{1}'.format(
+                                   analysischannel, suffix), True)
+        Plot2D(NH, NnH, np.array(BestpLcut), '\# Higgs events', '\# non-Higgs events',
+                               '$p_{||}^\mathrm{cut}|_\mathrm{best}$ [GeV]', 'BestpL_{0}{1}'.format(
+                                   analysischannel, suffix), True)
+        Plot2D(NH, NnH, np.array(Bestpid), '\# Higgs events', '\# non-Higgs events',
+                               '$\epsilon_{K^\pm}|_\mathrm{best}$', 'BestPID_{0}{1}'.format(
+                                   analysischannel, suffix), True)

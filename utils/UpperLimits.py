@@ -462,15 +462,16 @@ if __name__ == '__main__':
     eff        = {}
     firstFile  = True
     firstChannel      = True
-    processedChannels = []
-    for channel in HiggsChannels:
-        if channel in basedirentries and os.path.isdir(basedir+'/'+channel):
-            processedChannels.append(channel)
-            effFiles = filter(lambda x: 'efficiencies' in x and 'txt' in x, os.listdir(basedir+'/'+channel))
+    processedChargeChannels = []
+    for chargechannel in HiggsChannels:
+        if chargechannel in basedirentries and os.path.isdir(basedir+'/'+chargechannel):
+            processedChargeChannels.append(chargechannel)
+            effFiles = filter(lambda x: 'efficiencies' in x and 'txt' in x,
+                              os.listdir(basedir+'/'+chargechannel))
 
             for effFile in effFiles:
                 # extract information out of the file name
-                # print('file: {0}/{1}'.format(channel, effFile))
+                # print('file: {0}/{1}'.format(chargechannel, effFile))
                 try:
                     [dummy2, d0cut, etrack, eK, ePi, eK0, dummy2] = effFile.replace('_','-').split('-')
                     parameter = list(map(lambda x: float(x), [d0cut, etrack, eK, ePi, eK0]))
@@ -480,15 +481,15 @@ if __name__ == '__main__':
                     continue
 
                 # read the efficiencies from the file
-                f = open(basedir + '/' + channel + '/' +effFile, 'r')
+                f = open(basedir + '/' + chargechannel + '/' +effFile, 'r')
                 for line in f:
                     [pcut, effB, effC, effS, effU, effD, effG] = map(lambda x: float(x), line.split())
-                    eff[channel, 'bb',etrack, eK, ePi, eK0, d0cut, pcut] = effB
-                    eff[channel, 'cc',etrack, eK, ePi, eK0, d0cut, pcut] = effC
-                    eff[channel, 'ss',etrack, eK, ePi, eK0, d0cut, pcut] = effS
-                    eff[channel, 'uu',etrack, eK, ePi, eK0, d0cut, pcut] = effU
-                    eff[channel, 'dd',etrack, eK, ePi, eK0, d0cut, pcut] = effD
-                    eff[channel, 'gg',etrack, eK, ePi, eK0, d0cut, pcut] = effG
+                    eff[chargechannel, 'bb',etrack, eK, ePi, eK0, d0cut, pcut] = effB
+                    eff[chargechannel, 'cc',etrack, eK, ePi, eK0, d0cut, pcut] = effC
+                    eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0cut, pcut] = effS
+                    eff[chargechannel, 'uu',etrack, eK, ePi, eK0, d0cut, pcut] = effU
+                    eff[chargechannel, 'dd',etrack, eK, ePi, eK0, d0cut, pcut] = effD
+                    eff[chargechannel, 'gg',etrack, eK, ePi, eK0, d0cut, pcut] = effG
 
                     if firstFile:
                         pcutlist.append(pcut)
@@ -503,7 +504,7 @@ if __name__ == '__main__':
                     parameters.append(parameter)
                 else:
                     if not parameter in parameters:
-                        Print_Fail('parameters {0} not the same in each channel'.format(parameter))
+                        Print_Fail('parameters {0} not the same in each chargechannel'.format(parameter))
 
             if firstChannel:
                 firstChannel=False
@@ -512,7 +513,7 @@ if __name__ == '__main__':
 
     firstScenario=True
     for scenario in scenarios:
-        break # Fixme: Remove
+        #break # Fixme: Remove
 
         for subAnalysis in Possible_SubAnalyses(scenario):
             print("")
@@ -521,9 +522,9 @@ if __name__ == '__main__':
             print("      {0}           {1}       ".format(scenario, subAnalysis))
             collider=colliderscenarios(scenario, subAnalysis)
 
-            for channel in processedChannels:
+            for chargechannel in processedChargeChannels:
                 print("==========================================")
-                print('            {0}'.format(channel))
+                print('            {0}'.format(chargechannel))
                 SignalBackground={}
                 SignalBackgroundOnlyHiggs={}
                 significance={}
@@ -546,7 +547,7 @@ if __name__ == '__main__':
                     # where each entry is a list as funcion of pcut
                     efflist=[]
                     for pcut in pcutlist:
-                        dummy = list(map(lambda x: eff[channel, x, etrack, eK, ePi, eK0, d0, pcut],
+                        dummy = list(map(lambda x: eff[chargechannel, x, etrack, eK, ePi, eK0, d0, pcut],
                                          ['bb', 'cc', 'ss', 'uu', 'dd', 'gg']))
                         dummy.append(nonHiggsEff('generic', dummy))
                         efflist.append(dummy)
@@ -555,7 +556,7 @@ if __name__ == '__main__':
                         LogPlot(pcutlist, efflist, '$p_{||}^{\mathrm{cut}}$ [GeV]',
                                 '$\epsilon_{s\mathrm{-tag}}$',
                                 'eff_{0}_{1}_{2}_{3}_{4}_{5}{6}'.format(
-                                    channel, d0, etrack, eK, ePi, eK0, suffix))
+                                    chargechannel, d0, etrack, eK, ePi, eK0, suffix))
 
                     # get number of events
                     NHiggs =collider.NHiggs
@@ -568,7 +569,7 @@ if __name__ == '__main__':
                     LogPlot(pcutlist, Nevents,  '$p_{||}^{\mathrm{cut}}$ [GeV]',
                                 '\# events',
                                 'Nevents_{0}_{1}_{2}_{3}_{4}_{5}_{6}_{7}{8}'.format(
-                                    scenario, subAnalysis, channel, d0, etrack, eK, ePi, eK0, suffix))
+                                    scenario, subAnalysis, chargechannel, d0, etrack, eK, ePi, eK0, suffix))
 
                     # get signal and background numbers
                     dummy = transpose(Nevents)
@@ -613,18 +614,18 @@ if __name__ == '__main__':
 
                     LinPlot(pcutlist, significanceOnlyHiggslist, '$p_{||}^{\mathrm{cut}}$ [GeV]',
                             'significance', plotlabels, 'SignificanceOnlyHiggs_{0}_{1}_{2}_{3}{4}'.format(
-                                scenario, subAnalysis, channel, d0, suffix))
+                                scenario, subAnalysis, chargechannel, d0, suffix))
                     LinPlot(pcutlist, upperlimitOnlyHiggslist, '$p_{||}^{\mathrm{cut}}$ [GeV]',
                             '95\% CL on $\mu$', plotlabels,
                             'UpperLimitOnlyHiggs_{0}_{1}_{2}_{3}{4}'.format(
-                                scenario, subAnalysis, channel, d0, suffix))
+                                scenario, subAnalysis, chargechannel, d0, suffix))
                     if NnHiggs != 0:
                         LinPlot(pcutlist, significancelist, '$p_{||}^{\mathrm{cut}}$ [GeV]', 'significance',
                                 plotlabels, 'Significance_{0}_{1}_{2}_{3}{4}'.format(
-                                    scenario, subAnalysis, channel, d0, suffix))
+                                    scenario, subAnalysis, chargechannel, d0, suffix))
                         LinPlot(pcutlist, upperlimitlist, '$p_{||}^{\mathrm{cut}}$ [GeV]', '95\% CL on $\mu$',
                                 plotlabels, 'UpperLimit_{0}_{1}_{2}_{3}{4}'.format(
-                                    scenario, subAnalysis, channel, d0, suffix))
+                                    scenario, subAnalysis, chargechannel, d0, suffix))
 
                     progress2.next()
 
@@ -641,7 +642,7 @@ if __name__ == '__main__':
                     
                     Plot2D(X, Y, np.array(Z), '$d_{0}$ [mm]', '$p_{||}^{\mathrm{cut}}$ [GeV]',
                            '95\% CL on $\mu$', '2DupperlimitOnlyHiggs_{0}_{1}_{2}_{3}_{4}{5}'.format(
-                               scenario, subAnalysis, channel, pid[0], pid[1], suffix))
+                               scenario, subAnalysis, chargechannel, pid[0], pid[1], suffix))
 
                     if NnHiggs != 0:
                         Z=[]
@@ -653,7 +654,7 @@ if __name__ == '__main__':
                     
                         Plot2D(X, Y, np.array(Z), '$d_{0}$ [mm]', '$p_{||}^{\mathrm{cut}}$ [GeV]',
                                '95\% CL on $\mu$', '2Dupperlimit_{0}_{1}_{2}_{3}_{4}{5}'.format(
-                                   scenario, subAnalysis, channel, pid[0], pid[1], suffix))
+                                   scenario, subAnalysis, chargechannel, pid[0], pid[1], suffix))
 
                     progress2.next()
                 progress2.stop()
@@ -662,7 +663,7 @@ if __name__ == '__main__':
 
 
     # Find best cuts for varying S/B numbers
-    nraster=40
+    nraster=100
     NHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NnHiggs=np.logspace(np.log10(100), np.log10(10**8), num=nraster)
     NH,NnH = np.meshgrid(NHiggs, NnHiggs)

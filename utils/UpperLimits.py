@@ -354,7 +354,7 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname, loglog=False):
         cbar=plt.colorbar(ticks=levels)
         cbar.set_ticklabels(levels)
     elif 'BestpL' in plotname:
-        levels=range(3,16)
+        levels=range(3,20)
         contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels)
         cbar=plt.colorbar(ticks=levels)
         cbar.set_ticklabels(levels)
@@ -513,7 +513,7 @@ if __name__ == '__main__':
 
     firstScenario=True
     for scenario in scenarios:
-        #break # Fixme: Remove
+        break # Fixme: Remove
 
         for subAnalysis in Possible_SubAnalyses(scenario):
             print("")
@@ -669,61 +669,63 @@ if __name__ == '__main__':
     NH,NnH = np.meshgrid(NHiggs, NnHiggs)
 
     for analysischannel in ['ZZstarInv', 'WWstarInv']:
-        Bestd0cut=[]
-        BestpLcut=[]
-        Bestpid  =[]
-        Bestmu   =[]
+        for chargechannel in ['CC', '1C']:
+            print('{0}   {1}'.format(analysischannel, chargechannel))
+            Bestd0cut=[]
+            BestpLcut=[]
+            Bestpid  =[]
+            Bestmu   =[]
 
-        progress2 =progressbar(len(NnHiggs))
+            progress2 =progressbar(len(NnHiggs))
 
-        for y in range(len(NnHiggs)):
-            NonHiggsEvents=NnHiggs[y]
+            for y in range(len(NnHiggs)):
+                NonHiggsEvents=NnHiggs[y]
 
-            d0cutdummy =[]
-            pLcutdummy =[]
-            piddummy   =[]
-            mudummy    =[]
+                d0cutdummy =[]
+                pLcutdummy =[]
+                piddummy   =[]
+                mudummy    =[]
 
-            for x in range(len(NHiggs)):
-                HiggsEvents=NHiggs[x]
+                for x in range(len(NHiggs)):
+                    HiggsEvents=NHiggs[x]
 
-                currentbest=[10**10, -1, -1, -1]
-                for (d0, etrack, eK, ePi, eK0) in parameters:
-                    for pLcut in pcutlist:
-                        signal=HiggsEvents*Hssbar*eff['CC', 'ss',etrack, eK, ePi, eK0, d0, pLcut]
-                        background=HiggsEvents*sum(list(map(lambda x:
-                                                       HBR[x]*eff['CC', x, etrack, eK, ePi, eK0, d0, pLcut],
-                                                       ['bb', 'cc', 'uu', 'dd', 'gg'])))
-                        background+=(NonHiggsEvents *
-                                     nonHiggsEff(analysischannel, list(map(lambda c:
-                                        eff['CC', c, etrack, eK, ePi, eK0, d0, pLcut],
+                    currentbest=[10**10, -1, -1, -1]
+                    for (d0, etrack, eK, ePi, eK0) in parameters:
+                        for pLcut in pcutlist:
+                            signal=HiggsEvents*Hssbar*eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0, pLcut]
+                            background=HiggsEvents*sum(list(map(lambda x:
+                                                HBR[x]*eff[chargechannel, x, etrack, eK, ePi, eK0, d0, pLcut],
+                                                ['bb', 'cc', 'uu', 'dd', 'gg'])))
+                            background+=(NonHiggsEvents *
+                                         nonHiggsEff(analysischannel, list(map(lambda c:
+                                        eff[chargechannel, c, etrack, eK, ePi, eK0, d0, pLcut],
                                                                       ['bb', 'cc', 'ss', 'uu', 'dd', 'gg']))))
                         
-                        mutmp=Expected_UpperLimit([signal, background])
-                        if mutmp < currentbest[0]:
-                            currentbest=[mutmp, d0, pLcut, eK]
-                d0cutdummy.append(currentbest[1])
-                pLcutdummy.append(currentbest[2])
-                piddummy.append(currentbest[3])
-                mudummy.append(currentbest[0])
+                            mutmp=Expected_UpperLimit([signal, background])
+                            if mutmp < currentbest[0]:
+                                currentbest=[mutmp, d0, pLcut, eK]
+                    d0cutdummy.append(currentbest[1])
+                    pLcutdummy.append(currentbest[2])
+                    piddummy.append(currentbest[3])
+                    mudummy.append(currentbest[0])
 
-            Bestd0cut.append(d0cutdummy)
-            BestpLcut.append(pLcutdummy)
-            Bestpid.append(piddummy)
-            Bestmu.append(mudummy)
-            progress2.next()
+                Bestd0cut.append(d0cutdummy)
+                BestpLcut.append(pLcutdummy)
+                Bestpid.append(piddummy)
+                Bestmu.append(mudummy)
+                progress2.next()
 
-        progress2.stop()
+            progress2.stop()
 
-        Plot2D(NH, NnH, np.array(Bestmu), '\# Higgs events', '\# non-Higgs events',
-                               '95\% CL on $\mu$', 'BestMu_{0}{1}'.format(
-                                   analysischannel, suffix), True)
-        Plot2D(NH, NnH, np.array(Bestd0cut), '\# Higgs events', '\# non-Higgs events',
-                               '$d_0^\mathrm{cut}|_\mathrm{best}$ [$\mu$m]', 'Bestd0_{0}{1}'.format(
-                                   analysischannel, suffix), True)
-        Plot2D(NH, NnH, np.array(BestpLcut), '\# Higgs events', '\# non-Higgs events',
-                               '$p_{||}^\mathrm{cut}|_\mathrm{best}$ [GeV]', 'BestpL_{0}{1}'.format(
-                                   analysischannel, suffix), True)
-        Plot2D(NH, NnH, np.array(Bestpid), '\# Higgs events', '\# non-Higgs events',
-                               '$\epsilon_{K^\pm}|_\mathrm{best}$', 'BestPID_{0}{1}'.format(
-                                   analysischannel, suffix), True)
+            Plot2D(NH, NnH, np.array(Bestmu), '\# Higgs events', '\# non-Higgs events',
+                               '95\% CL on $\mu$', 'BestMu_{0}_{1}{2}'.format(
+                                   chargechannel, analysischannel, suffix), True)
+            Plot2D(NH, NnH, np.array(Bestd0cut), '\# Higgs events', '\# non-Higgs events',
+                               '$d_0^\mathrm{cut}|_\mathrm{best}$ [$\mu$m]', 'Bestd0_{0}_{1}{2}'.format(
+                                   chargechannel,analysischannel, suffix), True)
+            Plot2D(NH, NnH, np.array(BestpLcut), '\# Higgs events', '\# non-Higgs events',
+                               '$p_{||}^\mathrm{cut}|_\mathrm{best}$ [GeV]', 'BestpL_{0}_{1}{2}'.format(
+                                   chargechannel,analysischannel, suffix), True)
+            Plot2D(NH, NnH, np.array(Bestpid), '\# Higgs events', '\# non-Higgs events',
+                               '$\epsilon_{K^\pm}|_\mathrm{best}$', 'BestPID_{0}_{1}{2}'.format(
+                                   chargechannel,analysischannel, suffix), True)

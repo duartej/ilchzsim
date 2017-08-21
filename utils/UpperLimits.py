@@ -5,7 +5,7 @@
    usage: 
 """
 # Final states in the Higgs channel
-HiggsChannels=['CC', 'NC', 'NN']
+HiggsChannels=['CC', 'NC', 'NN', '1C']
 
 # Higgs branching ratios
 Hbbbar = 5.66e-1

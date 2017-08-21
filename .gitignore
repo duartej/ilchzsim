@@ -10,4 +10,4 @@ build
 Makefile
 CMakeFiles
 *.cmake
-
+*~

@@ -37,4 +37,7 @@ install(PROGRAMS utils/kaonpionseparation.py
 install(PROGRAMS utils/UpperLimits.py 
     DESTINATION bin
     RENAME UpperLimits)
+install(PROGRAMS utils/AddEfficiencies.py 
+    DESTINATION bin
+    RENAME AddEfficiencies)
 

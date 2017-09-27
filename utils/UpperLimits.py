@@ -105,7 +105,7 @@ class colliderscenarios(object):
             # numbers from 1207.0300
             if analysischannel == 'inv':
                 self.analysischannel = 'inv'
-                self.NHiggs  = 9293
+                self.NHiggs  = 6293
                 self.NnHiggs = 10940
             elif analysischannel == 'had':
                 self.analysischannel = 'had'
@@ -663,7 +663,7 @@ if __name__ == '__main__':
 
 
     # Find best cuts for varying S/B numbers
-    nraster=100
+    nraster=50
     NHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NnHiggs=np.logspace(np.log10(100), np.log10(10**8), num=nraster)
     NH,NnH = np.meshgrid(NHiggs, NnHiggs)

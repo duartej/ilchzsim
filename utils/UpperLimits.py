@@ -148,7 +148,47 @@ class colliderscenarios(object):
             ILC250=colliderscenarios('ILC250', analysischannel)
             self.NHiggs = ILC250.NHiggs*lumiratio
             self.NnHiggs= ILC250.NnHiggs*lumiratio
+            #
+            # Nleptons = 0  # required number of leptons
+            # MrecoilPMin = 80
+            # MrecoilPMax = 100
+            # MinvMin = 85  # minimal invariant missing mass
+            # HiggsPmin = 55 # minimal pT of the Higgs candidate
+            # HiggsPmax = 65 # maximal pT of the Higgs candidate
+            # MdijetMin = 95 # minimal dijet mass
+            # MdijetMinMax = 120 # maximal value of the minimal dijet mass
+            # MdijetDelta = 5 # step size for the variation of the minimal Mdijet value
+            # MdijetMax = 127 # maximal dijet mass
+            self.roclist=[[1156501,1115275,1057146,969313,835254,601540],
+                          [2643139,2366095,2099555,1755290,1326952,817905]]
+            # Nleptons = 0  # required number of leptons
+            # MrecoilPMin = 80
+            # MrecoilPMax = 100
+            # MinvMin = 87  # minimal invariant missing mass
+            # MinvMax = 110 # maximal invariant missing mass
+            # HiggsPLmax = 45 # maximal pL of the Higgs candidate
+            # Y12min = 0.3   # maximal value of the 1->2 jet splitting
+            # MdijetMin = 111 # minimal dijet mass
+            # MdijetMinMax = 123 # maximal value of the minimal dijet mass
+            # MdijetDelta = 3 # step size for the variation of the minimal Mdijet value
+            # MdijetMax = 126 # maximal dijet mass
+            self.roclist[0] += [751280, 693966, 598959, 468650, 284505]
+            self.roclist[1] += [1044710, 900730, 679656, 451379, 219288]
+            Nleptons = 0  # required number of leptons
 
+            # MrecoilPMin = 85
+            # MrecoilPMax = 95
+            # MinvMin = 87  # minimal invariant missing mass
+            # MinvMax = 110 # maximal invariant missing mass
+            # HiggsPLmax = 40 # maximal pL of the Higgs candidate
+            # Y12min = 0.3   # maximal value of the 1->2 jet splittin
+            # Y12max = 0.8   # maximal value of the 1->2 jet splitting
+            # MdijetMin = 111 # minimal dijet mass
+            # MdijetMinMax = 123 # maximal value of the minimal dijet mass
+            # MdijetDelta = 3 # step size for the variation of the minimal Mdijet value
+            # MdijetMax = 126 # maximal dijet mass
+            self.roclist[0]+= [538111, 501478, 449817, 374512, 238360]
+            self.roclist[1] += [476490, 405028, 312735, 213530, 102018]
         elif collider=='FCCeePerfect':
             self.analysischannel = 'HZ'
             self.NHiggs = 10**7
@@ -364,6 +404,7 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname, loglog=False):
     if 'Best' in plotname:
         FCCee=colliderscenarios('FCCee', 'inv')
         plt.plot(FCCee.NHiggs, FCCee.NnHiggs, 'r+', markersize=13, label='FCCee')
+        plt.plot(FCCee.roclist[0], FCCee.roclist[1], 'r+', markersize=5)
         CEPC=colliderscenarios('CEPC', 'inv')
         plt.plot(CEPC.NHiggs, CEPC.NnHiggs, 'mP', markersize=13, label='CEPC')
         ILC=colliderscenarios('ILC250', 'inv')

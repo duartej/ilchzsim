@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """script to obtain the realistic significance and upper limits for different collider scenarios
    =========================
 
@@ -383,18 +383,9 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname, loglog=False):
         contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels, norm=colors.LogNorm())
         cbar=plt.colorbar(ticks=levels)
         cbar.set_ticklabels(levels)
-    elif 'Bestd0' in plotname:
-        levels=[0.005, 0.01, 0.015, 0.02, 0.025, 0.03]
-        contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels)
-        cbar=plt.colorbar(ticks=levels)
-        cbar.set_ticklabels(levels)
-    elif 'BestPID' in plotname:
-        levels=[0.8,0.95,1]
-        contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels)
-        cbar=plt.colorbar(ticks=levels)
-        cbar.set_ticklabels(levels)
-    elif 'BestpL' in plotname:
-        levels=range(3,20)
+    elif 'Best' in plotname:
+        levels = list(set([item for sublist in Z for item in sublist]))
+        levels.sort()
         contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels)
         cbar=plt.colorbar(ticks=levels)
         cbar.set_ticklabels(levels)
@@ -437,7 +428,16 @@ def nonHiggsEff(process, effs):
         return sum(effs*relativeBRs)
     elif process == 'WWstarInv':
         return 0.5*np.sqrt(effs[1]*effs[2]) + 0.5*np.sqrt(effs[3]*effs[4])
+    elif process == 'WW1stGen':
+        return np.sqrt(effs[3]*effs[4])
+    elif process == 'WW2ndGen':
+        return np.sqrt(effs[1]*effs[2])
+    elif process == 'GG':
+        return effs[5]
+    elif process == 'BB':
+        return effs[0]
     else:
+        print('unknown process {0}'.format(process))
         relativeBRs=np.array([Zbbbar, Zccbar, Zssbar, Zuubar, Zddbar, 0])
         return sum(effs*relativeBRs)
 
@@ -551,7 +551,6 @@ if __name__ == '__main__':
                 firstChannel=False
                 parameters.sort()
             
-
     firstScenario=True
     for scenario in scenarios:
         break # Fixme: Remove
@@ -704,21 +703,24 @@ if __name__ == '__main__':
 
 
     # Find best cuts for varying S/B numbers
-    nraster=50
+    nraster=26
     NHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
-    NnHiggs=np.logspace(np.log10(100), np.log10(10**8), num=nraster)
+    NnHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NH,NnH = np.meshgrid(NHiggs, NnHiggs)
 
-    for analysischannel in ['ZZstarInv', 'WWstarInv']:
-        for chargechannel in ['CC', '1C']:
+    for analysischannel in ['WWstarInv', 'WW1stGen', 'WW2ndGen', 'GG', 'BB']: #['ZZstarInv', 'WWstarInv']:
+        for chargechannel in ['1C']: #['CC', '1C']:
             print('{0}   {1}'.format(analysischannel, chargechannel))
             Bestd0cut=[]
             BestpLcut=[]
             Bestpid  =[]
             Bestmu   =[]
+            BestSigEff=[]
+            BestBkgEff=[]
 
             progress2 =progressbar(len(NnHiggs))
 
+            f = open(basedir + '/' + chargechannel + '_' + analysischannel + '.dat', 'w')
             for y in range(len(NnHiggs)):
                 NonHiggsEvents=NnHiggs[y]
 
@@ -726,11 +728,13 @@ if __name__ == '__main__':
                 pLcutdummy =[]
                 piddummy   =[]
                 mudummy    =[]
+                sigeffdummy=[]
+                bkgeffdummy=[]
 
                 for x in range(len(NHiggs)):
                     HiggsEvents=NHiggs[x]
 
-                    currentbest=[10**10, -1, -1, -1]
+                    currentbest=[10**10, -1, -1, -1, 0, 0]
                     for (d0, etrack, eK, ePi, eK0) in parameters:
                         for pLcut in pcutlist:
                             signal=HiggsEvents*Hssbar*eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0, pLcut]
@@ -744,18 +748,28 @@ if __name__ == '__main__':
                         
                             mutmp=Expected_UpperLimit([signal, background])
                             if mutmp < currentbest[0]:
-                                currentbest=[mutmp, d0, pLcut, eK]
+                                currentbest=[mutmp, d0, pLcut, eK, signal/(HiggsEvents*Hssbar),
+                                             background/(HiggsEvents*sum(list(map(lambda x: HBR[x],
+                                            ['bb', 'cc', 'uu', 'dd', 'gg'])))+NonHiggsEvents)]
+                    f.write("{0} {1} {2} {3} {4} {5} {6} {7}\n".format(
+                        HiggsEvents, NonHiggsEvents, currentbest[1], currentbest[2],
+                        currentbest[3], currentbest[0], currentbest[4], currentbest[5]))
                     d0cutdummy.append(currentbest[1])
                     pLcutdummy.append(currentbest[2])
                     piddummy.append(currentbest[3])
                     mudummy.append(currentbest[0])
+                    sigeffdummy.append(currentbest[4])
+                    bkgeffdummy.append(currentbest[5])
 
                 Bestd0cut.append(d0cutdummy)
                 BestpLcut.append(pLcutdummy)
                 Bestpid.append(piddummy)
                 Bestmu.append(mudummy)
+                BestBkgEff.append(bkgeffdummy)
+                BestSigEff.append(sigeffdummy)
                 progress2.next()
 
+            f.close()
             progress2.stop()
 
             Plot2D(NH, NnH, np.array(Bestmu), '\# Higgs events', '\# non-Higgs events',

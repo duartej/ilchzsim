@@ -189,6 +189,31 @@ class colliderscenarios(object):
             # MdijetMax = 126 # maximal dijet mass
             self.roclist[0]+= [538111, 501478, 449817, 374512, 238360]
             self.roclist[1] += [476490, 405028, 312735, 213530, 102018]
+
+            # Nleptons = 0  # required number of leptons
+            # MinvMin = 87  # minimal invariant missing mass
+            # Y12min = 0.2   # maximal value of the 1->2 jet splittin
+            # Y12max = 0.7   # maximal value of the 1->2 jet splitting
+            # chisquaredMax = 7
+            # chisquaredDelta = 1
+            self.chi2list=[[17120, 40492, 63836, 87343, 113813, 140037, 165800],
+                           [4098, 15454, 31106, 48505, 73069, 95177, 122374]]
+
+            # additionally promote from chi2 to explicit cut
+            # HiggsPLmax = 60
+            #self.chi2list[0] += [137673, 222272, 288310, 344129, 391687, 433294, 471557]
+            #self.chi2list[1] += [62940, 147056, 233462, 322121, 419652, 515762, 605948]
+
+            # Nleptons = 0  # required number of leptons
+            # MinvMin = 87  # minimal invariant missing mass
+            # Y12min = 0.4   # maximal value of the 1->2 jet splittin
+            # Y12max = 0.8   # maximal value of the 1->2 jet splitting
+            # HiggsPLmax = 60
+            # chisquaredMax = 7
+            # chisquaredDelta = 1
+            self.chi2list[0] += [185584, 282521, 355326, 414569, 463568, 504549, 538791]
+            self.chi2list[1] += [87539, 191665, 296176, 403129, 517304, 622066, 719059]
+
         elif collider=='FCCeePerfect':
             self.analysischannel = 'HZ'
             self.NHiggs = 10**7
@@ -396,6 +421,7 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname, loglog=False):
         FCCee=colliderscenarios('FCCee', 'inv')
         plt.plot(FCCee.NHiggs, FCCee.NnHiggs, 'r+', markersize=13, label='FCCee')
         plt.plot(FCCee.roclist[0], FCCee.roclist[1], 'r+', markersize=5)
+        plt.plot(FCCee.chi2list[0], FCCee.chi2list[1], 'mP', markersize=5, label='FCCee $\chi^2$')
         CEPC=colliderscenarios('CEPC', 'inv')
         plt.plot(CEPC.NHiggs, CEPC.NnHiggs, 'mP', markersize=13, label='CEPC')
         ILC=colliderscenarios('ILC250', 'inv')

@@ -117,8 +117,8 @@ sed -i.bak "s/Main:numberOfEvents.*! number of events to generate/Main:numberOfE
 
 
 # variables
-samples="uubar ddbar ssbar ccbar bbbar gg"
-cmdfile=("1:onMode" "0:onMode" "2:onMode" "3:onMode" "4:onMode" "9:onMode")
+samples="uubar ddbar ssbar ccbar bbbar gg tt WW"
+cmdfile=("1:onMode" "0:onMode" "2:onMode" "3:onMode" "4:onMode" "9:onMode" "8:onMode" "13:onMode")
 
 n=0
 for s in $samples; 
@@ -126,16 +126,35 @@ do
     mode=${cmdfile[$n]}
     sed -i.bak -e 's/onMode = [01]/onMode = 0/g' ilchz.cmnd 
     sed -i.bak "s/25:$mode = [01]/25:$mode = 1/g" ilchz.cmnd
-    echo "Processing MODE:$mode"
-    # perfect PID
-    ilchz ilchz.cmnd -f "kaons" -b -s $rmin $rmax -t 0.95 -e 1 0 1 -o hz${s}_0.95-1-0-1-PID_kaons_only.root &
+    echo "Processing MODE:$mode - $s"
+    echo "Processing MODE:$mode - $s" >> run.log
+    
+    ungeneratedefflist=(${efflist[@]})
+    while [[ "${#ungeneratedefflist[@]}" -ne 0 ]]
+    do
+	for keff in "${ungeneratedefflist[@]}"
+	do	
+	    pieff=`kaonpionseparation ${keff} ${separation}`
+	    echo "${keff}  ${pieff}"
+	    ilchz ilchz.cmnd -f "kaons_pions" -b -s $rmin $rmax -t $trackeff -e $keff $pieff $kseff -o hz${s}_${trackeff}-${keff}-${pieff}-${kseff}-PID_kaons_pions.root &
+	done
+	wait
 
-    for keff in "${efflist[@]}"
-    do	
-	pieff=`kaonpionseparation ${keff} ${separation}`
-	echo "${keff}  ${pieff}"
-	ilchz ilchz.cmnd -f "kaons_pions" -b -s $rmin $rmax -t $trackeff -e $keff $pieff $kseff -o hz${s}_${trackeff}-${keff}-${pieff}-${kseff}-PID_kaons_pions.root &
+	# check which files were generated 
+	dummylist=()
+	for keff in "${ungeneratedefflist[@]}"
+	do
+	    for f in "hz${s}_${trackeff}-${keff}-*-${kseff}-PID_kaons_pions.root"
+	    do
+		if [ ! -f ${f} ]
+		then
+		    dummylist+=(${keff})
+		    echo " did not find hz${s}_${trackeff}-${keff}-${pieff}-${kseff}-PID_kaons_pions.root"
+		    echo " did not find hz${s}_${trackeff}-${keff}-${pieff}-${kseff}-PID_kaons_pions.root" >> run.log
+		fi
+	    done
+	done
+	ungeneratedefflist=(${dummylist[@]})
     done
-    wait
     n=$(($n+1))
 done;

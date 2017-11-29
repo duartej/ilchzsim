@@ -117,8 +117,8 @@ sed -i.bak "s/Main:numberOfEvents.*! number of events to generate/Main:numberOfE
 
 
 # variables
-samples="uubar ddbar ssbar ccbar bbbar gg tt WW"
-cmdfile=("1:onMode" "0:onMode" "2:onMode" "3:onMode" "4:onMode" "9:onMode" "8:onMode" "13:onMode")
+samples="uubar ddbar ssbar ccbar bbbar gg WW"
+cmdfile=("1:onMode" "0:onMode" "2:onMode" "3:onMode" "4:onMode" "9:onMode" "13:onMode")
 
 n=0
 for s in $samples; 

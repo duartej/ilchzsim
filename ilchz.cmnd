@@ -52,7 +52,6 @@ HiggsSM:ffbar2HZ = on
 25:4:onMode = 0   ! switch on h0-> b bbar
 25:5:onMode = 0   ! switch on h0-> t tbar
 25:9:onMode = 0   ! switch on h0-> gluon gluon
-25:8:onMode = 0   ! switch on h0-> tau taubar
 25:13:onMode = 0  ! switch on h0-> W+ W-
 
 23:onMode    = on ! switch on all Z0 decay channels

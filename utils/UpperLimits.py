@@ -14,6 +14,7 @@ Hssbar = 2.41e-4
 Hgg    = 8.50e-2
 Huubar = 1.3e-7
 Hddbar = 5.8e-8
+
 HBR={}
 HBR['bb']=Hbbbar
 HBR['cc']=Hccbar
@@ -21,7 +22,6 @@ HBR['ss']=Hssbar
 HBR['gg']=Hgg
 HBR['uu']=Huubar
 HBR['dd']=Hddbar
-Hbr=[Hbbbar, Hccbar, Hssbar, Huubar, Hddbar, Hgg]
 
 #Z branching ratios into hadrons
 Zbbbar = 0.1512
@@ -141,7 +141,7 @@ class colliderscenarios(object):
             if analysischannel == 'inv':
                 self.analysischannel = 'inv'
                 self.NHiggs =(69820./Hbbbar+3029./Hccbar + 9522./Hgg)/3
-                self.NnHiggs=1.*(6637+285+630+931+1097+1609)
+                self.NnHiggs=14106.
         elif collider == 'FCCee':
             # numbers from 1207.0300
             lumiratio=0.95*10**7/77921. # ratio of #events FCCee/ILC
@@ -285,7 +285,7 @@ def LogPlot(x, ys, xlabel, ylabel, plotname):
     x: [floats]
            the x values of all points
     ys [lists of floats]
-           a list containing lists of the y values. the order is bb, cc, ss, uu, dd, gg, (non-Higgs)
+           a list containing lists of the y values. the order is bb, cc, ss, uu, dd, gg, WW, (non-Higgs)
     xlabel: str
            the label of the x axis
     ylabel: str
@@ -302,10 +302,11 @@ def LogPlot(x, ys, xlabel, ylabel, plotname):
     fig = plt.figure()
     ax  = fig.add_subplot(1,1,1)
 
-    if len(ys)==6:
-        fs=[r'$b\bar{b}$',r'$c\bar{c}$',r'$s\bar{s}$',r'$u\bar{u}$',r'$d\bar{d}$',r'$gg$']
-    elif len(ys)==7:
-        fs=[r'$b\bar{b}$',r'$c\bar{c}$',r'$s\bar{s}$',r'$u\bar{u}$',r'$d\bar{d}$',r'$gg$', r'non-Higgs']
+    if len(ys)==7:
+        fs=[r'$b\bar{b}$',r'$c\bar{c}$',r'$s\bar{s}$',r'$u\bar{u}$',r'$d\bar{d}$',r'$gg$', r'$WW^*$']
+    elif len(ys)==8:
+        fs=[r'$b\bar{b}$',r'$c\bar{c}$',r'$s\bar{s}$',r'$u\bar{u}$',r'$d\bar{d}$',r'$gg$',
+            r'$WW^*$', r'non-Higgs']
     else:
         fs=map(lambda x: 'n.a.', ys)
         Print_Warning('in plot {0}, unknown number ({1}) of entries'.format(ylabel), len(ys))
@@ -340,7 +341,7 @@ def LinPlot(x, ys, xlabel, ylabel, plotlabels, plotname):
     x: [floats]
            the x values of all points
     ys [lists of floats]
-           a list containing lists of the y values. the order is bb, cc, ss, uu, dd, gg, (non-Higgs)
+           a list containing lists of the y values. the order is bb, cc, ss, uu, dd, gg, WW, (non-Higgs)
     xlabel: str
            the label of the x axis
     ylabel: str
@@ -408,6 +409,16 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname, loglog=False):
         contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels, norm=colors.LogNorm())
         cbar=plt.colorbar(ticks=levels)
         cbar.set_ticklabels(levels)
+    elif 'BestpL' in plotname:
+        levels = [0,2,4,6,8,10,12,14,16,18,20]
+        contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels)
+        cbar=plt.colorbar(ticks=levels)
+        cbar.set_ticklabels(levels)
+    elif 'Bestd0' in plotname:
+        levels = [0.016, 0.018, 0.02, 0.022, 0.024]
+        contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels)
+        cbar=plt.colorbar(ticks=levels)
+        cbar.set_ticklabels(levels)
     elif 'Best' in plotname:
         levels = list(set([item for sublist in Z for item in sublist]))
         levels.sort()
@@ -446,22 +457,26 @@ def nonHiggsEff(process, effs):
     process: string
               the background process in consideration
     effs:     [float*6]
-              the efficiencies of [bb, cc, ss, uu, dd, gg] final states
+              the efficiencies of [bb, cc, ss, uu, dd, gg, ww] final states
     """
 
+    [bb, cc, ss, uu, dd, gg, ww] = effs
+    w = 0.5*np.sqrt(uu*dd) + 0.5*np.sqrt(cc*ss)
     if process == 'ZZstarInv':
         relativeBRs=np.array([Zbbbar, Zccbar, Zssbar, Zuubar, Zddbar, 0])
         return sum(effs*relativeBRs)
+    if process == 'CEPCInv':
+        return 0.16*ww + 0.06*uu + 0.06*dd + 0.06*cc + 0.06*ss + 0.10*bb + 0.49*w + 0.00*gg
     elif process == 'WWstarInv':
-        return 0.5*np.sqrt(effs[1]*effs[2]) + 0.5*np.sqrt(effs[3]*effs[4])
+        return w
     elif process == 'WW1stGen':
-        return np.sqrt(effs[3]*effs[4])
+        return np.sqrt(uu*dd)
     elif process == 'WW2ndGen':
-        return np.sqrt(effs[1]*effs[2])
+        return np.sqrt(cc*ss)
     elif process == 'GG':
-        return effs[5]
+        return gg
     elif process == 'BB':
-        return effs[0]
+        return bb
     else:
         print('unknown process {0}'.format(process))
         relativeBRs=np.array([Zbbbar, Zccbar, Zssbar, Zuubar, Zddbar, 0])
@@ -550,13 +565,14 @@ if __name__ == '__main__':
                 # read the efficiencies from the file
                 f = open(basedir + '/' + chargechannel + '/' +effFile, 'r')
                 for line in f:
-                    [pcut, effB, effC, effS, effU, effD, effG] = map(lambda x: float(x), line.split())
+                    [pcut, effB, effC, effS, effU, effD, effG, effW] = map(lambda x: float(x), line.split())
                     eff[chargechannel, 'bb',etrack, eK, ePi, eK0, d0cut, pcut] = effB
                     eff[chargechannel, 'cc',etrack, eK, ePi, eK0, d0cut, pcut] = effC
                     eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0cut, pcut] = effS
                     eff[chargechannel, 'uu',etrack, eK, ePi, eK0, d0cut, pcut] = effU
                     eff[chargechannel, 'dd',etrack, eK, ePi, eK0, d0cut, pcut] = effD
                     eff[chargechannel, 'gg',etrack, eK, ePi, eK0, d0cut, pcut] = effG
+                    eff[chargechannel, 'ww',etrack, eK, ePi, eK0, d0cut, pcut] = effW
 
                     if firstFile:
                         pcutlist.append(pcut)
@@ -609,12 +625,12 @@ if __name__ == '__main__':
                     d0cutlist.append(d0)
                     pidlist.append([eK, ePi])
                     # make list of efficiencies
-                    # [[effB], [effC], [effS], [effU], [effD], [effG], [effNon-Higgs]]
+                    # [[effB], [effC], [effS], [effU], [effD], [effG], [effW], [effNon-Higgs]]
                     # where each entry is a list as funcion of pcut
                     efflist=[]
                     for pcut in pcutlist:
                         dummy = list(map(lambda x: eff[chargechannel, x, etrack, eK, ePi, eK0, d0, pcut],
-                                         ['bb', 'cc', 'ss', 'uu', 'dd', 'gg']))
+                                         ['bb', 'cc', 'ss', 'uu', 'dd', 'gg', 'ww']))
                         dummy.append(nonHiggsEff('generic', dummy))
                         efflist.append(dummy)
                     efflist=np.array(transpose(efflist))
@@ -729,13 +745,13 @@ if __name__ == '__main__':
 
 
     # Find best cuts for varying S/B numbers
-    nraster=26
+    nraster=50
     NHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NnHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NH,NnH = np.meshgrid(NHiggs, NnHiggs)
 
-    for analysischannel in ['WWstarInv', 'WW1stGen', 'WW2ndGen', 'GG', 'BB']: #['ZZstarInv', 'WWstarInv']:
-        for chargechannel in ['1C']: #['CC', '1C']:
+    for analysischannel in ['CEPCInv' ]: #'WWstarInv', 'WW1stGen', 'WW2ndGen', 'GG', 'BB']: #['ZZstarInv', 'WWstarInv']:
+        for chargechannel in ['CC', '1C']:
             print('{0}   {1}'.format(analysischannel, chargechannel))
             Bestd0cut=[]
             BestpLcut=[]
@@ -770,7 +786,7 @@ if __name__ == '__main__':
                             background+=(NonHiggsEvents *
                                          nonHiggsEff(analysischannel, list(map(lambda c:
                                         eff[chargechannel, c, etrack, eK, ePi, eK0, d0, pLcut],
-                                                                      ['bb', 'cc', 'ss', 'uu', 'dd', 'gg']))))
+                                                                      ['bb', 'cc', 'ss', 'uu', 'dd', 'gg', 'ww']))))
                         
                             mutmp=Expected_UpperLimit([signal, background])
                             if mutmp < currentbest[0]:

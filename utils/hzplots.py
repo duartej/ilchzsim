@@ -59,7 +59,8 @@ SPINNING = [ "-","\\","|","/"]
 def getcolor():
     import ROOT
     return [ ROOT.kRed+4, ROOT.kAzure+3, ROOT.kOrange-2, ROOT.kGreen-5, ROOT.kYellow+2, \
-        ROOT.kCyan-2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen-2,ROOT.kRed-4, ROOT.kGray-3 ]
+             ROOT.kCyan-2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen-2,ROOT.kRed-4, ROOT.kGray-3, \
+             ROOT.kMagenta+3, ROOT.kBlue-2]
 
 def getleg(**kwd):
     """.. function:: getleg(**kwd) -> ROOT.TLegend()
@@ -73,8 +74,8 @@ def getleg(**kwd):
         def __init__(self):
             self.x0=0.2
             self.x1=0.45
-            self.y0=0.7
-            self.y1=0.9
+            self.y0=0.54
+            self.y1=0.90
     c = coord()
 
     for key,val in kwd.iteritems():
@@ -526,7 +527,12 @@ class eff_cut_hadron(object):
         FIXME: The class should be associated to a tree!
         """
         self.decay_channel = decay_channel
-        self.short_name = decay_channel.split('_')[0]
+        if 'bar' in decay_channel.split('_')[0]:
+            self.short_name='{0}#bar{{{0}}}'.format(decay_channel.split('_')[0][0])
+        elif decay_channel.split('_')[0]=='WW':
+            self.short_name='WW*'
+        else:
+            self.short_name=decay_channel.split('_')[0]
         self.initialized = False
         self.current_d0cut = None
         self.current_pLcut = None
@@ -1075,8 +1081,12 @@ def make_plot(points_dict,(xindex,yindex),plot_attr,g_points_dict=None,leg_posit
     dummy = update_limits(points_dict,(xindex,yindex),plot_attr)
     
     # Legend
-    if leg_position == "DOWN":
-        leg = getleg(y0 = 0.2, y1 = 0.34, x0 = 0.4, x1= 0.65)
+    if leg_position == "DOWNR":
+        leg = getleg(y0 = 0.17, y1 = 0.52, x0 = 0.55, x1= 0.8)
+    elif leg_position == "DOWNL":
+        leg = getleg(y0 = 0.17, y1 = 0.52, x0 = 0.2, x1= 0.45)
+    elif leg_position == "UPR":
+        leg = getleg(y0 = 0.54, y1 = 0.90, x0 = 0.55, x1= 0.8)
     else:
         leg = getleg()
 
@@ -1200,9 +1210,9 @@ def create_histos(suffix,description,res_int,hc=None):
     ROOT.gStyle.SetLegendBorderSize(0)
     ROOT.gROOT.SetBatch()
 
-    COLOR = { 'ssbar': 46, 'bbbar': 30, 'gg': 38,
-              'ccbar': 14, 'uubar': 20, 'ddbar': 49,
-              'tt': 8, 'WW':42 }
+    COLOR = { 'ssbar': ROOT.kRed+1, 'bbbar': ROOT.kGreen+1, 'gg': ROOT.kBlue+1,
+              'ccbar': ROOT.kGray+1, 'uubar': ROOT.kOrange-3, 'ddbar': ROOT.kMagenta+2,
+              'WW': ROOT.kCyan+1 }
     RES = { 23: 'Z', 25: 'H' }
 
     resonance = RES[res_int]
@@ -1472,7 +1482,8 @@ def plot_combined(hc,varname,option='',legposition="RIGHT"):
     histonames = filter(lambda _k: _k.find(varname) == 0,\
             hc._histos.keys())
     hc.associated(histonames)
-    hc.plot(histonames[0],'comb_{0}{1}'.format(varname,SUFFIXPLOTS),log=True,legposition=legposition)
+    hc.plot(histonames[0],'comb_{0}{1}'.format(varname,SUFFIXPLOTS),log=True,legposition=legposition,
+            legy=0.9, textlength=0.17)
 
 def plot_profile_combined(hc,varname,axis,
                           ytitle='<#sigma_{d_{0}}> [#mum]',
@@ -1520,7 +1531,7 @@ def plot_profile_combined(hc,varname,axis,
     hc.associated(profile_names)
     hc.plot(profile_names[0],'comb_{0}_{1}{2}'.format(varname,axis,SUFFIXPLOTS),\
             options=options,log=True,legposition=legposition,\
-            normalize=False)
+            normalize=False, legy=0.9, textlength=0.17)
 
 def saveallinfo(d,surname):
     """Store the dictionary "d"
@@ -1828,160 +1839,160 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
             xtitle='#varepsilon_{S}', 
             ytitle='purity',
             x0 = 0.0, x1 = 1.0 , y0 = 0.0, y1= 0.0 )
-    make_plot(observables,(I_EFF_SIG,I_PURITY),purity_attr,g_points_dict=graphs_leg_pur)
+    make_plot(observables,(I_EFF_SIG,I_PURITY),purity_attr,g_points_dict=graphs_leg_pur, leg_position="DOWNR")
 
     significance_attr = plot_attributes('significance',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='N_{S}/#sqrt{N_{B}}',
             x0 = pLMin, y0 = 0.0 )
-    make_plot(observables,(I_PL,I_SIGN),significance_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_SIGN),significance_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNR")
 
     Eff_BB_attr = plot_attributes('Eff_bb',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='efficiency',
             x0 = pLMin, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_EFF_BB),Eff_BB_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_EFF_BB),Eff_BB_attr,g_points_dict=graphs_leg_sig,leg_position="UPR")
 
     Eff_CC_attr = plot_attributes('Eff_cc',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='efficiency',
             x0 = pLMin, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_EFF_CC),Eff_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_EFF_CC),Eff_CC_attr,g_points_dict=graphs_leg_sig,leg_position="UPR")
 
     Eff_SS_attr = plot_attributes('Eff_ss',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='efficiency',
             x0 = pLMin, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_EFF_SS),Eff_SS_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_EFF_SS),Eff_SS_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNL")
 
     Eff_UU_attr = plot_attributes('Eff_uu',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='efficiency',
             x0 = pLMin, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_EFF_UU),Eff_UU_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_EFF_UU),Eff_UU_attr,g_points_dict=graphs_leg_sig,leg_position="UPR")
 
     Eff_DD_attr = plot_attributes('Eff_dd',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='efficiency',
             x0 = pLMin, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_EFF_DD),Eff_DD_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_EFF_DD),Eff_DD_attr,g_points_dict=graphs_leg_sig,leg_position="UPR")
 
     Eff_GG_attr = plot_attributes('Eff_gg',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='efficiency',
             x0 = pLMin, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_EFF_GG),Eff_GG_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_EFF_GG),Eff_GG_attr,g_points_dict=graphs_leg_sig,leg_position="UPR")
 
     Eff_WW_attr = plot_attributes('Eff_WW',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='efficiency',
             x0 = pLMin, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_EFF_WW),Eff_WW_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_EFF_WW),Eff_WW_attr,g_points_dict=graphs_leg_sig,leg_position="UPR")
 
     Nevents_SS_attr = plot_attributes('N_ss_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# events',
             x0 = pLMin, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_N_SIGNAL),Nevents_SS_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_N_SIGNAL),Nevents_SS_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNL")
 
     Nevents_BB_attr = plot_attributes('N_bb_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# events',
             x0 = pLMin, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_N_BB),Nevents_BB_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_N_BB),Nevents_BB_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNL")
 
     Nevents_CC_attr = plot_attributes('N_cc_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# events',
             x0 = pLMin, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_N_CC),Nevents_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_N_CC),Nevents_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNL")
 
     Nevents_GG_attr = plot_attributes('N_gg_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# events',
             x0 = pLMin, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_N_GG),Nevents_GG_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_N_GG),Nevents_GG_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNL")
 
     Nevents_UU_attr = plot_attributes('N_uu_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# events',
             x0 = pLMin, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_N_UU),Nevents_UU_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_N_UU),Nevents_UU_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNL")
 
     Nevents_DD_attr = plot_attributes('N_dd_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# events',
             x0 = pLMin, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_N_DD),Nevents_DD_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_N_DD),Nevents_DD_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNL")
 
     Nevents_WW_attr = plot_attributes('N_WW_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# events',
             x0 = pLMin, y0 = 1.,
             log=True)
-    make_plot(observables,(I_PL,I_N_WW),Nevents_WW_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_N_WW),Nevents_WW_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNL")
 
     BCdf_BB_attr = plot_attributes('BCDF_BB',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# fraction of BC daughters',
             x0 = pLMin, y0 = 0.,
             log=False)
-    make_plot(observables,(I_PL,I_BCDF_BB),BCdf_BB_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_BCDF_BB),BCdf_BB_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNR")
         
     BCdf_CC_attr = plot_attributes('BCDF_CC',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# fraction of BC daughters',
             x0 = pLMin, y0 = 0.,
             log=False)
-    make_plot(observables,(I_PL,I_BCDF_CC),BCdf_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_BCDF_CC),BCdf_CC_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNR")
         
     BCdf_SS_attr = plot_attributes('BCDF_SS',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# fraction of BC daughters',
             x0 = pLMin, y0 = 0.,
             log=False)
-    make_plot(observables,(I_PL,I_BCDF_SS),BCdf_SS_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_BCDF_SS),BCdf_SS_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNR")
         
     BCdf_UU_attr = plot_attributes('BCDF_UU',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# fraction of BC daughters',
             x0 = pLMin, y0 = 0.,
             log=False)
-    make_plot(observables,(I_PL,I_BCDF_UU),BCdf_UU_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_BCDF_UU),BCdf_UU_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNR")
         
     BCdf_DD_attr = plot_attributes('BCDF_DD',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# fraction of BC daughters',
             x0 = pLMin, y0 = 0.,
             log=False)
-    make_plot(observables,(I_PL,I_BCDF_DD),BCdf_DD_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_BCDF_DD),BCdf_DD_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNR")
         
     BCdf_GG_attr = plot_attributes('BCDF_GG',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# fraction of BC daughters',
             x0 = pLMin, y0 = 0.,
             log=False)
-    make_plot(observables,(I_PL,I_BCDF_GG),BCdf_GG_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_BCDF_GG),BCdf_GG_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNR")
         
     BCdf_WW_attr = plot_attributes('BCDF_WW',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# fraction of BC daughters',
             x0 = pLMin, y0 = 0.,
             log=False)
-    make_plot(observables,(I_PL,I_BCDF_WW),BCdf_WW_attr,g_points_dict=graphs_leg_sig,leg_position="DOWN")
+    make_plot(observables,(I_PL,I_BCDF_WW),BCdf_WW_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNR")
         
     
     # ROC curve

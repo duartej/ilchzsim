@@ -730,7 +730,7 @@ if __name__ == '__main__':
                         Z.append(dummy)
                     
                     Plot2D(X, Y, np.array(Z), '$d_{0}$ [mm]', '$p_{||}^{\mathrm{cut}}$ [GeV]',
-                           '95\% CL on $\mu$', '2DupperlimitOnlyHiggs_{0}_{1}_{2}_{3}_{4}{5}'.format(
+                           '95\% CL on $\mu$', '2DupperlimitOnlyHiggs_{0}_{1}_{2}_{3}_{4}.{5}'.format(
                                scenario, subAnalysis, chargechannel, pid[0], pid[1], suffix))
 
                     if NnHiggs != 0:
@@ -742,7 +742,7 @@ if __name__ == '__main__':
                             Z.append(dummy)
                     
                         Plot2D(X, Y, np.array(Z), '$d_{0}$ [mm]', '$p_{||}^{\mathrm{cut}}$ [GeV]',
-                               '95\% CL on $\mu$', '2Dupperlimit_{0}_{1}_{2}_{3}_{4}{5}'.format(
+                               '95\% CL on $\mu$', '2Dupperlimit_{0}_{1}_{2}_{3}_{4}.{5}'.format(
                                    scenario, subAnalysis, chargechannel, pid[0], pid[1], suffix))
 
                     progress2.next()
@@ -822,14 +822,14 @@ if __name__ == '__main__':
             progress2.stop()
 
             Plot2D(NH, NnH, np.array(Bestmu), '\# Higgs events', '\# non-Higgs events',
-                               '95\% CL on $\mu$', 'BestMu_{0}_{1}{2}'.format(
+                               '95\% CL on $\mu$', 'BestMu_{0}_{1}.{2}'.format(
                                    chargechannel, analysischannel, suffix), True)
             Plot2D(NH, NnH, np.array(Bestd0cut), '\# Higgs events', '\# non-Higgs events',
-                               '$d_0^\mathrm{cut}|_\mathrm{best}$ [$\mu$m]', 'Bestd0_{0}_{1}{2}'.format(
+                               '$d_0^\mathrm{cut}|_\mathrm{best}$ [$\mu$m]', 'Bestd0_{0}_{1}.{2}'.format(
                                    chargechannel,analysischannel, suffix), True)
             Plot2D(NH, NnH, np.array(BestpLcut), '\# Higgs events', '\# non-Higgs events',
-                               '$p_{||}^\mathrm{cut}|_\mathrm{best}$ [GeV]', 'BestpL_{0}_{1}{2}'.format(
+                               '$p_{||}^\mathrm{cut}|_\mathrm{best}$ [GeV]', 'BestpL_{0}_{1}.{2}'.format(
                                    chargechannel,analysischannel, suffix), True)
             Plot2D(NH, NnH, np.array(Bestpid), '\# Higgs events', '\# non-Higgs events',
-                               '$\epsilon_{K^\pm}|_\mathrm{best}$', 'BestPID_{0}_{1}{2}'.format(
+                               '$\epsilon_{K^\pm}|_\mathrm{best}$', 'BestPID_{0}_{1}.{2}'.format(
                                    chargechannel,analysischannel, suffix), True)

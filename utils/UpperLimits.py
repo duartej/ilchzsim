@@ -416,9 +416,10 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname, loglog=False):
         cbar.set_ticklabels(levels)
     elif 'Bestd0' in plotname:
         levels = [0.016, 0.018, 0.02, 0.022, 0.024]
+        levelsmu = list(map(lambda x: x*1000, levels))
         contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels)
         cbar=plt.colorbar(ticks=levels)
-        cbar.set_ticklabels(levels)
+        cbar.set_ticklabels(levelsmu)
     elif 'Best' in plotname:
         levels = list(set([item for sublist in Z for item in sublist]))
         levels.sort()
@@ -745,7 +746,7 @@ if __name__ == '__main__':
 
 
     # Find best cuts for varying S/B numbers
-    nraster=50
+    nraster=5
     NHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NnHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NH,NnH = np.meshgrid(NHiggs, NnHiggs)

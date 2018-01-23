@@ -404,6 +404,7 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname, loglog=False):
     fig=plt.figure()
     ax = fig.add_subplot(1,1,1)
     ax.tick_params(top=True, right=True)
+    ax.set_ylim(bottom=100, top=10000000)
     if 'BestMu' in plotname:
         levels=[1,2,5,10,20,50,100,200,500]
         contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels, norm=colors.LogNorm())
@@ -431,14 +432,19 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname, loglog=False):
         cbar = plt.colorbar(contour)
     if 'Best' in plotname:
         FCCee=colliderscenarios('FCCee', 'inv')
-        plt.plot(FCCee.NHiggs, FCCee.NnHiggs, 'r+', markersize=13, label='FCCee')
-        plt.plot(FCCee.roclist[0], FCCee.roclist[1], 'r+', markersize=5)
-        plt.plot(FCCee.chi2list[0], FCCee.chi2list[1], 'mP', markersize=5, label='FCCee $\chi^2$')
-        CEPC=colliderscenarios('CEPC', 'inv')
-        plt.plot(CEPC.NHiggs, CEPC.NnHiggs, 'mP', markersize=13, label='CEPC')
         ILC=colliderscenarios('ILC250', 'inv')
-        plt.plot(ILC.NHiggs, ILC.NnHiggs, 'b*', markersize=13, label='ILC 250')
-        plt.plot([100,10**7],[100,10**7],'--k')
+        CEPC=colliderscenarios('CEPC', 'inv')
+        plt.plot([100,10**7],[100*ILC.NnHiggs/ILC.NHiggs,10**7*ILC.NnHiggs/ILC.NHiggs],'--k', label='Cut\&Count')
+        plt.plot([100,10**7],[100*CEPC.NnHiggs/CEPC.NHiggs,10**7*CEPC.NnHiggs/CEPC.NHiggs],':k', label='BDT')
+
+        plt.plot(FCCee.NHiggs, FCCee.NnHiggs, 'r+', markersize=13, label='$\mathcal{L}=40\,$ab$^{-1}$')
+        plt.plot(FCCee.NHiggs*5./40, FCCee.NnHiggs*5./40, 'mP', markersize=13, label='$\mathcal{L}=5\,$ab$^{-1}$')
+        plt.plot(ILC.NHiggs, ILC.NnHiggs, 'b*', markersize=13, label='$\mathcal{L}=250\,$fb$^{-1}$')
+#        plt.plot(FCCee.roclist[0], FCCee.roclist[1], 'r+', markersize=5)
+#        plt.plot(FCCee.chi2list[0], FCCee.chi2list[1], 'mP', markersize=5, label='FCCee $\chi^2$')
+        plt.plot(CEPC.NHiggs*40./5, CEPC.NnHiggs*40./5, 'r+', markersize=13)
+        plt.plot(CEPC.NHiggs, CEPC.NnHiggs, 'mP', markersize=13)
+        plt.plot(CEPC.NHiggs*0.25/5, CEPC.NnHiggs*0.25/5, 'b*', markersize=13)
         plt.legend(loc=2)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -746,13 +752,13 @@ if __name__ == '__main__':
 
 
     # Find best cuts for varying S/B numbers
-    nraster=5
+    nraster=50
     NHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NnHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NH,NnH = np.meshgrid(NHiggs, NnHiggs)
 
     for analysischannel in ['CEPCInv' ]: #'WWstarInv', 'WW1stGen', 'WW2ndGen', 'GG', 'BB']: #['ZZstarInv', 'WWstarInv']:
-        for chargechannel in ['CC', '1C']:
+        for chargechannel in ['CC']: #, '1C']:
             print('{0}   {1}'.format(analysischannel, chargechannel))
             Bestd0cut=[]
             BestpLcut=[]

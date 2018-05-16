@@ -59,7 +59,7 @@ SPINNING = [ "-","\\","|","/"]
 def getcolor():
     import ROOT
     return [ ROOT.kRed+4, ROOT.kAzure+3, ROOT.kOrange-2, ROOT.kGreen-5, ROOT.kYellow+2, \
-             ROOT.kCyan-2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen-2,ROOT.kRed-4, ROOT.kGray-3, \
+             ROOT.kCyan-2, ROOT.kOrange+5,ROOT.kAzure-7,ROOT.kGreen-2,ROOT.kRed-4, ROOT.kGray+2, \
              ROOT.kMagenta+3, ROOT.kBlue-2]
 
 def getleg(**kwd):

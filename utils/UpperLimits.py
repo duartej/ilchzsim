@@ -141,7 +141,7 @@ class colliderscenarios(object):
             if analysischannel == 'inv':
                 self.analysischannel = 'inv'
                 self.NHiggs =(69820./Hbbbar+3029./Hccbar + 9522./Hgg)/3
-                self.NnHiggs=14106.
+                self.NnHiggs=16031.
         elif collider == 'FCCee':
             # numbers from 1207.0300
             lumiratio=0.95*10**7/77921. # ratio of #events FCCee/ILC
@@ -397,30 +397,58 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname, loglog=False):
 
     import matplotlib.pyplot as plt
     from matplotlib import colors
+    import matplotlib as mpl
 
     plt.rc('text', usetex=True)
-    plt.rc('font', family='serif', size=13)
+    plt.rc('font', family='serif', size=15)
     
     fig=plt.figure()
     ax = fig.add_subplot(1,1,1)
     ax.tick_params(top=True, right=True)
     ax.set_ylim(bottom=100, top=10000000)
+
     if 'BestMu' in plotname:
         levels=[1,2,5,10,20,50,100,200,500]
-        contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels, norm=colors.LogNorm())
+        contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels, norm=colors.LogNorm(), rasterized=True)
+        #contour.set_edgecolor('face')
+        #contour=plt.pcolormesh(X, Y, Z, cmap=plt.cm.viridis, norm=colors.LogNorm())
+        for c in contour.collections:
+            c.set_edgecolor("face")
         cbar=plt.colorbar(ticks=levels)
         cbar.set_ticklabels(levels)
     elif 'BestpL' in plotname:
-        levels = [0,2,4,6,8,10,12,14,16,18,20]
-        contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels)
-        cbar=plt.colorbar(ticks=levels)
+        levels = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]
+        cmap = plt.cm.get_cmap('viridis', len(levels)-1)
+        contour = plt.pcolormesh(X, Y, Z,
+                                 cmap=cmap,
+                                 norm=mpl.colors.BoundaryNorm(levels, ncolors=len(levels)-1, clip=False),
+                                 rasterized=True)
+        shiftedlevels= list(map(lambda x: x+0.5, levels))
+        cbar=plt.colorbar(ticks=shiftedlevels)
         cbar.set_ticklabels(levels)
     elif 'Bestd0' in plotname:
-        levels = [0.016, 0.018, 0.02, 0.022, 0.024]
-        levelsmu = list(map(lambda x: x*1000, levels))
-        contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis, levels=levels)
-        cbar=plt.colorbar(ticks=levels)
+        levels = [0.014, 0.015, 0.016, 0.017, 0.018, 0.019,
+                  0.02, 0.021, 0.022, 0.023, 0.024, 0.025]
+        levelsmu = list(map(lambda x: int(x*1000), levels))
+        cmap = plt.cm.get_cmap('viridis', len(levels)-1)
+        contour = plt.pcolormesh(X, Y, Z,
+                                 cmap=cmap,
+                                 norm=mpl.colors.BoundaryNorm(levels, ncolors=len(levels)-1, clip=False),
+                                 rasterized=True)
+        shiftedlevels= list(map(lambda x: x+0.0005, levels))
+        cbar=plt.colorbar(ticks=shiftedlevels)
         cbar.set_ticklabels(levelsmu)
+    elif 'BestPID' in plotname:
+        levels = [0.95, 0.96, 0.97, 0.98, 0.99, 1.00, 1.01]
+        levelsmu = list(map(lambda x: int(x*1000), levels))
+        cmap = plt.cm.get_cmap('viridis', len(levels)-1)
+        contour = plt.pcolormesh(X, Y, Z,
+                                 cmap=cmap,
+                                 norm=mpl.colors.BoundaryNorm(levels, ncolors=len(levels)-1, clip=False),
+                                 rasterized=True)
+        shiftedlevels= list(map(lambda x: x+0.005, levels))
+        cbar=plt.colorbar(ticks=shiftedlevels)
+        cbar.set_ticklabels(levels)
     elif 'Best' in plotname:
         levels = list(set([item for sublist in Z for item in sublist]))
         levels.sort()
@@ -437,14 +465,13 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname, loglog=False):
         plt.plot([100,10**7],[100*ILC.NnHiggs/ILC.NHiggs,10**7*ILC.NnHiggs/ILC.NHiggs],'--k', label='Cut\&Count')
         plt.plot([100,10**7],[100*CEPC.NnHiggs/CEPC.NHiggs,10**7*CEPC.NnHiggs/CEPC.NHiggs],':k', label='BDT')
 
-        plt.plot(FCCee.NHiggs, FCCee.NnHiggs, 'r+', markersize=13, label='$\mathcal{L}=40\,$ab$^{-1}$')
-        plt.plot(FCCee.NHiggs*5./40, FCCee.NnHiggs*5./40, 'mP', markersize=13, label='$\mathcal{L}=5\,$ab$^{-1}$')
+        plt.plot(ILC.NHiggs*200, ILC.NnHiggs*200, 'r+', markersize=13, label='$\mathcal{L}=50\,$ab$^{-1}$')
+        plt.plot(ILC.NHiggs*20, ILC.NnHiggs*20, 'mP', markersize=13, label='$\mathcal{L}=5\,$ab$^{-1}$')
         plt.plot(ILC.NHiggs, ILC.NnHiggs, 'b*', markersize=13, label='$\mathcal{L}=250\,$fb$^{-1}$')
-#        plt.plot(FCCee.roclist[0], FCCee.roclist[1], 'r+', markersize=5)
-#        plt.plot(FCCee.chi2list[0], FCCee.chi2list[1], 'mP', markersize=5, label='FCCee $\chi^2$')
-        plt.plot(CEPC.NHiggs*40./5, CEPC.NnHiggs*40./5, 'r+', markersize=13)
+
+        plt.plot(CEPC.NHiggs*10, CEPC.NnHiggs*10, 'r+', markersize=13)
         plt.plot(CEPC.NHiggs, CEPC.NnHiggs, 'mP', markersize=13)
-        plt.plot(CEPC.NHiggs*0.25/5, CEPC.NnHiggs*0.25/5, 'b*', markersize=13)
+        plt.plot(CEPC.NHiggs/20., CEPC.NnHiggs/20., 'b*', markersize=13)
         plt.legend(loc=2)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -752,11 +779,11 @@ if __name__ == '__main__':
 
 
     # Find best cuts for varying S/B numbers
-    nraster=50
+    nraster=250
     NHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NnHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NH,NnH = np.meshgrid(NHiggs, NnHiggs)
-
+    
     for analysischannel in ['CEPCInv' ]: #'WWstarInv', 'WW1stGen', 'WW2ndGen', 'GG', 'BB']: #['ZZstarInv', 'WWstarInv']:
         for chargechannel in ['CC']: #, '1C']:
             print('{0}   {1}'.format(analysischannel, chargechannel))
@@ -800,6 +827,8 @@ if __name__ == '__main__':
                                 currentbest=[mutmp, d0, pLcut, eK, signal/(HiggsEvents*Hssbar),
                                              background/(HiggsEvents*sum(list(map(lambda x: HBR[x],
                                             ['bb', 'cc', 'uu', 'dd', 'gg'])))+NonHiggsEvents)]
+#                            if y == 1 and 10**4 < HiggsEvents < 10**6 and 5<= pLcut <=13 and 0.016 <= d0 <= 0.021 and (eK in [1., 0.95, 0.96, 0.97]):
+#                                print("{0}  {1}  {2}  {3}  {4}".format(HiggsEvents, mutmp, d0, pLcut, eK))
                     f.write("{0} {1} {2} {3} {4} {5} {6} {7}\n".format(
                         HiggsEvents, NonHiggsEvents, currentbest[1], currentbest[2],
                         currentbest[3], currentbest[0], currentbest[4], currentbest[5]))
@@ -809,6 +838,7 @@ if __name__ == '__main__':
                     mudummy.append(currentbest[0])
                     sigeffdummy.append(currentbest[4])
                     bkgeffdummy.append(currentbest[5])
+                    
 
                 Bestd0cut.append(d0cutdummy)
                 BestpLcut.append(pLcutdummy)
@@ -821,15 +851,15 @@ if __name__ == '__main__':
             f.close()
             progress2.stop()
 
-            Plot2D(NH, NnH, np.array(Bestmu), '\# Higgs events', '\# non-Higgs events',
+            Plot2D(NH, NnH, np.array(Bestmu), r'\# $h \to jj$ events', '\# reducible background events',
                                '95\% CL on $\mu$', 'BestMu_{0}_{1}.{2}'.format(
                                    chargechannel, analysischannel, suffix), True)
-            Plot2D(NH, NnH, np.array(Bestd0cut), '\# Higgs events', '\# non-Higgs events',
+            Plot2D(NH, NnH, np.array(Bestd0cut), r'\# $h \to jj$ events', '\# reducible background events',
                                '$d_0^\mathrm{cut}|_\mathrm{best}$ [$\mu$m]', 'Bestd0_{0}_{1}.{2}'.format(
                                    chargechannel,analysischannel, suffix), True)
-            Plot2D(NH, NnH, np.array(BestpLcut), '\# Higgs events', '\# non-Higgs events',
+            Plot2D(NH, NnH, np.array(BestpLcut), r'\# $h \to jj$ events', '\# reducible background events',
                                '$p_{||}^\mathrm{cut}|_\mathrm{best}$ [GeV]', 'BestpL_{0}_{1}.{2}'.format(
                                    chargechannel,analysischannel, suffix), True)
-            Plot2D(NH, NnH, np.array(Bestpid), '\# Higgs events', '\# non-Higgs events',
+            Plot2D(NH, NnH, np.array(Bestpid), r'\# $h \to jj$ events', '\# reducible background events',
                                '$\epsilon_{K^\pm}|_\mathrm{best}$', 'BestPID_{0}_{1}.{2}'.format(
                                    chargechannel,analysischannel, suffix), True)

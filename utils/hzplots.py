@@ -1246,12 +1246,12 @@ def create_histos(suffix,description,res_int,hc=None):
             ytitle="A.U.",
             color=color)
     hc.create_and_book_histo("{0}_h_absd0_{1}".format(resonance,suffix),\
-            "leading kaons impact parameter",20,10**(-3),10,\
+            "leading kaons impact parameter",20,10**(-3),30*10**(-3),\
             description=description,
             xtitle="|d_{0}| [mm]",
             ytitle="A.U.",
             color=color,
-            xlog=True)
+            xlog=False)
     hc.create_and_book_histo("{0}_h_pLcut15_absd0_{1}".format(resonance,suffix),\
             "leading kaons impact parameter",20,10**(-3),10,\
             description=description,
@@ -1290,13 +1290,13 @@ def create_histos(suffix,description,res_int,hc=None):
             ytitle="A.U.",
             color=color)
     hc.create_and_book_histo("{0}_h_pL_candidates_{1}".format(resonance,suffix),\
-            "Parallel momentum distribution of kaon candidates",40,0,40,\
+            "Parallel momentum distribution of kaon candidates",20,0,20,\
             description=description,
             xtitle="p_{||} [GeV]",
             ytitle="A.U.",
             color=color)
     hc.create_and_book_histo("{0}_h_plab_candidates_{1}".format(resonance,suffix),\
-            "Lab frame momentum distribution of kaon candidates",40,0,50,\
+            "Lab frame momentum distribution of kaon candidates",20,0,20,\
             description=description,
             xtitle="p_{lab} [GeV]",
             ytitle="A.U.",
@@ -1481,6 +1481,12 @@ def plot_combined(hc,varname,option='',legposition="RIGHT"):
     # --- FIXME:: USE A function
     histonames = filter(lambda _k: _k.find(varname) == 0,\
             hc._histos.keys())
+    
+    # remove some channels from plot
+    #for channel in ['uubar', 'ddbar']:
+    #    histonames = filter(lambda _k: channel not in _k,\
+    #                        list(histonames))
+
     hc.associated(histonames)
     hc.plot(histonames[0],'comb_{0}{1}'.format(varname,SUFFIXPLOTS),log=True,legposition=legposition,
             legy=0.9, textlength=0.17)

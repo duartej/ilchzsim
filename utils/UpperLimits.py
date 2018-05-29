@@ -544,9 +544,11 @@ if __name__ == '__main__':
     parser.add_argument( '-c', '--colliders', action='store', nargs='*', dest='scenarios',\
                          help=r'collider scenarios which should be analyzed. Possible choices '\
                          'are: \n{}\n default: all'.format(includedscenarios))
+    parser.add_argument( '-n', '--nraster', action='store', dest='nraster',\
+                         help='number of raster points per axis [100]')
                          
     pwd=os.getcwd()
-    parser.set_defaults(suffix='.png', basedir=pwd, scenarios=includedscenarios)
+    parser.set_defaults(suffix='.png', basedir=pwd, scenarios=includedscenarios, nraster=100)
     args = parser.parse_args()
 
     if args.scenarios == []:
@@ -560,10 +562,12 @@ if __name__ == '__main__':
         scenarios = args.scenarios
     basedir   = args.basedir
     suffix    = args.suffix
+    nraster   = args.nraster
 
     print('\nrun in directory {0}'.format(basedir))
     print('run on scenarios {}'.format(scenarios))
     print('save plots as {0}'.format(suffix))
+    print('Number of raster points {0}^2'.format(nraster))
 
     # test if basedir exists
     try:
@@ -779,7 +783,6 @@ if __name__ == '__main__':
 
 
     # Find best cuts for varying S/B numbers
-    nraster=250
     NHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NnHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NH,NnH = np.meshgrid(NHiggs, NnHiggs)

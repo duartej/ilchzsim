@@ -449,6 +449,9 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname, loglog=False):
         shiftedlevels= list(map(lambda x: x+0.005, levels))
         cbar=plt.colorbar(ticks=shiftedlevels)
         cbar.set_ticklabels(levels)
+    elif 'BestEff' in plotname:
+        contour=plt.contourf(X, Y, Z, cmap=plt.cm.viridis)
+        cbar=plt.colorbar(contour)
     elif 'Best' in plotname:
         levels = list(set([item for sublist in Z for item in sublist]))
         levels.sort()
@@ -866,3 +869,9 @@ if __name__ == '__main__':
             Plot2D(NH, NnH, np.array(Bestpid), r'\# $h \to jj$ events', '\# reducible background events',
                                '$\epsilon_{K^\pm}|_\mathrm{best}$', 'BestPID_{0}_{1}.{2}'.format(
                                    chargechannel,analysischannel, suffix), True)
+            Plot2D(NH, NnH, np.array(BestSigEff)/np.array(BestBkgEff), r'\# $h \to jj$ events',
+                   '\# reducible background events', '$\epsilon_s/\epsilon_b$',
+                   'BestEffRatio_{0}_{1}.{2}'.format(chargechannel,analysischannel, suffix), True)
+            Plot2D(NH, NnH, np.array(BestSigEff)/np.sqrt(np.array(BestBkgEff)), r'\# $h \to jj$ events',
+                   '\# reducible background events', '$\epsilon_s/\sqrt{\epsilon_b}$',
+                   'BestEffsqrtRatio_{0}_{1}.{2}'.format(chargechannel,analysischannel, suffix), True)

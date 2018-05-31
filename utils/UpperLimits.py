@@ -475,6 +475,8 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname, loglog=False):
         plt.plot(CEPC.NHiggs*10, CEPC.NnHiggs*10, 'r+', markersize=13)
         plt.plot(CEPC.NHiggs, CEPC.NnHiggs, 'mP', markersize=13)
         plt.plot(CEPC.NHiggs/20., CEPC.NnHiggs/20., 'b*', markersize=13)
+
+        plt.plot(8000./Hbbbar, 2110+2090+104+30+1230, 'ro', markersize=13, label='CEPC')
         plt.legend(loc=2)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -503,7 +505,7 @@ def nonHiggsEff(process, effs):
         relativeBRs=np.array([Zbbbar, Zccbar, Zssbar, Zuubar, Zddbar, 0])
         return sum(effs*relativeBRs)
     if process == 'CEPCInv':
-        return 0.16*ww + 0.06*uu + 0.06*dd + 0.06*cc + 0.06*ss + 0.10*bb + 0.49*w + 0.00*gg
+        return 0.63*ww + 0.06*uu + 0.06*dd + 0.06*cc + 0.06*ss + 0.10*bb + 0.02*w + 0.00*gg
     elif process == 'WWstarInv':
         return w
     elif process == 'WW1stGen':

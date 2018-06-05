@@ -60,6 +60,57 @@ class progressbar(object):
         import sys
         sys.stdout.write('\n')
 
+class parameterspace(object):
+    """ administer a list of all points of the rectangular parameterspace.
+    """
+    def __init__(self, listofpoints):
+        try:
+            dummy=listofpoints[0][0]
+        except:
+            print("no parameter points provided")
+
+        self.parameterpoints=listofpoints
+        self.dimension = len(self.parameterpoints[0])
+        # get the possible values for all parameters"
+        self.values=[sorted(list(set([v[i] for v in self.parameterpoints]))) for i in range(self.dimension)]
+        
+    def getneighbors(self, point, depth):
+        """get the neighboring parameter points of the input points in the multidimensional space. See below
+        for a sketch in 2D. 'p' is the input point and 'r' the neighbors that are returned.
+        -------
+        --rrr--
+        --rpr--
+        --rrr--
+        -------
+
+        """
+        import itertools
+
+        # check if point is in listofpoints
+        if point not in self.parameterpoints:
+            raise IndexError
+
+        # get indexes of the variables of point
+        indexlist = list(map(lambda i: self.values[i].index(point[i]), range(self.dimension)))
+
+        # get the corresponding values (+-1 if possible)
+        valuelist = []
+        for i in range(self.dimension):
+            valuelist.append([])
+            valuelist[-1].append(self.values[i][indexlist[i]])
+            for d in range(1, depth):
+                if indexlist[i]-d >= 0:
+                    valuelist[-1].append(self.values[i][indexlist[i]-d])
+                if indexlist[i]+d < len(self.values[i]):
+                    valuelist[-1].append(self.values[i][indexlist[i]+d])
+
+        neighbours = []
+        for element in itertools.product(*valuelist):
+            if list(element) in self.parameterpoints:
+                neighbours.append(list(element))
+        neighbours.remove(point)
+        return neighbours
+        
 def Possible_SubAnalyses(scenario):
     """ Return the possible analysis channels for a given collider scenario
     """
@@ -521,6 +572,80 @@ def nonHiggsEff(process, effs):
         relativeBRs=np.array([Zbbbar, Zccbar, Zssbar, Zuubar, Zddbar, 0])
         return sum(effs*relativeBRs)
 
+def evaluateWP(HiggsEvents, NonHiggsEvents, eff, WP, chargechannel, analysischannel):
+    """ calculate the upper limit and other values for a given working point
+    """
+
+    [d0, etrack, eK, ePi, eK0, pLcut] = WP
+    signal=HiggsEvents*Hssbar*eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0, pLcut]
+    background=HiggsEvents*sum(list(map(lambda x:
+                                        HBR[x]*eff[chargechannel, x, etrack, eK, ePi, eK0, d0, pLcut],
+                                        ['bb', 'cc', 'uu', 'dd', 'gg'])))
+    background+=(NonHiggsEvents *
+                 nonHiggsEff(analysischannel, list(map(lambda c:
+                                eff[chargechannel, c, etrack, eK, ePi, eK0, d0, pLcut],
+                                ['bb', 'cc', 'ss', 'uu', 'dd', 'gg', 'ww']))))
+                        
+    mu = Expected_UpperLimit([signal, background])
+
+    return [signal, background, mu]
+
+def GetBestWP(HiggsEvents, NonHiggsEvents, eff, WP, chargechannel, analysischannel, allparameters):
+    """start from the workingpoint 'WP' and check if its neighbours improve the performance, iterate
+    until a minimum is found
+
+    """
+    ps=parameterspace(allparameters)
+
+    mutmp = evaluateWP(HiggsEvents, NonHiggsEvents, eff, WP, chargechannel, analysischannel)[2]
+    if HiggsEvents == 10000000.0 and NonHiggsEvents == 4941713.361323838:
+        print(WP)
+        print(mutmp)
+    change = True
+    checked = []
+    while change:
+        change = False
+        for point in ps.getneighbors(WP,1):
+            if point in checked:
+                continue
+            checked.append(point)
+            mutest = evaluateWP(HiggsEvents, NonHiggsEvents, eff, point, chargechannel, analysischannel)[2]
+            if mutest < mutmp:
+                WP = point
+                mutmp = mutest
+                change = True
+                break
+        if change:
+            continue
+
+        # if nearest neighbours did not succeed, try second neighbours
+        for point in [p for p in ps.getneighbors(WP,2) if p not in checked]:
+            if point in checked:
+                continue
+            checked.append(point)
+            mutest = evaluateWP(HiggsEvents, NonHiggsEvents, eff, point, chargechannel, analysischannel)[2]
+            if mutest < mutmp:
+                WP = point
+                mutmp = mutest
+                change = True
+                break
+        if change:
+            continue
+
+        # if second neighbours did not succeed, try fourth neighbours
+        for point in [p for p in ps.getneighbors(WP,4) if p not in checked]:
+            if point in checked:
+                continue
+            checked.append(point)
+            mutest = evaluateWP(HiggsEvents, NonHiggsEvents, eff, point, chargechannel, analysischannel)[2]
+            if mutest < mutmp:
+                WP = point
+                mutmp = mutest
+                change = True
+                break
+            
+    return WP
+            
 
 def transpose(listoflist):
     return list(map(list, zip(*listoflist)))
@@ -539,7 +664,8 @@ if __name__ == '__main__':
     import os
     import sys
     import numpy as np
-
+    import itertools
+    
     usage = "Significance and upper limit for collider scenarios"
     parser = ArgumentParser(prog='UpperLimits', description=usage)
     parser.add_argument('-b', '--basedir', action='store', dest='basedir',
@@ -549,7 +675,7 @@ if __name__ == '__main__':
     parser.add_argument( '-c', '--colliders', action='store', nargs='*', dest='scenarios',\
                          help=r'collider scenarios which should be analyzed. Possible choices '\
                          'are: \n{}\n default: all'.format(includedscenarios))
-    parser.add_argument( '-n', '--nraster', action='store', dest='nraster',\
+    parser.add_argument( '-n', '--nraster', action='store', dest='nraster', type=int,\
                          help='number of raster points per axis [100]')
                          
     pwd=os.getcwd()
@@ -635,7 +761,7 @@ if __name__ == '__main__':
             if firstChannel:
                 firstChannel=False
                 parameters.sort()
-            
+
     firstScenario=True
     for scenario in scenarios:
         break # Fixme: Remove
@@ -792,19 +918,60 @@ if __name__ == '__main__':
     NnHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NH,NnH = np.meshgrid(NHiggs, NnHiggs)
     
+    allparameters = []
+
+    for element in itertools.product(*[parameters, pcutlist]):
+        allparameters.append(element[0]+[element[1]])
+    
     for analysischannel in ['CEPCInv' ]: #'WWstarInv', 'WW1stGen', 'WW2ndGen', 'GG', 'BB']: #['ZZstarInv', 'WWstarInv']:
         for chargechannel in ['CC']: #, '1C']:
             print('{0}   {1}'.format(analysischannel, chargechannel))
-            Bestd0cut=[]
-            BestpLcut=[]
-            Bestpid  =[]
-            Bestmu   =[]
-            BestSigEff=[]
-            BestBkgEff=[]
+            BestWP    = {}
+            Bestd0cut = [[0 for i in range(nraster)] for j in range(nraster)]
+            BestpLcut = [[0 for i in range(nraster)] for j in range(nraster)]
+            Bestpid   = [[0 for i in range(nraster)] for j in range(nraster)]
+            Bestmu    = [[0 for i in range(nraster)] for j in range(nraster)]
+            BestSigEff= [[0 for i in range(nraster)] for j in range(nraster)]
+            BestBkgEff= [[0 for i in range(nraster)] for j in range(nraster)]
 
             progress2 =progressbar(len(NnHiggs))
 
             f = open(basedir + '/' + chargechannel + '_' + analysischannel + '.dat', 'w')
+            for [NonHiggsEvents, HiggsEvents] in itertools.product(*[NnHiggs,NHiggs]):
+                NonHiggsIndex = np.where(NnHiggs==NonHiggsEvents)[0][0]
+                HiggsIndex    = np.where(NHiggs ==HiggsEvents)[0][0]
+                if NonHiggsIndex == HiggsIndex == 0:
+                    BestWP[(NonHiggsEvents, HiggsEvents)] = GetBestWP(HiggsEvents, NonHiggsEvents, eff,
+                                                                allparameters[0], chargechannel,
+                                                                analysischannel, allparameters)
+                elif NonHiggsIndex != 0:
+                    BestWP[(NonHiggsEvents, HiggsEvents)] = GetBestWP(HiggsEvents, NonHiggsEvents, eff,
+                                                                BestWP[(NnHiggs[NonHiggsIndex-1], HiggsEvents)],
+                                                                chargechannel, analysischannel, allparameters)
+                elif NonHiggsIndex == 0:
+                    BestWP[(NonHiggsEvents, HiggsEvents)] = GetBestWP(HiggsEvents, NonHiggsEvents, eff,
+                                                                BestWP[(NonHiggsEvents, NHiggs[HiggsIndex-1])],
+                                                                chargechannel, analysischannel, allparameters)
+                [d0, etrack, eK, ePi, eK0, pLcut] = BestWP[(NonHiggsEvents, HiggsEvents)]
+                Bestd0cut[NonHiggsIndex][HiggsIndex]  = d0
+                BestpLcut[NonHiggsIndex][HiggsIndex]  = pLcut
+                Bestpid[NonHiggsIndex][HiggsIndex]    = eK
+                [signal, background, mu]              = evaluateWP(HiggsEvents, NonHiggsEvents, eff,
+                                                                   BestWP[(NonHiggsEvents, HiggsEvents)],
+                                                                   chargechannel, analysischannel)
+                sigeff                                = signal/(HiggsEvents*Hssbar)
+                bkgeff                                = background/(HiggsEvents*sum(list(map(lambda x: HBR[x],
+                                                            ['bb', 'cc', 'uu', 'dd', 'gg'])))+NonHiggsEvents)
+                Bestmu[NonHiggsIndex][HiggsIndex]     = mu
+                BestSigEff[NonHiggsIndex][HiggsIndex] = sigeff
+                BestBkgEff[NonHiggsIndex][HiggsIndex] = bkgeff
+
+                f.write("{0} {1} {2} {3} {4} {5} {6} {7}\n".format(
+                    HiggsEvents, NonHiggsEvents, d0 , pLcut, eK, mu, sigeff, bkgeff))
+                if HiggsIndex == nraster-1:
+                    progress2.next()
+
+            """
             for y in range(len(NnHiggs)):
                 NonHiggsEvents=NnHiggs[y]
 
@@ -818,6 +985,29 @@ if __name__ == '__main__':
                 for x in range(len(NHiggs)):
                     HiggsEvents=NHiggs[x]
 
+                    # for first point need to iterate whole parameter space
+                    if x == y == 0:
+                        currentbest=[10**10]
+
+                        for (d0, etrack, eK, ePi, eK0, pLcut) in allparameters:
+                            signal=HiggsEvents*Hssbar*eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0, pLcut]
+                            background=HiggsEvents*sum(list(map(lambda x:
+                                            HBR[x]*eff[chargechannel, x, etrack, eK, ePi, eK0, d0, pLcut],
+                                                                ['bb', 'cc', 'uu', 'dd', 'gg'])))
+                            background+=(NonHiggsEvents *
+                                         nonHiggsEff(analysischannel, list(map(lambda c:
+                                        eff[chargechannel, c, etrack, eK, ePi, eK0, d0, pLcut],
+                                                            ['bb', 'cc', 'ss', 'uu', 'dd', 'gg', 'ww']))))
+                        
+                            mutmp=Expected_UpperLimit([signal, background])
+                            if mutmp < currentbest[0]:
+                                currentbest=[mutmp, d0, pLcut, eK, etrack, ePi, eK0,
+                                             signal/(HiggsEvents*Hssbar),
+                                             background/(HiggsEvents*sum(list(map(lambda x: HBR[x],
+                                            ['bb', 'cc', 'uu', 'dd', 'gg'])))+NonHiggsEvents)]
+                    elif x > 0:
+            """
+            """
                     currentbest=[10**10, -1, -1, -1, 0, 0]
                     for (d0, etrack, eK, ePi, eK0) in parameters:
                         for pLcut in pcutlist:
@@ -837,6 +1027,8 @@ if __name__ == '__main__':
                                             ['bb', 'cc', 'uu', 'dd', 'gg'])))+NonHiggsEvents)]
 #                            if y == 1 and 10**4 < HiggsEvents < 10**6 and 5<= pLcut <=13 and 0.016 <= d0 <= 0.021 and (eK in [1., 0.95, 0.96, 0.97]):
 #                                print("{0}  {1}  {2}  {3}  {4}".format(HiggsEvents, mutmp, d0, pLcut, eK))
+            """
+            """                    
                     f.write("{0} {1} {2} {3} {4} {5} {6} {7}\n".format(
                         HiggsEvents, NonHiggsEvents, currentbest[1], currentbest[2],
                         currentbest[3], currentbest[0], currentbest[4], currentbest[5]))
@@ -855,8 +1047,8 @@ if __name__ == '__main__':
                 BestBkgEff.append(bkgeffdummy)
                 BestSigEff.append(sigeffdummy)
                 progress2.next()
-
             f.close()
+            """
             progress2.stop()
 
             Plot2D(NH, NnH, np.array(Bestmu), r'\# $h \to jj$ events', '\# reducible background events',

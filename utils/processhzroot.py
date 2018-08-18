@@ -73,7 +73,7 @@ def get_leading_kaons(tree,applycharge,useKshorts):
     import sys
     
     # resoltuion of the IP reconstruction
-    IP_resolution = 0.005 # mm
+    IP_resolution = 0.000 # mm
 
     # FIXME: As the d0 and z0 are calculated here, it could be useful to
     #        included them in the trees later
@@ -94,7 +94,7 @@ def get_leading_kaons(tree,applycharge,useKshorts):
     z0_f      = lambda _k: (d0_f(_k)-L_f(_k))/tan(tree.theta_lab[_k])+tree.vz[_k]
     # resolution of impact parameter d0 in mm
     # ILC
-    d0_resolution = lambda _k: 0.001*sqrt(5.0**2+(10.0/(tree.p_lab[_k]*sin(tree.theta_lab[_k])**(3./2.)))**2)
+    d0_resolution = lambda _k: 0.001*sqrt(5.0**2+(15.0/(tree.p_lab[_k]*sin(tree.theta_lab[_k])**(3./2.)))**2)
     # CLIC 
     # d0_resolution = lambda _k: 0.001*sqrt(5.0**2+(15.0/(tree.p_lab[_k]*sin(tree.theta_lab[_k])**(3./2.)))**2)
     nentries = tree.getentries()

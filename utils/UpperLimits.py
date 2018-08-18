@@ -527,7 +527,7 @@ def Plot2D(X, Y, Z, xlabel, ylabel, zlabel, plotname, loglog=False):
         plt.plot(CEPC.NHiggs, CEPC.NnHiggs, 'mP', markersize=13)
         plt.plot(CEPC.NHiggs/20., CEPC.NnHiggs/20., 'b*', markersize=13)
 
-        plt.plot(8000./Hbbbar, 2110+2090+104+30+1230, 'ro', markersize=13, label='CEPC')
+        #plt.plot(8000./Hbbbar, 2110+2090+104+30+1230, 'ro', markersize=13, label='CLIC')
         plt.legend(loc=2)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -924,15 +924,17 @@ if __name__ == '__main__':
         allparameters.append(element[0]+[element[1]])
     
     for analysischannel in ['CEPCInv' ]: #'WWstarInv', 'WW1stGen', 'WW2ndGen', 'GG', 'BB']: #['ZZstarInv', 'WWstarInv']:
-        for chargechannel in ['CC']: #, '1C']:
+        for chargechannel in ['CC']:
             print('{0}   {1}'.format(analysischannel, chargechannel))
-            BestWP    = {}
-            Bestd0cut = [[0 for i in range(nraster)] for j in range(nraster)]
-            BestpLcut = [[0 for i in range(nraster)] for j in range(nraster)]
-            Bestpid   = [[0 for i in range(nraster)] for j in range(nraster)]
-            Bestmu    = [[0 for i in range(nraster)] for j in range(nraster)]
-            BestSigEff= [[0 for i in range(nraster)] for j in range(nraster)]
-            BestBkgEff= [[0 for i in range(nraster)] for j in range(nraster)]
+            BestWP      = {}
+            Bestd0cut   = [[0 for i in range(nraster)] for j in range(nraster)]
+            BestpLcut   = [[0 for i in range(nraster)] for j in range(nraster)]
+            Bestpid     = [[0 for i in range(nraster)] for j in range(nraster)]
+            Bestmu      = [[0 for i in range(nraster)] for j in range(nraster)]
+            Bestd0cutNC = [[0 for i in range(nraster)] for j in range(nraster)]
+            BestpLcutNC = [[0 for i in range(nraster)] for j in range(nraster)]
+            BestSigEff  = [[0 for i in range(nraster)] for j in range(nraster)]
+            BestBkgEff  = [[0 for i in range(nraster)] for j in range(nraster)]
 
             progress2 =progressbar(len(NnHiggs))
 
@@ -971,84 +973,6 @@ if __name__ == '__main__':
                 if HiggsIndex == nraster-1:
                     progress2.next()
 
-            """
-            for y in range(len(NnHiggs)):
-                NonHiggsEvents=NnHiggs[y]
-
-                d0cutdummy =[]
-                pLcutdummy =[]
-                piddummy   =[]
-                mudummy    =[]
-                sigeffdummy=[]
-                bkgeffdummy=[]
-
-                for x in range(len(NHiggs)):
-                    HiggsEvents=NHiggs[x]
-
-                    # for first point need to iterate whole parameter space
-                    if x == y == 0:
-                        currentbest=[10**10]
-
-                        for (d0, etrack, eK, ePi, eK0, pLcut) in allparameters:
-                            signal=HiggsEvents*Hssbar*eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0, pLcut]
-                            background=HiggsEvents*sum(list(map(lambda x:
-                                            HBR[x]*eff[chargechannel, x, etrack, eK, ePi, eK0, d0, pLcut],
-                                                                ['bb', 'cc', 'uu', 'dd', 'gg'])))
-                            background+=(NonHiggsEvents *
-                                         nonHiggsEff(analysischannel, list(map(lambda c:
-                                        eff[chargechannel, c, etrack, eK, ePi, eK0, d0, pLcut],
-                                                            ['bb', 'cc', 'ss', 'uu', 'dd', 'gg', 'ww']))))
-                        
-                            mutmp=Expected_UpperLimit([signal, background])
-                            if mutmp < currentbest[0]:
-                                currentbest=[mutmp, d0, pLcut, eK, etrack, ePi, eK0,
-                                             signal/(HiggsEvents*Hssbar),
-                                             background/(HiggsEvents*sum(list(map(lambda x: HBR[x],
-                                            ['bb', 'cc', 'uu', 'dd', 'gg'])))+NonHiggsEvents)]
-                    elif x > 0:
-            """
-            """
-                    currentbest=[10**10, -1, -1, -1, 0, 0]
-                    for (d0, etrack, eK, ePi, eK0) in parameters:
-                        for pLcut in pcutlist:
-                            signal=HiggsEvents*Hssbar*eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0, pLcut]
-                            background=HiggsEvents*sum(list(map(lambda x:
-                                                HBR[x]*eff[chargechannel, x, etrack, eK, ePi, eK0, d0, pLcut],
-                                                ['bb', 'cc', 'uu', 'dd', 'gg'])))
-                            background+=(NonHiggsEvents *
-                                         nonHiggsEff(analysischannel, list(map(lambda c:
-                                        eff[chargechannel, c, etrack, eK, ePi, eK0, d0, pLcut],
-                                                                      ['bb', 'cc', 'ss', 'uu', 'dd', 'gg', 'ww']))))
-                        
-                            mutmp=Expected_UpperLimit([signal, background])
-                            if mutmp < currentbest[0]:
-                                currentbest=[mutmp, d0, pLcut, eK, signal/(HiggsEvents*Hssbar),
-                                             background/(HiggsEvents*sum(list(map(lambda x: HBR[x],
-                                            ['bb', 'cc', 'uu', 'dd', 'gg'])))+NonHiggsEvents)]
-#                            if y == 1 and 10**4 < HiggsEvents < 10**6 and 5<= pLcut <=13 and 0.016 <= d0 <= 0.021 and (eK in [1., 0.95, 0.96, 0.97]):
-#                                print("{0}  {1}  {2}  {3}  {4}".format(HiggsEvents, mutmp, d0, pLcut, eK))
-            """
-            """                    
-                    f.write("{0} {1} {2} {3} {4} {5} {6} {7}\n".format(
-                        HiggsEvents, NonHiggsEvents, currentbest[1], currentbest[2],
-                        currentbest[3], currentbest[0], currentbest[4], currentbest[5]))
-                    d0cutdummy.append(currentbest[1])
-                    pLcutdummy.append(currentbest[2])
-                    piddummy.append(currentbest[3])
-                    mudummy.append(currentbest[0])
-                    sigeffdummy.append(currentbest[4])
-                    bkgeffdummy.append(currentbest[5])
-                    
-
-                Bestd0cut.append(d0cutdummy)
-                BestpLcut.append(pLcutdummy)
-                Bestpid.append(piddummy)
-                Bestmu.append(mudummy)
-                BestBkgEff.append(bkgeffdummy)
-                BestSigEff.append(sigeffdummy)
-                progress2.next()
-            f.close()
-            """
             progress2.stop()
 
             Plot2D(NH, NnH, np.array(Bestmu), r'\# $h \to jj$ events', '\# reducible background events',

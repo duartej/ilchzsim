@@ -556,7 +556,7 @@ def nonHiggsEff(process, effs):
         relativeBRs=np.array([Zbbbar, Zccbar, Zssbar, Zuubar, Zddbar, 0])
         return sum(effs*relativeBRs)
     if process == 'CEPCInv':
-        return 0.63*ww + 0.06*uu + 0.06*dd + 0.06*cc + 0.06*ss + 0.10*bb + 0.02*w + 0.00*gg
+        return 0.653*ww + 0.061*uu + 0.06*dd + 0.064*cc + 0.06*ss + 0.098*bb + 0.00*gg
     elif process == 'WWstarInv':
         return w
     elif process == 'WW1stGen':
@@ -717,7 +717,7 @@ if __name__ == '__main__':
     for chargechannel in HiggsChannels:
         if chargechannel in basedirentries and os.path.isdir(basedir+'/'+chargechannel):
             processedChargeChannels.append(chargechannel)
-            effFiles = filter(lambda x: 'efficiencies' in x and 'txt' in x,
+            effFiles = filter(lambda x: 'combinedeffs' in x and 'txt' in x,
                               os.listdir(basedir+'/'+chargechannel))
 
             for effFile in effFiles:
@@ -734,7 +734,7 @@ if __name__ == '__main__':
                 # read the efficiencies from the file
                 f = open(basedir + '/' + chargechannel + '/' +effFile, 'r')
                 for line in f:
-                    [pcut, effB, effC, effS, effU, effD, effG, effW] = map(lambda x: float(x), line.split())
+                    [pcut, effB, effC, effS, effU, effD, effG, oldW, effW, W250] = map(lambda x: float(x), line.split())
                     eff[chargechannel, 'bb',etrack, eK, ePi, eK0, d0cut, pcut] = effB
                     eff[chargechannel, 'cc',etrack, eK, ePi, eK0, d0cut, pcut] = effC
                     eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0cut, pcut] = effS

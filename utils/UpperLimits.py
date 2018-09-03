@@ -975,21 +975,21 @@ if __name__ == '__main__':
 
             progress2.stop()
 
-            Plot2D(NH, NnH, np.array(Bestmu), r'\# $h \to jj$ events', '\# reducible background events',
+            Plot2D(NH, NnH, np.array(Bestmu), r'\# $h \to jj$ events', '\# non-$h2j$ events',
                                '95\% CL on $\mu$', 'BestMu_{0}_{1}.{2}'.format(
                                    chargechannel, analysischannel, suffix), True)
-            Plot2D(NH, NnH, np.array(Bestd0cut), r'\# $h \to jj$ events', '\# reducible background events',
+            Plot2D(NH, NnH, np.array(Bestd0cut), r'\# $h \to jj$ events', '\# non-$h2j$ events',
                                '$d_0^\mathrm{cut}|_\mathrm{best}$ [$\mu$m]', 'Bestd0_{0}_{1}.{2}'.format(
                                    chargechannel,analysischannel, suffix), True)
-            Plot2D(NH, NnH, np.array(BestpLcut), r'\# $h \to jj$ events', '\# reducible background events',
+            Plot2D(NH, NnH, np.array(BestpLcut), r'\# $h \to jj$ events', '\# non-$h2j$ events',
                                '$p_{||}^\mathrm{cut}|_\mathrm{best}$ [GeV]', 'BestpL_{0}_{1}.{2}'.format(
                                    chargechannel,analysischannel, suffix), True)
-            Plot2D(NH, NnH, np.array(Bestpid), r'\# $h \to jj$ events', '\# reducible background events',
+            Plot2D(NH, NnH, np.array(Bestpid), r'\# $h \to jj$ events', '\# non-$h2j$ events',
                                '$\epsilon_{K^\pm}|_\mathrm{best}$', 'BestPID_{0}_{1}.{2}'.format(
                                    chargechannel,analysischannel, suffix), True)
             Plot2D(NH, NnH, np.array(BestSigEff)/np.array(BestBkgEff), r'\# $h \to jj$ events',
-                   '\# reducible background events', '$\epsilon_s/\epsilon_b$',
+                   '\# non-$h2j$ events', '$\epsilon_s/\epsilon_b$',
                    'BestEffRatio_{0}_{1}.{2}'.format(chargechannel,analysischannel, suffix), True)
             Plot2D(NH, NnH, np.array(BestSigEff)/np.sqrt(np.array(BestBkgEff)), r'\# $h \to jj$ events',
-                   '\# reducible background events', '$\epsilon_s/\sqrt{\epsilon_b}$',
+                   '\# non-$h2j$ events', '$\epsilon_s/\sqrt{\epsilon_b}$',
                    'BestEffsqrtRatio_{0}_{1}.{2}'.format(chargechannel,analysischannel, suffix), True)

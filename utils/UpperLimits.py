@@ -632,8 +632,8 @@ def GetBestWP(HiggsEvents, NonHiggsEvents, eff, WP, chargechannel, analysischann
         if change:
             continue
 
-        # if second neighbours did not succeed, try fourth neighbours
-        for point in [p for p in ps.getneighbors(WP,4) if p not in checked]:
+        # if second neighbours did not succeed, try fifth neighbours
+        for point in [p for p in ps.getneighbors(WP,5) if p not in checked]:
             if point in checked:
                 continue
             checked.append(point)
@@ -677,7 +677,8 @@ if __name__ == '__main__':
                          'are: \n{}\n default: all'.format(includedscenarios))
     parser.add_argument( '-n', '--nraster', action='store', dest='nraster', type=int,\
                          help='number of raster points per axis [100]')
-                         
+    parser.add_argument( '--noPID', action='store_true', help='assume no PID is possible')
+
     pwd=os.getcwd()
     parser.set_defaults(suffix='.png', basedir=pwd, scenarios=includedscenarios, nraster=100)
     args = parser.parse_args()
@@ -693,6 +694,11 @@ if __name__ == '__main__':
         scenarios = args.scenarios
     basedir   = args.basedir
     suffix    = args.suffix
+    if suffix[0] != '.':
+        suffix = ".{0}".format(suffix)
+    noPID     = args.noPID
+    if noPID:
+        suffix = '_noPID{0}'.format(suffix)
     nraster   = args.nraster
 
     print('\nrun in directory {0}'.format(basedir))
@@ -731,6 +737,9 @@ if __name__ == '__main__':
                     Print_Warning('failed with file {0}'.format(effFile))
                     continue
 
+                if noPID and eK != 1.0:
+                    continue
+                
                 # read the efficiencies from the file
                 f = open(basedir + '/' + chargechannel + '/' +effFile, 'r')
                 for line in f:

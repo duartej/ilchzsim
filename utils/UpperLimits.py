@@ -734,7 +734,7 @@ if __name__ == '__main__':
                 # read the efficiencies from the file
                 f = open(basedir + '/' + chargechannel + '/' +effFile, 'r')
                 for line in f:
-                    [pcut, effB, effC, effS, effU, effD, effG, oldW, effW, W250] = map(lambda x: float(x), line.split())
+                    [pcut, effB, effC, effS, effU, effD, effG, effW, W250] = map(lambda x: float(x), line.split())
                     eff[chargechannel, 'bb',etrack, eK, ePi, eK0, d0cut, pcut] = effB
                     eff[chargechannel, 'cc',etrack, eK, ePi, eK0, d0cut, pcut] = effC
                     eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0cut, pcut] = effS

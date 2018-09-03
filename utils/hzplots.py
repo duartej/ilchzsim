@@ -106,7 +106,6 @@ class higgsinputs:
         self.brgg       = 8.180e-2
         self.bruubar    = 1.3e-7  # needed for number of events but actually negligible
         self.brddbar    = 5.8e-8  # needed for number of events but actually negligible
-        self.brWW       = 2.152e-1 * 1972./71934 # BR multiplied by efficiency of BDT (CEPC talk)
         self.Lint       = 0 #(fb)
         self.higgsproduced = 0
 
@@ -529,8 +528,6 @@ class eff_cut_hadron(object):
         self.decay_channel = decay_channel
         if 'bar' in decay_channel.split('_')[0]:
             self.short_name='{0}#bar{{{0}}}'.format(decay_channel.split('_')[0][0])
-        elif decay_channel.split('_')[0]=='WW':
-            self.short_name='WW*'
         else:
             self.short_name=decay_channel.split('_')[0]
         self.initialized = False
@@ -1211,8 +1208,7 @@ def create_histos(suffix,description,res_int,hc=None):
     ROOT.gROOT.SetBatch()
 
     COLOR = { 'ssbar': ROOT.kRed+1, 'bbbar': ROOT.kGreen+1, 'gg': ROOT.kBlue+1,
-              'ccbar': ROOT.kGray+1, 'uubar': ROOT.kOrange-3, 'ddbar': ROOT.kMagenta+2,
-              'WW': ROOT.kCyan+1 }
+              'ccbar': ROOT.kBlack, 'uubar': ROOT.kOrange-3, 'ddbar': ROOT.kMagenta+2}
     RES = { 23: 'Z', 25: 'H' }
 
     resonance = RES[res_int]
@@ -1252,13 +1248,13 @@ def create_histos(suffix,description,res_int,hc=None):
             ytitle="A.U.",
             color=color,
             xlog=False)
-    hc.create_and_book_histo("{0}_h_pLcut15_absd0_{1}".format(resonance,suffix),\
-            "leading kaons impact parameter",20,10**(-3),10,\
+    hc.create_and_book_histo("{0}_h_pLcut10_absd0_{1}".format(resonance,suffix),\
+            "leading kaons impact parameter",20,10**(-3),30*10**(-3),\
             description=description,
             xtitle="|d_{0}| [mm]",
             ytitle="A.U.",
             color=color,
-            xlog=True)
+            xlog=False)
     hc.create_and_book_histo("{0}_h_Resd0_{1}".format(resonance,suffix),\
             "resolution of leading kaons impact parameter",20,0,30,\
             description=description,
@@ -1481,11 +1477,11 @@ def plot_combined(hc,varname,option='',legposition="RIGHT"):
     # --- FIXME:: USE A function
     histonames = filter(lambda _k: _k.find(varname) == 0,\
             hc._histos.keys())
-    
+
     # remove some channels from plot
-    #for channel in ['uubar', 'ddbar']:
-    #    histonames = filter(lambda _k: channel not in _k,\
-    #                        list(histonames))
+    for channel in ['uubar', 'ddbar']:
+        histonames = filter(lambda _k: channel not in _k,\
+                            list(histonames))
 
     hc.associated(histonames)
     hc.plot(histonames[0],'comb_{0}{1}'.format(varname,SUFFIXPLOTS),log=True,legposition=legposition,
@@ -1646,9 +1642,9 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
     observables = {}
     # Indices, see in line [MARK-1]
     I_PL = 0; I_EFF_SIG = 1; I_SIGN=2; I_PION_REJEC = 3; I_PURITY = 4; I_N_SIGNAL = 5; I_N_BKG=6; I_EFF_BKG=7;
-    I_N_BB=8;    I_N_CC=9; I_N_GG=10; I_N_UU=11;  I_N_DD=12; I_N_WW=13;
-    I_EFF_BB=14; I_EFF_CC=15; I_EFF_SS=16; I_EFF_UU=17; I_EFF_DD=18; I_EFF_GG=19; I_EFF_WW=20;
-    I_BCDF_BB=21; I_BCDF_CC=22; I_BCDF_SS=23; I_BCDF_UU=24; I_BCDF_DD=25; I_BCDF_GG=26; I_BCDF_WW=27;
+    I_N_BB=8;    I_N_CC=9; I_N_GG=10; I_N_UU=11;  I_N_DD=12;
+    I_EFF_BB=13; I_EFF_CC=14; I_EFF_SS=15; I_EFF_UU=16; I_EFF_DD=17; I_EFF_GG=18;
+    I_BCDF_BB=19; I_BCDF_CC=20; I_BCDF_SS=21; I_BCDF_UU=22; I_BCDF_DD=23; I_BCDF_GG=24;
  
     for _d0 in d0cuts:
         d0str = '{0}'.format(_d0)
@@ -1682,9 +1678,6 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
             eff_dd  = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_total_eff()
             n_dd    = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_total_events()
             bcdf_dd = eff[filter(lambda x: x.find('ddbar') != -1,channels)[0]].get_BCdaughter_fraction()
-            eff_WW  = eff[filter(lambda x: x.find('WW') != -1,channels)[0]].get_total_eff()
-            n_WW    = eff[filter(lambda x: x.find('WW') != -1,channels)[0]].get_total_events()
-            bcdf_WW = eff[filter(lambda x: x.find('WW') != -1,channels)[0]].get_BCdaughter_fraction()
             bkg_tot_evts = sum(map(lambda (x,y): y.get_total_events(),\
                     filter(lambda (x,y): x != signal_channel, eff.iteritems() )))
             bkg_tot_eff = sum(map(lambda (x,y): y.get_total_eff(),\
@@ -1720,9 +1713,9 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
             # store it, note reference above [MARK-1]
             observables[d0str].append( (pL,eff_sig,significance,pion_rejection,purity,n_KK,bkg_tot_evts,
                                         bkg_tot_eff,
-                                        n_bb,n_cc,n_gg, n_uu, n_dd, n_WW,
-                                        eff_bb, eff_cc, eff_ss, eff_uu, eff_dd, eff_gg, eff_WW,
-                                        bcdf_bb, bcdf_cc, bcdf_ss, bcdf_uu, bcdf_dd, bcdf_gg, bcdf_WW) )
+                                        n_bb,n_cc,n_gg, n_uu, n_dd,
+                                        eff_bb, eff_cc, eff_ss, eff_uu, eff_dd, eff_gg,
+                                        bcdf_bb, bcdf_cc, bcdf_ss, bcdf_uu, bcdf_dd, bcdf_gg) )
             i+=1
     # plotting
     print
@@ -1773,9 +1766,9 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
         e.deactivate_cuts()
         e.activate_cuts(pLcut=10)
         e.get_tree().Project("H_h_pLcut10_R_Ks_{0}".format(e.decay_channel),"R","isKshort==1")
+        e.get_tree().Project("H_h_pLcut10_absd0_{0}".format(e.decay_channel),"abs(d0)","isKshort!=1")
         e.deactivate_cuts()
         e.activate_cuts(pLcut=15)        
-        e.get_tree().Project("H_h_pLcut15_absd0_{0}".format(e.decay_channel),"abs(d0)","isKshort!=1")
         e.get_tree().Project("H_h_pLcut15_Resd0_{0}".format(e.decay_channel),"5.+(10/(p_lab*sin(theta_lab)**(3./2.)))","isKshort!=1")
         e.deactivate_cuts()
     # -- plotting ...
@@ -1790,7 +1783,7 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
     # and the combined histograms
     plot_combined(hc,'H_h_d0')
     plot_combined(hc,'H_h_absd0')
-    plot_combined(hc,'H_h_pLcut15_absd0')
+    plot_combined(hc,'H_h_pLcut10_absd0')
     plot_combined(hc,'H_h_Resd0')
     plot_combined(hc,'H_h_pLcut15_Resd0')
     plot_combined(hc,'H_h_pLcut10_R_Ks')
@@ -1895,13 +1888,6 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
             log=True)
     make_plot(observables,(I_PL,I_EFF_GG),Eff_GG_attr,g_points_dict=graphs_leg_sig,leg_position="UPR")
 
-    Eff_WW_attr = plot_attributes('Eff_WW',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='efficiency',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_EFF_WW),Eff_WW_attr,g_points_dict=graphs_leg_sig,leg_position="UPR")
-
     Nevents_SS_attr = plot_attributes('N_ss_events',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# events',
@@ -1944,13 +1930,6 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
             log=True)
     make_plot(observables,(I_PL,I_N_DD),Nevents_DD_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNL")
 
-    Nevents_WW_attr = plot_attributes('N_WW_events',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# events',
-            x0 = pLMin, y0 = 1.,
-            log=True)
-    make_plot(observables,(I_PL,I_N_WW),Nevents_WW_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNL")
-
     BCdf_BB_attr = plot_attributes('BCDF_BB',
             xtitle='p_{||}^{c}', xunit = '[GeV]', 
             ytitle='# fraction of BC daughters',
@@ -1992,13 +1971,6 @@ def main_fixed_pid(rootfile,channels,tables,pLMin,pLMax,pLcut_type,d0cuts,d0cut_
             x0 = pLMin, y0 = 0.,
             log=False)
     make_plot(observables,(I_PL,I_BCDF_GG),BCdf_GG_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNR")
-        
-    BCdf_WW_attr = plot_attributes('BCDF_WW',
-            xtitle='p_{||}^{c}', xunit = '[GeV]', 
-            ytitle='# fraction of BC daughters',
-            x0 = pLMin, y0 = 0.,
-            log=False)
-    make_plot(observables,(I_PL,I_BCDF_WW),BCdf_WW_attr,g_points_dict=graphs_leg_sig,leg_position="DOWNR")
         
     
     # ROC curve
@@ -2320,8 +2292,8 @@ COLORS_PLT_DET = [ 'black','indianred', 'goldenrod','darksage', 'royalblue', 'ca
 LINESTYLES_DET = ['-', '-', '-', '-', '-', '-', '-', '-']
 LEGEND_DET     = { 'gg': 'gg', 'bb': 'bbbar', 'cc': 'ccbar',
                    'ss': 'ssbar', 'uu': 'uubar', 'dd': 'ddbar',
-                   'tt': 'tautaubar', 'WW': 'WW'}
-ORDER_DET = { 'ss': 0, 'gg':1, 'bb':2, 'cc':3 , 'uu':4, 'dd':5, 'WW':6, 'tt':7}
+                   'tt': 'tautaubar'}
+ORDER_DET = { 'ss': 0, 'gg':1, 'bb':2, 'cc':3 , 'uu':4, 'dd':5, 'tt':6}
 
 
 def plot_python_detailed(_x,ydict,plotname,ylabel,ylog=True):
@@ -2375,8 +2347,6 @@ def plot_python_detailed(_x,ydict,plotname,ylabel,ylog=True):
             plotcolors = 'cadetblue'
         elif 'tt' in pidname:
             plotcolors = 'violet'
-        elif 'WW' in pidname:
-            plotcolors = 'darkorchid'
 
         if '_CC' in pidname:
             plotlines = '--'
@@ -2466,22 +2436,19 @@ def main_cmp_pid(listpklfiles, verbose, pLcut):
             n['uu']=[]
             n['dd']=[]
             n['ss']=[]
-            n['WW']=[]
             eff['bb']=[]
             eff['cc']=[]
             eff['ss']=[]
             eff['uu']=[]
             eff['dd']=[]
             eff['gg']=[]
-            eff['WW']=[]
             bcdf['bb']=[]
             bcdf['cc']=[]
             bcdf['ss']=[]
             bcdf['uu']=[]
             bcdf['dd']=[]
             bcdf['gg']=[]
-            bcdf['WW']=[]
-            for p,e_signal,significance,_x1,_x2,n_signal,n_bkg,e_bkg,n_bb,n_cc,n_gg,n_uu,n_dd, n_WW, eff_bb, eff_cc, eff_ss, eff_uu, eff_dd, eff_gg, eff_WW, bcdf_bb, bcdf_cc, bcdf_ss, bcdf_uu, bcdf_dd, bcdf_gg, bcdf_WW in d0list:
+            for p,e_signal,significance,_x1,_x2,n_signal,n_bkg,e_bkg,n_bb,n_cc,n_gg,n_uu,n_dd, eff_bb, eff_cc, eff_ss, eff_uu, eff_dd, eff_gg, bcdf_bb, bcdf_cc, bcdf_ss, bcdf_uu, bcdf_dd, bcdf_gg in d0list:
                 y[pid].append(significance)
                 n['bb'].append(n_bb)
                 n['cc'].append(n_cc)
@@ -2489,28 +2456,25 @@ def main_cmp_pid(listpklfiles, verbose, pLcut):
                 n['uu'].append(n_uu)
                 n['dd'].append(n_dd)
                 n['ss'].append(n_signal)
-                n['WW'].append(n_WW)
                 bcdf['bb'].append(bcdf_bb)
                 bcdf['cc'].append(bcdf_cc)
                 bcdf['gg'].append(bcdf_gg)
                 bcdf['uu'].append(bcdf_uu)
                 bcdf['dd'].append(bcdf_dd)
                 bcdf['ss'].append(bcdf_ss)
-                bcdf['WW'].append(bcdf_WW)
                 eff['bb'].append(eff_bb)
                 eff['cc'].append(eff_cc)
                 eff['ss'].append(eff_ss)
                 eff['uu'].append(eff_uu)
                 eff['dd'].append(eff_dd)
                 eff['gg'].append(eff_gg)
-                eff['WW'].append(eff_WW)
                 if p==pLcut:
                     sigd0[pid].append(significance)
                     total_bcdf[pid].append(
                         save_divide(sum(map(lambda ch: n[ch][-1] * bcdf[ch][-1],
-                                            ['bb','cc','gg','uu','dd','WW'])),
+                                            ['bb','cc','gg','uu','dd'])),
                                     sum(map(lambda ch: n[ch][-1],
-                                            ['bb','cc','gg','uu','dd', 'WW'])),0))
+                                            ['bb','cc','gg','uu','dd'])),0))
 
             plot_python_detailed(x,n,'nevents_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), '# events')
             plot_python_detailed(x,eff,'eff_cmp_{0}_{1}{2}'.format(d0cut,pid,SUFFIXPLOTS), 'efficiency')
@@ -2521,9 +2485,9 @@ def main_cmp_pid(listpklfiles, verbose, pLcut):
             outfile='efficiencies_{0}_{1}.txt'.format(d0cut,pid)
             f = open(outfile, 'w')
             for i in range(0,len(x)):
-                f.write('{0:3}   {1:.4e}   {2:.4e}   {3:.4e}   {4:.4e}   {5:.4e}   {6:.4e}   {7:.4e}\n'.format(
+                f.write('{0:3}   {1:.4e}   {2:.4e}   {3:.4e}   {4:.4e}   {5:.4e}   {6:.4e}\n'.format(
                     x[i], eff['bb'][i], eff['cc'][i], eff['ss'][i], eff['uu'][i],
-                    eff['dd'][i], eff['gg'][i],  eff['WW'][i]))
+                    eff['dd'][i], eff['gg'][i]))
             f.close()
             
             if verbose:
@@ -2685,7 +2649,7 @@ if __name__ == '__main__':
     
     if args.which == 'fixed_pid':
         # Which trees should be used?
-        pre_channels = [ 'ssbar','bbbar','ccbar', 'gg', 'WW' ]
+        pre_channels = [ 'ssbar','bbbar','ccbar', 'gg']
         if args.light_channels:
             pre_channels += [ 'uubar', 'ddbar' ]
         channels = [ "{0}_{1}".format(x,args.channel_mode[0]) for x in pre_channels ]

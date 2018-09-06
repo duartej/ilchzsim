@@ -5,7 +5,7 @@
    usage: 
 """
 # Final states in the Higgs channel
-HiggsChannels=['CC', 'NC', 'NN', '1C']
+HiggsChannels=['CC', 'NC', 'NN']
 
 # Higgs branching ratios
 Hbbbar = 5.66e-1
@@ -60,6 +60,19 @@ class progressbar(object):
         import sys
         sys.stdout.write('\n')
 
+def difflist(l,k, changedindex):
+    """ check how many different items a list has. Used for checking how different a parameter point is
+    """
+    v=0
+    for i in range(len(l)):
+        if i==3: #index 2 and 3 are correlated
+            continue
+        if l[i]!=k[i]:
+            v+=1
+            if i==changedindex: # prefer points that changed in the same index as before
+                v-=0.1
+    return v
+
 class parameterspace(object):
     """ administer a list of all points of the rectangular parameterspace.
     """
@@ -73,10 +86,12 @@ class parameterspace(object):
         self.dimension = len(self.parameterpoints[0])
         # get the possible values for all parameters"
         self.values=[sorted(list(set([v[i] for v in self.parameterpoints]))) for i in range(self.dimension)]
-        
-    def getneighbors(self, point, depth):
-        """get the neighboring parameter points of the input points in the multidimensional space. See below
-        for a sketch in 2D. 'p' is the input point and 'r' the neighbors that are returned.
+
+    def getneighbors(self, point, depth, oldWP, maxdiff=2):
+        """get the neighboring parameter points of the input points in the multidimensional space. See
+        below for a sketch in 2D. 'p' is the input point and 'r' the neighbors that are
+        returned. oldWP is used to first return neighbours which have a change in the same index as
+        in the step from oldWP to point
         -------
         --rrr--
         --rpr--
@@ -86,10 +101,20 @@ class parameterspace(object):
         """
         import itertools
 
-        # check if point is in listofpoints
-        if point not in self.parameterpoints:
-            raise IndexError
-
+        # get the (first) index that changed from going from oldWP to point
+        changedindex=-1
+        for i in range(len(point)):
+            if point[i]!=oldWP[i]:
+                changedindex=i
+                break
+        
+        # return all parameter points if required
+        if depth == -1:
+            neighbours= [p for p in self.parameterpoints]
+            neighbours.remove(point)
+            neighbours= list(filter(lambda p: difflist(point, p, changedindex) <= maxdiff, neighbours))
+            return sorted(neighbours, key=lambda p: difflist(point, p, changedindex))
+        
         # get indexes of the variables of point
         indexlist = list(map(lambda i: self.values[i].index(point[i]), range(self.dimension)))
 
@@ -98,7 +123,7 @@ class parameterspace(object):
         for i in range(self.dimension):
             valuelist.append([])
             valuelist[-1].append(self.values[i][indexlist[i]])
-            for d in range(1, depth):
+            for d in range(1, depth+1):
                 if indexlist[i]-d >= 0:
                     valuelist[-1].append(self.values[i][indexlist[i]-d])
                 if indexlist[i]+d < len(self.values[i]):
@@ -109,7 +134,8 @@ class parameterspace(object):
             if list(element) in self.parameterpoints:
                 neighbours.append(list(element))
         neighbours.remove(point)
-        return neighbours
+        neighbours= list(filter(lambda p: difflist(point, p, changedindex) <= maxdiff, neighbours))
+        return sorted(neighbours, key=lambda p: difflist(point, p, changedindex))
         
 def Possible_SubAnalyses(scenario):
     """ Return the possible analysis channels for a given collider scenario
@@ -551,14 +577,13 @@ def nonHiggsEff(process, effs):
     """
 
     [bb, cc, ss, uu, dd, gg, ww] = effs
-    w = 0.5*np.sqrt(uu*dd) + 0.5*np.sqrt(cc*ss)
     if process == 'ZZstarInv':
         relativeBRs=np.array([Zbbbar, Zccbar, Zssbar, Zuubar, Zddbar, 0])
         return sum(effs*relativeBRs)
     if process == 'CEPCInv':
         return 0.653*ww + 0.061*uu + 0.06*dd + 0.064*cc + 0.06*ss + 0.098*bb + 0.00*gg
     elif process == 'WWstarInv':
-        return w
+        return -1
     elif process == 'WW1stGen':
         return np.sqrt(uu*dd)
     elif process == 'WW2ndGen':
@@ -576,15 +601,26 @@ def evaluateWP(HiggsEvents, NonHiggsEvents, eff, WP, chargechannel, analysischan
     """ calculate the upper limit and other values for a given working point
     """
 
-    [d0, etrack, eK, ePi, eK0, pLcut] = WP
-    signal=HiggsEvents*Hssbar*eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0, pLcut]
-    background=HiggsEvents*sum(list(map(lambda x:
-                                        HBR[x]*eff[chargechannel, x, etrack, eK, ePi, eK0, d0, pLcut],
-                                        ['bb', 'cc', 'uu', 'dd', 'gg'])))
-    background+=(NonHiggsEvents *
-                 nonHiggsEff(analysischannel, list(map(lambda c:
-                                eff[chargechannel, c, etrack, eK, ePi, eK0, d0, pLcut],
-                                ['bb', 'cc', 'ss', 'uu', 'dd', 'gg', 'ww']))))
+    if chargechannel == '1C':
+        [d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = WP
+        signal=HiggsEvents*Hssbar*eff[chargechannel, 'ss', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC]
+        background=HiggsEvents*sum(list(map(lambda x:
+                                            HBR[x]*eff[chargechannel, x, d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC],
+                                            ['bb', 'cc', 'uu', 'dd', 'gg'])))
+        background+=(NonHiggsEvents *
+                     nonHiggsEff(analysischannel, list(map(lambda c:
+                                                eff[chargechannel, c, d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC],
+                                                    ['bb', 'cc', 'ss', 'uu', 'dd', 'gg', 'ww']))))
+    else:
+        [d0, etrack, eK, ePi, eK0, pLcut] = WP
+        signal=HiggsEvents*Hssbar*eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0, pLcut]
+        background=HiggsEvents*sum(list(map(lambda x:
+                                            HBR[x]*eff[chargechannel, x, etrack, eK, ePi, eK0, d0, pLcut],
+                                            ['bb', 'cc', 'uu', 'dd', 'gg'])))
+        background+=(NonHiggsEvents *
+                     nonHiggsEff(analysischannel, list(map(lambda c:
+                                                eff[chargechannel, c, etrack, eK, ePi, eK0, d0, pLcut],
+                                                    ['bb', 'cc', 'ss', 'uu', 'dd', 'gg', 'ww']))))
                         
     mu = Expected_UpperLimit([signal, background])
 
@@ -603,47 +639,85 @@ def GetBestWP(HiggsEvents, NonHiggsEvents, eff, WP, chargechannel, analysischann
         print(mutmp)
     change = True
     checked = []
+    checked.append(WP)
+    oldWP = [x for x in WP]
     while change:
         change = False
-        for point in ps.getneighbors(WP,1):
-            if point in checked:
-                continue
+        print('checking {0} points'.format(len([p for p in ps.getneighbors(WP,1,oldWP) if p not in checked])))
+        for point in [p for p in ps.getneighbors(WP,1,oldWP) if p not in checked]:
             checked.append(point)
             mutest = evaluateWP(HiggsEvents, NonHiggsEvents, eff, point, chargechannel, analysischannel)[2]
             if mutest < mutmp:
+                oldWP = [x for x in WP]
                 WP = point
                 mutmp = mutest
                 change = True
                 break
         if change:
             continue
+        print('checked first neighbours')
 
         # if nearest neighbours did not succeed, try second neighbours
-        for point in [p for p in ps.getneighbors(WP,2) if p not in checked]:
-            if point in checked:
-                continue
+        print('checking {0} points'.format(len([p for p in ps.getneighbors(WP,2,oldWP,1) if p not in checked])))
+        for point in [p for p in ps.getneighbors(WP,2,oldWP,1) if p not in checked]:
             checked.append(point)
             mutest = evaluateWP(HiggsEvents, NonHiggsEvents, eff, point, chargechannel, analysischannel)[2]
             if mutest < mutmp:
+                oldWP = [x for x in WP]
                 WP = point
                 mutmp = mutest
                 change = True
                 break
         if change:
             continue
-
-        # if second neighbours did not succeed, try fifth neighbours
-        for point in [p for p in ps.getneighbors(WP,5) if p not in checked]:
-            if point in checked:
-                continue
+        print('checked secon neighbours')
+        
+        # if nearest neighbours did not succeed, try third neighbours
+        print('checking {0} points'.format(len([p for p in ps.getneighbors(WP,3,oldWP,1) if p not in checked])))
+        for point in [p for p in ps.getneighbors(WP,3,oldWP,1) if p not in checked]:
             checked.append(point)
             mutest = evaluateWP(HiggsEvents, NonHiggsEvents, eff, point, chargechannel, analysischannel)[2]
             if mutest < mutmp:
+                oldWP = [x for x in WP]
                 WP = point
                 mutmp = mutest
                 change = True
                 break
-            
+        if change:
+            continue
+        print('checked third neighbours')
+
+        # if nearest neighbours did not succeed, try fourth neighbours
+        print('checking {0} points'.format(len([p for p in ps.getneighbors(WP,4,oldWP,1) if p not in checked])))
+        for point in [p for p in ps.getneighbors(WP,4,oldWP,1) if p not in checked]:
+            checked.append(point)
+            mutest = evaluateWP(HiggsEvents, NonHiggsEvents, eff, point, chargechannel, analysischannel)[2]
+            if mutest < mutmp:
+                oldWP = [x for x in WP]
+                WP = point
+                mutmp = mutest
+                change = True
+                break
+        if change:
+            continue
+        print('checked fourth neighbours')
+
+        """
+        # if second neighbours did not succeed, try all neighbours
+        for point in [p for p in ps.getneighbors(WP,-1,oldWP,5) if p not in checked]:
+            checked.append(point)
+            mutest = evaluateWP(HiggsEvents, NonHiggsEvents, eff, point, chargechannel, analysischannel)[2]
+            if mutest < mutmp:
+                Print_Warning('found improvement beyond 4th neighour')
+                oldWP = [x for x in WP]
+                WP = point
+                print('oldWP = {0}  => {1}'.format(oldWP, mutmp))
+                print('WP    = {0}  => {1}'.format(WP, mutest))
+                mutmp = mutest
+                change = True
+                break
+        """
+
     return WP
             
 
@@ -714,14 +788,15 @@ if __name__ == '__main__':
         exit()
 
     # Read all the efficiencies
-    parameters = [] # (d0, etrack, eK, ePi, eK0)
+    parameters = {} # (d0, etrack, eK, ePi, eK0)
     pcutlist   = []
     eff        = {}
     firstFile  = True
-    firstChannel      = True
     processedChargeChannels = []
     for chargechannel in HiggsChannels:
         if chargechannel in basedirentries and os.path.isdir(basedir+'/'+chargechannel):
+            parameters[chargechannel]=[]
+
             processedChargeChannels.append(chargechannel)
             effFiles = filter(lambda x: 'combinedeffs' in x and 'txt' in x,
                               os.listdir(basedir+'/'+chargechannel))
@@ -743,14 +818,14 @@ if __name__ == '__main__':
                 # read the efficiencies from the file
                 f = open(basedir + '/' + chargechannel + '/' +effFile, 'r')
                 for line in f:
-                    [pcut, effB, effC, effS, effU, effD, effG, effW, W250] = map(lambda x: float(x), line.split())
+                    [pcut, effB, effC, effS, effU, effD, effG, effW200, effW250] = map(lambda x: float(x), line.split())
                     eff[chargechannel, 'bb',etrack, eK, ePi, eK0, d0cut, pcut] = effB
                     eff[chargechannel, 'cc',etrack, eK, ePi, eK0, d0cut, pcut] = effC
                     eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0cut, pcut] = effS
                     eff[chargechannel, 'uu',etrack, eK, ePi, eK0, d0cut, pcut] = effU
                     eff[chargechannel, 'dd',etrack, eK, ePi, eK0, d0cut, pcut] = effD
                     eff[chargechannel, 'gg',etrack, eK, ePi, eK0, d0cut, pcut] = effG
-                    eff[chargechannel, 'ww',etrack, eK, ePi, eK0, d0cut, pcut] = effW
+                    eff[chargechannel, 'ww',etrack, eK, ePi, eK0, d0cut, pcut] = effW250
 
                     if firstFile:
                         pcutlist.append(pcut)
@@ -760,16 +835,9 @@ if __name__ == '__main__':
                 f.close()
                 firstFile=False
 
-                
-                if firstChannel:
-                    parameters.append(parameter)
-                else:
-                    if not parameter in parameters:
-                        Print_Fail('parameters {0} not the same in each chargechannel'.format(parameter))
+                parameters[chargechannel].append(parameter)
 
-            if firstChannel:
-                firstChannel=False
-                parameters.sort()
+            parameters[chargechannel].sort()
 
     firstScenario=True
     for scenario in scenarios:
@@ -927,14 +995,51 @@ if __name__ == '__main__':
     NnHiggs=np.logspace(np.log10(100), np.log10(10**7), num=nraster)
     NH,NnH = np.meshgrid(NHiggs, NnHiggs)
     
-    allparameters = []
-
-    for element in itertools.product(*[parameters, pcutlist]):
-        allparameters.append(element[0]+[element[1]])
-    
     for analysischannel in ['CEPCInv' ]: #'WWstarInv', 'WW1stGen', 'WW2ndGen', 'GG', 'BB']: #['ZZstarInv', 'WWstarInv']:
-        for chargechannel in ['CC']:
+        for chargechannel in ['1C']:
             print('{0}   {1}'.format(analysischannel, chargechannel))
+
+            allparameters = []
+
+            print('prepare parameter space')
+            if chargechannel == '1C':
+                for CCparameter in parameters['CC']: # d0cut, etrack, eK, ePi, eK0
+                    [d0cutCC, etrack, eK, ePi, eK0] = CCparameter
+                    for NCparameter in parameters['NC']: # d0cut, etrack, eK, ePi, eK0
+                        [d0cutNC, etrackNC, eKNC, ePiNC, eK0NC] = NCparameter
+                        if not CCparameter[1::]==NCparameter[1::]:
+                            continue
+                        for pcutCC in pcutlist:
+                            for pcutNC in pcutlist:
+                                allparameters.append(CCparameter+[d0cutNC, pcutCC, pcutNC])
+                for parameter in allparameters:
+                    [d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = parameter
+                    eff['1C', 'bb', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = \
+                        eff['CC', 'bb', etrack, eK, ePi, eK0, d0cutCC, pcutCC] + \
+                        eff['NC', 'bb', etrack, eK, ePi, eK0, d0cutNC, pcutNC]
+                    eff['1C', 'cc', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = \
+                        eff['CC', 'cc', etrack, eK, ePi, eK0, d0cutCC, pcutCC] + \
+                        eff['NC', 'cc', etrack, eK, ePi, eK0, d0cutNC, pcutNC]
+                    eff['1C', 'ss', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = \
+                        eff['CC', 'ss', etrack, eK, ePi, eK0, d0cutCC, pcutCC] + \
+                        eff['NC', 'ss', etrack, eK, ePi, eK0, d0cutNC, pcutNC]
+                    eff['1C', 'uu', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = \
+                        eff['CC', 'uu', etrack, eK, ePi, eK0, d0cutCC, pcutCC] + \
+                        eff['NC', 'uu', etrack, eK, ePi, eK0, d0cutNC, pcutNC]
+                    eff['1C', 'dd', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = \
+                        eff['CC', 'dd', etrack, eK, ePi, eK0, d0cutCC, pcutCC] + \
+                        eff['NC', 'dd', etrack, eK, ePi, eK0, d0cutNC, pcutNC]
+                    eff['1C', 'gg', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = \
+                        eff['CC', 'gg', etrack, eK, ePi, eK0, d0cutCC, pcutCC] + \
+                        eff['NC', 'gg', etrack, eK, ePi, eK0, d0cutNC, pcutNC]
+                    eff['1C', 'ww', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = \
+                        eff['CC', 'ww', etrack, eK, ePi, eK0, d0cutCC, pcutCC] + \
+                        eff['NC', 'ww', etrack, eK, ePi, eK0, d0cutNC, pcutNC]
+                                
+            else:
+                for element in itertools.product(*[parameters[chargechannel], pcutlist]):
+                    allparameters.append(element[0]+[element[1]])
+            print('finished preparing parameter space')
             BestWP      = {}
             Bestd0cut   = [[0 for i in range(nraster)] for j in range(nraster)]
             BestpLcut   = [[0 for i in range(nraster)] for j in range(nraster)]
@@ -951,6 +1056,7 @@ if __name__ == '__main__':
             for [NonHiggsEvents, HiggsEvents] in itertools.product(*[NnHiggs,NHiggs]):
                 NonHiggsIndex = np.where(NnHiggs==NonHiggsEvents)[0][0]
                 HiggsIndex    = np.where(NHiggs ==HiggsEvents)[0][0]
+                print('GetBestWP[{0}, {1}]'.format(NonHiggsIndex, HiggsIndex))
                 if NonHiggsIndex == HiggsIndex == 0:
                     BestWP[(NonHiggsEvents, HiggsEvents)] = GetBestWP(HiggsEvents, NonHiggsEvents, eff,
                                                                 allparameters[0], chargechannel,
@@ -963,7 +1069,16 @@ if __name__ == '__main__':
                     BestWP[(NonHiggsEvents, HiggsEvents)] = GetBestWP(HiggsEvents, NonHiggsEvents, eff,
                                                                 BestWP[(NonHiggsEvents, NHiggs[HiggsIndex-1])],
                                                                 chargechannel, analysischannel, allparameters)
-                [d0, etrack, eK, ePi, eK0, pLcut] = BestWP[(NonHiggsEvents, HiggsEvents)]
+                if chargechannel == '1C':
+                    [d0, etrack, eK, ePi, eK0, d0cutNC, pLcut, pcutNC] = BestWP[(NonHiggsEvents, HiggsEvents)]
+                    Bestd0cutNC[NonHiggsIndex][HiggsIndex] = d0cutNC
+                    BestpLcutNC[NonHiggsIndex][HiggsIndex] = pcutNC
+                else:
+                    [d0, etrack, eK, ePi, eK0, pLcut] = BestWP[(NonHiggsEvents, HiggsEvents)]
+                    d0cutNC = 0
+                    pcutNC  = 0
+                    Bestd0cutNC[NonHiggsIndex][HiggsIndex] = d0cutNC
+                    BestpLcutNC[NonHiggsIndex][HiggsIndex] = pcutNC
                 Bestd0cut[NonHiggsIndex][HiggsIndex]  = d0
                 BestpLcut[NonHiggsIndex][HiggsIndex]  = pLcut
                 Bestpid[NonHiggsIndex][HiggsIndex]    = eK
@@ -977,8 +1092,8 @@ if __name__ == '__main__':
                 BestSigEff[NonHiggsIndex][HiggsIndex] = sigeff
                 BestBkgEff[NonHiggsIndex][HiggsIndex] = bkgeff
 
-                f.write("{0} {1} {2} {3} {4} {5} {6} {7}\n".format(
-                    HiggsEvents, NonHiggsEvents, d0 , pLcut, eK, mu, sigeff, bkgeff))
+                f.write("{0} {1} {2} {3} {4} {5} {6} {7} {8} {9}\n".format(
+                    HiggsEvents, NonHiggsEvents, d0 , pLcut, eK, d0cutNC, pcutNC, mu, sigeff, bkgeff))
                 if HiggsIndex == nraster-1:
                     progress2.next()
 
@@ -992,6 +1107,12 @@ if __name__ == '__main__':
                                    chargechannel,analysischannel, suffix), True)
             Plot2D(NH, NnH, np.array(BestpLcut), r'\# $h \to jj$ events', '\# non-$h2j$ events',
                                '$p_{||}^\mathrm{cut}|_\mathrm{best}$ [GeV]', 'BestpL_{0}_{1}.{2}'.format(
+                                   chargechannel,analysischannel, suffix), True)
+            Plot2D(NH, NnH, np.array(Bestd0cutNC), r'\# $h \to jj$ events', '\# non-$h2j$ events',
+                               '$d_0^\mathrm{cut}|_\mathrm{best}$ [$\mu$m]', 'Bestd0NC_{0}_{1}.{2}'.format(
+                                   chargechannel,analysischannel, suffix), True)
+            Plot2D(NH, NnH, np.array(BestpLcutNC), r'\# $h \to jj$ events', '\# non-$h2j$ events',
+                               '$p_{||}^\mathrm{cut}|_\mathrm{best}$ [GeV]', 'BestpLNC_{0}_{1}.{2}'.format(
                                    chargechannel,analysischannel, suffix), True)
             Plot2D(NH, NnH, np.array(Bestpid), r'\# $h \to jj$ events', '\# non-$h2j$ events',
                                '$\epsilon_{K^\pm}|_\mathrm{best}$', 'BestPID_{0}_{1}.{2}'.format(

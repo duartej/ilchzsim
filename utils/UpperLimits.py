@@ -65,8 +65,6 @@ def difflist(l,k, changedindex):
     """
     v=0
     for i in range(len(l)):
-        if i==3: #index 2 and 3 are correlated
-            continue
         if l[i]!=k[i]:
             v+=1
             if i==changedindex: # prefer points that changed in the same index as before
@@ -602,24 +600,24 @@ def evaluateWP(HiggsEvents, NonHiggsEvents, eff, WP, chargechannel, analysischan
     """
 
     if chargechannel == '1C':
-        [d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = WP
-        signal=HiggsEvents*Hssbar*eff[chargechannel, 'ss', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC]
+        [d0cutCC, etrack, eK, eK0, d0cutNC, pcutCC, pcutNC] = WP
+        signal=HiggsEvents*Hssbar*eff[chargechannel, 'ss', d0cutCC, etrack, eK, eK0, d0cutNC, pcutCC, pcutNC]
         background=HiggsEvents*sum(list(map(lambda x:
-                                            HBR[x]*eff[chargechannel, x, d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC],
+                                            HBR[x]*eff[chargechannel, x, d0cutCC, etrack, eK, eK0, d0cutNC, pcutCC, pcutNC],
                                             ['bb', 'cc', 'uu', 'dd', 'gg'])))
         background+=(NonHiggsEvents *
                      nonHiggsEff(analysischannel, list(map(lambda c:
-                                                eff[chargechannel, c, d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC],
+                                                eff[chargechannel, c, d0cutCC, etrack, eK, eK0, d0cutNC, pcutCC, pcutNC],
                                                     ['bb', 'cc', 'ss', 'uu', 'dd', 'gg', 'ww']))))
     else:
-        [d0, etrack, eK, ePi, eK0, pLcut] = WP
-        signal=HiggsEvents*Hssbar*eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0, pLcut]
+        [d0, etrack, eK, eK0, pLcut] = WP
+        signal=HiggsEvents*Hssbar*eff[chargechannel, 'ss',etrack, eK, eK0, d0, pLcut]
         background=HiggsEvents*sum(list(map(lambda x:
-                                            HBR[x]*eff[chargechannel, x, etrack, eK, ePi, eK0, d0, pLcut],
+                                            HBR[x]*eff[chargechannel, x, etrack, eK, eK0, d0, pLcut],
                                             ['bb', 'cc', 'uu', 'dd', 'gg'])))
         background+=(NonHiggsEvents *
                      nonHiggsEff(analysischannel, list(map(lambda c:
-                                                eff[chargechannel, c, etrack, eK, ePi, eK0, d0, pLcut],
+                                                eff[chargechannel, c, etrack, eK, eK0, d0, pLcut],
                                                     ['bb', 'cc', 'ss', 'uu', 'dd', 'gg', 'ww']))))
                         
     mu = Expected_UpperLimit([signal, background])
@@ -788,7 +786,7 @@ if __name__ == '__main__':
         exit()
 
     # Read all the efficiencies
-    parameters = {} # (d0, etrack, eK, ePi, eK0)
+    parameters = {} # (d0, etrack, eK, eK0)
     pcutlist   = []
     eff        = {}
     firstFile  = True
@@ -806,8 +804,8 @@ if __name__ == '__main__':
                 # print('file: {0}/{1}'.format(chargechannel, effFile))
                 try:
                     [dummy2, d0cut, etrack, eK, ePi, eK0, dummy2] = effFile.replace('_','-').split('-')
-                    parameter = list(map(lambda x: float(x), [d0cut, etrack, eK, ePi, eK0]))
-                    [d0cut, etrack, eK, ePi, eK0] = parameter
+                    parameter = list(map(lambda x: float(x), [d0cut, etrack, eK, eK0]))
+                    [d0cut, etrack, eK, eK0] = parameter
                 except:
                     Print_Warning('failed with file {0}'.format(effFile))
                     continue
@@ -819,13 +817,13 @@ if __name__ == '__main__':
                 f = open(basedir + '/' + chargechannel + '/' +effFile, 'r')
                 for line in f:
                     [pcut, effB, effC, effS, effU, effD, effG, effW200, effW250] = map(lambda x: float(x), line.split())
-                    eff[chargechannel, 'bb',etrack, eK, ePi, eK0, d0cut, pcut] = effB
-                    eff[chargechannel, 'cc',etrack, eK, ePi, eK0, d0cut, pcut] = effC
-                    eff[chargechannel, 'ss',etrack, eK, ePi, eK0, d0cut, pcut] = effS
-                    eff[chargechannel, 'uu',etrack, eK, ePi, eK0, d0cut, pcut] = effU
-                    eff[chargechannel, 'dd',etrack, eK, ePi, eK0, d0cut, pcut] = effD
-                    eff[chargechannel, 'gg',etrack, eK, ePi, eK0, d0cut, pcut] = effG
-                    eff[chargechannel, 'ww',etrack, eK, ePi, eK0, d0cut, pcut] = effW250
+                    eff[chargechannel, 'bb',etrack, eK, eK0, d0cut, pcut] = effB
+                    eff[chargechannel, 'cc',etrack, eK, eK0, d0cut, pcut] = effC
+                    eff[chargechannel, 'ss',etrack, eK, eK0, d0cut, pcut] = effS
+                    eff[chargechannel, 'uu',etrack, eK, eK0, d0cut, pcut] = effU
+                    eff[chargechannel, 'dd',etrack, eK, eK0, d0cut, pcut] = effD
+                    eff[chargechannel, 'gg',etrack, eK, eK0, d0cut, pcut] = effG
+                    eff[chargechannel, 'ww',etrack, eK, eK0, d0cut, pcut] = effW250
 
                     if firstFile:
                         pcutlist.append(pcut)
@@ -865,17 +863,17 @@ if __name__ == '__main__':
 
                 progress1=progressbar(len(parameters))
                 
-                for (d0, etrack, eK, ePi, eK0) in parameters:
-                    # print((d0, etrack, eK, ePi, eK0))
+                for (d0, etrack, eK, eK0) in parameters:
+                    # print((d0, etrack, eK, eK0))
 
                     d0cutlist.append(d0)
-                    pidlist.append([eK, ePi])
+                    pidlist.append(eK)
                     # make list of efficiencies
                     # [[effB], [effC], [effS], [effU], [effD], [effG], [effW], [effNon-Higgs]]
                     # where each entry is a list as funcion of pcut
                     efflist=[]
                     for pcut in pcutlist:
-                        dummy = list(map(lambda x: eff[chargechannel, x, etrack, eK, ePi, eK0, d0, pcut],
+                        dummy = list(map(lambda x: eff[chargechannel, x, etrack, eK, eK0, d0, pcut],
                                          ['bb', 'cc', 'ss', 'uu', 'dd', 'gg', 'ww']))
                         dummy.append(nonHiggsEff('generic', dummy))
                         efflist.append(dummy)
@@ -883,8 +881,8 @@ if __name__ == '__main__':
                     if firstScenario:
                         LogPlot(pcutlist, efflist, '$p_{||}^{\mathrm{cut}}$ [GeV]',
                                 '$\epsilon_{s\mathrm{-tag}}$',
-                                'eff_{0}_{1}_{2}_{3}_{4}_{5}{6}'.format(
-                                    chargechannel, d0, etrack, eK, ePi, eK0, suffix))
+                                'eff_{0}_{1}_{2}_{3}_{4}{5}'.format(
+                                    chargechannel, d0, etrack, eK, eK0, suffix))
 
                     # get number of events
                     NHiggs =collider.NHiggs
@@ -896,31 +894,31 @@ if __name__ == '__main__':
 
                     LogPlot(pcutlist, Nevents,  '$p_{||}^{\mathrm{cut}}$ [GeV]',
                                 '\# events',
-                                'Nevents_{0}_{1}_{2}_{3}_{4}_{5}_{6}_{7}{8}'.format(
-                                    scenario, subAnalysis, chargechannel, d0, etrack, eK, ePi, eK0, suffix))
+                                'Nevents_{0}_{1}_{2}_{3}_{4}_{5}_{6}{7}'.format(
+                                    scenario, subAnalysis, chargechannel, d0, etrack, eK, eK0, suffix))
 
                     # get signal and background numbers
                     dummy = transpose(Nevents)
-                    SignalBackgroundOnlyHiggs[d0,eK,ePi] = list(map(lambda x: [x[2], sum(x)-x[2]-x[6]], dummy))
+                    SignalBackgroundOnlyHiggs[d0,eK] = list(map(lambda x: [x[2], sum(x)-x[2]-x[6]], dummy))
                     if NnHiggs != 0:
-                        SignalBackground[d0, eK, ePi] = list(map(lambda x: [x[2], sum(x)-x[2]], dummy))
+                        SignalBackground[d0, eK] = list(map(lambda x: [x[2], sum(x)-x[2]], dummy))
 
-                    significanceOnlyHiggs[d0, eK, ePi] = list(map(lambda x: Expected_Significance(x),
-                                                                  SignalBackgroundOnlyHiggs[d0, eK, ePi]))
-                    UpperLimitOnlyHiggs[d0, eK, ePi] = list(map(lambda x: Expected_UpperLimit(x),
-                                                                SignalBackgroundOnlyHiggs[d0, eK, ePi]))
+                    significanceOnlyHiggs[d0, eK] = list(map(lambda x: Expected_Significance(x),
+                                                                  SignalBackgroundOnlyHiggs[d0, eK]))
+                    UpperLimitOnlyHiggs[d0, eK] = list(map(lambda x: Expected_UpperLimit(x),
+                                                                SignalBackgroundOnlyHiggs[d0, eK]))
                     if NnHiggs !=0:
-                        UpperLimit[d0, eK, ePi] = list(map(lambda x: Expected_UpperLimit(x),
-                                                           SignalBackground[d0, eK, ePi]))
-                        significance[d0, eK, ePi] = list(map(lambda x: Expected_Significance(x),
-                                                             SignalBackground[d0, eK, ePi]))
+                        UpperLimit[d0, eK] = list(map(lambda x: Expected_UpperLimit(x),
+                                                           SignalBackground[d0, eK]))
+                        significance[d0, eK] = list(map(lambda x: Expected_Significance(x),
+                                                             SignalBackground[d0, eK]))
 
                     progress1.next()
 
                 progress1.stop()
                 d0cutlist=list(set(d0cutlist))
                 d0cutlist.sort()
-                pidlist  =sorted(map(list, set(map(tuple, pidlist))))
+                pidlist  =list(set(pidlist))
 
                 print('getting the significance, upper limit and 2D plots')
                 progress2=progressbar(len(d0cutlist)+ len(pidlist))
@@ -996,45 +994,46 @@ if __name__ == '__main__':
     NH,NnH = np.meshgrid(NHiggs, NnHiggs)
     
     for analysischannel in ['CEPCInv' ]: #'WWstarInv', 'WW1stGen', 'WW2ndGen', 'GG', 'BB']: #['ZZstarInv', 'WWstarInv']:
-        for chargechannel in ['1C']:
+        # choose charge channel
+        for chargechannel in ['CC']:
             print('{0}   {1}'.format(analysischannel, chargechannel))
 
             allparameters = []
 
             print('prepare parameter space')
             if chargechannel == '1C':
-                for CCparameter in parameters['CC']: # d0cut, etrack, eK, ePi, eK0
-                    [d0cutCC, etrack, eK, ePi, eK0] = CCparameter
-                    for NCparameter in parameters['NC']: # d0cut, etrack, eK, ePi, eK0
-                        [d0cutNC, etrackNC, eKNC, ePiNC, eK0NC] = NCparameter
+                for CCparameter in parameters['CC']: # d0cut, etrack, eK, eK0
+                    [d0cutCC, etrack, eK, eK0] = CCparameter
+                    for NCparameter in parameters['NC']: # d0cut, etrack, eK, eK0
+                        [d0cutNC, etrackNC, eKNC, eK0NC] = NCparameter
                         if not CCparameter[1::]==NCparameter[1::]:
                             continue
                         for pcutCC in pcutlist:
                             for pcutNC in pcutlist:
                                 allparameters.append(CCparameter+[d0cutNC, pcutCC, pcutNC])
                 for parameter in allparameters:
-                    [d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = parameter
-                    eff['1C', 'bb', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = \
-                        eff['CC', 'bb', etrack, eK, ePi, eK0, d0cutCC, pcutCC] + \
-                        eff['NC', 'bb', etrack, eK, ePi, eK0, d0cutNC, pcutNC]
-                    eff['1C', 'cc', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = \
-                        eff['CC', 'cc', etrack, eK, ePi, eK0, d0cutCC, pcutCC] + \
-                        eff['NC', 'cc', etrack, eK, ePi, eK0, d0cutNC, pcutNC]
-                    eff['1C', 'ss', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = \
-                        eff['CC', 'ss', etrack, eK, ePi, eK0, d0cutCC, pcutCC] + \
-                        eff['NC', 'ss', etrack, eK, ePi, eK0, d0cutNC, pcutNC]
-                    eff['1C', 'uu', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = \
-                        eff['CC', 'uu', etrack, eK, ePi, eK0, d0cutCC, pcutCC] + \
-                        eff['NC', 'uu', etrack, eK, ePi, eK0, d0cutNC, pcutNC]
-                    eff['1C', 'dd', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = \
-                        eff['CC', 'dd', etrack, eK, ePi, eK0, d0cutCC, pcutCC] + \
-                        eff['NC', 'dd', etrack, eK, ePi, eK0, d0cutNC, pcutNC]
-                    eff['1C', 'gg', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = \
-                        eff['CC', 'gg', etrack, eK, ePi, eK0, d0cutCC, pcutCC] + \
-                        eff['NC', 'gg', etrack, eK, ePi, eK0, d0cutNC, pcutNC]
-                    eff['1C', 'ww', d0cutCC, etrack, eK, ePi, eK0, d0cutNC, pcutCC, pcutNC] = \
-                        eff['CC', 'ww', etrack, eK, ePi, eK0, d0cutCC, pcutCC] + \
-                        eff['NC', 'ww', etrack, eK, ePi, eK0, d0cutNC, pcutNC]
+                    [d0cutCC, etrack, eK, eK0, d0cutNC, pcutCC, pcutNC] = parameter
+                    eff['1C', 'bb', d0cutCC, etrack, eK, eK0, d0cutNC, pcutCC, pcutNC] = \
+                        eff['CC', 'bb', etrack, eK, eK0, d0cutCC, pcutCC] + \
+                        eff['NC', 'bb', etrack, eK, eK0, d0cutNC, pcutNC]
+                    eff['1C', 'cc', d0cutCC, etrack, eK, eK0, d0cutNC, pcutCC, pcutNC] = \
+                        eff['CC', 'cc', etrack, eK, eK0, d0cutCC, pcutCC] + \
+                        eff['NC', 'cc', etrack, eK, eK0, d0cutNC, pcutNC]
+                    eff['1C', 'ss', d0cutCC, etrack, eK, eK0, d0cutNC, pcutCC, pcutNC] = \
+                        eff['CC', 'ss', etrack, eK, eK0, d0cutCC, pcutCC] + \
+                        eff['NC', 'ss', etrack, eK, eK0, d0cutNC, pcutNC]
+                    eff['1C', 'uu', d0cutCC, etrack, eK, eK0, d0cutNC, pcutCC, pcutNC] = \
+                        eff['CC', 'uu', etrack, eK, eK0, d0cutCC, pcutCC] + \
+                        eff['NC', 'uu', etrack, eK, eK0, d0cutNC, pcutNC]
+                    eff['1C', 'dd', d0cutCC, etrack, eK, eK0, d0cutNC, pcutCC, pcutNC] = \
+                        eff['CC', 'dd', etrack, eK, eK0, d0cutCC, pcutCC] + \
+                        eff['NC', 'dd', etrack, eK, eK0, d0cutNC, pcutNC]
+                    eff['1C', 'gg', d0cutCC, etrack, eK, eK0, d0cutNC, pcutCC, pcutNC] = \
+                        eff['CC', 'gg', etrack, eK, eK0, d0cutCC, pcutCC] + \
+                        eff['NC', 'gg', etrack, eK, eK0, d0cutNC, pcutNC]
+                    eff['1C', 'ww', d0cutCC, etrack, eK, eK0, d0cutNC, pcutCC, pcutNC] = \
+                        eff['CC', 'ww', etrack, eK, eK0, d0cutCC, pcutCC] + \
+                        eff['NC', 'ww', etrack, eK, eK0, d0cutNC, pcutNC]
                                 
             else:
                 for element in itertools.product(*[parameters[chargechannel], pcutlist]):
@@ -1070,11 +1069,11 @@ if __name__ == '__main__':
                                                                 BestWP[(NonHiggsEvents, NHiggs[HiggsIndex-1])],
                                                                 chargechannel, analysischannel, allparameters)
                 if chargechannel == '1C':
-                    [d0, etrack, eK, ePi, eK0, d0cutNC, pLcut, pcutNC] = BestWP[(NonHiggsEvents, HiggsEvents)]
+                    [d0, etrack, eK, eK0, d0cutNC, pLcut, pcutNC] = BestWP[(NonHiggsEvents, HiggsEvents)]
                     Bestd0cutNC[NonHiggsIndex][HiggsIndex] = d0cutNC
                     BestpLcutNC[NonHiggsIndex][HiggsIndex] = pcutNC
                 else:
-                    [d0, etrack, eK, ePi, eK0, pLcut] = BestWP[(NonHiggsEvents, HiggsEvents)]
+                    [d0, etrack, eK, eK0, pLcut] = BestWP[(NonHiggsEvents, HiggsEvents)]
                     d0cutNC = 0
                     pcutNC  = 0
                     Bestd0cutNC[NonHiggsIndex][HiggsIndex] = d0cutNC
